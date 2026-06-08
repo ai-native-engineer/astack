@@ -23,6 +23,18 @@ description: 주제/키워드를 받아 사용자의 개인·협업·워크스�
 - **원본 파일(첨부·문서·녹음)은 `attachments/`에 사람이 읽는 이름으로 보존**한다. `260530-F0B5...-image.png` 같은 기계 이름 금지 → `1주차_강의자료.pdf`처럼. 같은 파일은 한 번만(해시로 dedupe). 추출 텍스트가 있으면 `.pdf`+`.txt` 함께.
 - 아카이브 .md와 하위폴더 모두 파일명 앞에 날짜 `YYMMDD-`를 붙인다(아래 날짜 규칙).
 
+## 재실행 머지 (upsert — 덮어쓰기·중복 파일 금지)
+
+같은 소스 아카이브가 `./context/`에 이미 있으면 새 파일을 만들거나 통째로 덮어쓰지 않는다. 기존 파일을 읽어 **증분 병합**한다(없을 때만 새로 생성). 같은 소스의 재실행이 항상 "처음부터 최신 상태로 쓴 한 파일"로 읽혀야 한다.
+
+메타데이터는 아카이브 맨 위 **YAML frontmatter**가 단일 소스다 (스키마·소스별 anchor·머지 절차 전부: `references/archive-schema.md`).
+
+- **증분 기준점(anchor)**: 재수집 전 기존 anchor를 읽어 그 이후만 검색 — `python3 scripts/context_status.py ./context --source <소스>`. slack=마지막 ts(`--oldest`), gmail=마지막 날짜(`after:`) 등. anchor 없으면 본문 항목과 dedupe.
+- **본문 증분**: 기존 항목 보존, 직전 수집 이후 신규 항목만 시간순 제자리에 dedupe(같은 ts·내용 제외)해 끼워 넣는다.
+- **frontmatter 갱신**: `collected_last`=오늘, `range_end`=새 최신 항목일, `anchor`=새 마지막 키, `items` 갱신. `collected_first`·`range_start`는 불변.
+- **결정·인물**: 새 사실 추가, 기존 줄 보존, 충돌하는 옛 결정만 최신으로 교체(옛 값 `→ 변경`).
+- 현황 한눈: `python3 scripts/context_status.py ./context`.
+
 ## 관련성 게이트 (저장 전 필수)
 
 검색은 부분일치로 무관한 걸 대량 긁는다. 저장 전에 **"이게 정말 이 프로젝트(예: B사 회사) 맥락인가?"**를 판정한다.
@@ -94,26 +106,9 @@ description: 주제/키워드를 받아 사용자의 개인·협업·워크스�
 - **Google Workspace(gog)**: 먼저 `gog auth list`로 등록 계정 전수를 뽑고, **각 계정을 `gog -a <email>`로 직접 검색**한다(예 `gog -a <work-account@example.com> gmail search "키워드"`). **OAuth refresh token이 없어도 `service_account`로 등록된 계정은 `-a`로 Gmail/Calendar/Drive가 그대로 검색된다(도메인 와이드 위임, 실측) — "OAuth 없음"으로 미리 스킵하지 말 것.** `gog auth list`에 나오는 모든 계정(개인 Gmail + 회사 Workspace)을 대상으로. Gmail=관련 메일 본문 전문을 이메일 아카이브 1개로+첨부, Calendar=관련 이벤트 상세, Drive=관련 파일 원본을 `attachments/`로. 실제 호출해 **에러나 No results인 계정만** 스킵·사유 기록.
 - **미팅/강의 녹화(OBS·화면녹화)**: `~/Movies` 등에서 `*.mp4`/`*.vtt`를 찾아 `apple-stt`(또는 `mlx_whisper`)로 전사 → 전사본은 대형이므로 **녹화당 1파일**(`YYMMDD-<제목>-전사.md`), 원본 mp4는 `attachments/`. 강의 녹화면 전사 인용으로 **학습자 막힘 포인트 표**를 만들어 차기 회차 교안/과제 반영의 입력으로 둔다. 사용자가 녹화 경로를 주거나 미팅·회차 직후 맥락 수집일 때만 포함.
 
-## 아카이브 헤더 형식 (UTF-8)
+## 아카이브 형식
 
-```markdown
-# <프로젝트> — <소스> 맥락 아카이브
-
-- 수집 계정/채널: <범위>
-- 수집일: YYYY-MM-DD
-- 범위: <최초> ~ <최신>
-- 교차참조: <다른 아카이브와의 역할 구분 한 줄>
-
-## 핵심 인물
-| 이름 | 핸들/이메일 | 역할 |
-
-## 주요 결정사항
-- <날짜> <결정>
-
----
-
-## (시간순 원문 전체)
-```
+맨 위 **YAML frontmatter**(메타 단일 소스) + 본문(핵심 인물 표·주요 결정사항·교차참조·시간순 원문 전체). 새 아카이브는 `templates/archive-template.md`를 복사해 시작하고, 전체 필드·anchor·머지 규칙은 `references/archive-schema.md`를 따른다.
 
 ## 마무리 요약
 
