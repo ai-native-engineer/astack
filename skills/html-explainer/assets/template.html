@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- SLOT: title -->
+<title>제목</title>
+<style>
+  /* ===== 테마 변수 (다크/라이트 자동) — 수정하지 말고 그대로 사용 ===== */
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1a1d21; --muted: #5c6470;
+    --border: #d9dee5; --accent: #2563eb; --green: #16803c; --red: #c2362f;
+    --amber: #92600a; --gray-soft: #eef1f4; --code-bg: #eef1f4;
+    --c-green: #16a34a; --c-amber: #d97706; --c-red: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111418; --card: #1a1f26; --text: #e8eaed; --muted: #9aa3ad;
+      --border: #2d343d; --accent: #6ea2ff; --green: #4ade80; --red: #f87171;
+      --amber: #fbbf24; --gray-soft: #1e242c; --code-bg: #232931;
+      --c-green: #4ade80; --c-amber: #fbbf24; --c-red: #f87171;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6; padding: 40px 20px 80px;
+  }
+  .wrap { max-width: 1020px; margin: 0 auto; }
+  h1 { font-size: 26px; margin-bottom: 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  h2 { font-size: 19px; margin: 52px 0 6px; display: flex; align-items: center; gap: 8px; }
+  h2 iconify-icon { font-size: 20px; color: var(--accent); flex: none; }
+  .h2sub { color: var(--muted); font-size: 13.5px; margin-bottom: 16px; }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; font-family: "SF Mono", Menlo, monospace; }
+
+  /* 범례 */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 14px; font-size: 12.5px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+  .dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .dot.dashed { background: none; border: 2px dashed currentColor; }
+
+  /* Mermaid 다이어그램 컨테이너 */
+  .diagram { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; overflow-x: auto; }
+  .diagram svg { max-width: 100%; height: auto; }
+  .diagram .err { color: var(--red); font-size: 13px; font-family: "SF Mono", Menlo, monospace; white-space: pre-wrap; }
+
+  /* 강조 박스 (warn=빨강 / note=파랑) */
+  .side {
+    border-left: 3px solid var(--border); background: var(--card);
+    border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 10px 0;
+    font-size: 13px; color: var(--muted); display: flex; gap: 10px; align-items: flex-start;
+  }
+  .side iconify-icon { font-size: 18px; flex: none; margin-top: 3px; }
+  .side.warn { border-left-color: var(--red); } .side.warn iconify-icon { color: var(--red); }
+  .side.note { border-left-color: var(--accent); } .side.note iconify-icon { color: var(--accent); }
+  .side b { color: var(--text); }
+
+  /* ECharts 컨테이너 — 명시적 height 필수 */
+  .chart { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 10px; height: 320px; }
+
+  /* 파일 트리 / 코드 블록 */
+  .tree { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 24px;
+          font-family: "SF Mono", Menlo, monospace; font-size: 12.5px; line-height: 1.9; overflow-x: auto; white-space: pre; }
+  .tree .c { color: var(--muted); }
+  .tree .new { color: var(--accent); font-weight: 700; }
+  .tree .keep { color: var(--green); font-weight: 700; }
+  .tree .opt { color: var(--red); }
+
+  /* 비교 표 */
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; background: var(--card); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--gray-soft); font-size: 12.5px; }
+  tr:last-child td { border-bottom: none; }
+  .ok { color: var(--green); font-weight: 600; }
+  .no { color: var(--red); font-weight: 600; }
+  .mid { color: var(--amber); font-weight: 600; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/iconify-icon@3/dist/iconify-icon.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+<!-- SLOT: 본문 — h1/sub, h2(iconify-icon 포함), .legend, .diagram, .side, .chart, .tree, table 조합으로 구성 -->
+<h1>제목</h1>
+<div class="sub">부제 — 맥락 한 줄</div>
+
+<h2><iconify-icon icon="lucide:network"></iconify-icon>다이어그램 섹션</h2>
+<div class="h2sub">설명 한 줄</div>
+<div class="diagram"><div id="arch">다이어그램 렌더링 중…</div></div>
+
+<!-- SLOT: Mermaid 소스 (flowchart + subgraph, architecture-beta 금지, 긴 한국어 라벨은 <br/> 분리) -->
+<script type="text/plain" id="arch-src">
+flowchart LR
+  a["노드 A"] -->|"라벨"| b["노드 B"]
+  classDef src stroke:#16a34a,stroke-width:2.5px
+  class a src
+</script>
+
+<h2><iconify-icon icon="lucide:bar-chart-3"></iconify-icon>차트 섹션</h2>
+<div class="chart"><div id="chart1" style="width:100%;height:100%"></div></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@6/dist/echarts.min.js"></script>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+const isDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
+const FONT = '-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif';
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ===== Mermaid: ELK 자동 레이아웃 + dagre 폴백 + 테마 재렌더 ===== */
+let useElk = true;
+try {
+  const elkLayouts = (await import('https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0/dist/mermaid-layout-elk.esm.min.mjs')).default;
+  mermaid.registerLayoutLoaders(elkLayouts);
+} catch (e) { useElk = false; }
+
+let renderCount = 0;
+async function renderDiagram(srcId, targetId) {
+  const el = document.getElementById(targetId);
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: isDark() ? 'dark' : 'default',
+    fontFamily: FONT,
+    securityLevel: 'loose',
+    ...(useElk ? { layout: 'elk' } : {}),
+  });
+  try {
+    const src = document.getElementById(srcId).textContent.trim();
+    const { svg } = await mermaid.render('m' + (++renderCount), src);
+    el.innerHTML = svg;
+  } catch (e) {
+    el.innerHTML = '<div class="err">다이어그램 렌더 실패:\n' + (e.message || e) + '</div>';
+  }
+}
+
+/* ===== ECharts: 다크 테마 + 재렌더 (차트마다 함수 하나) ===== */
+const charts = [];
+function makeChart(elId, optionFn) {
+  const render = () => {
+    const el = document.getElementById(elId);
+    if (el._chart) el._chart.dispose();
+    el._chart = echarts.init(el, isDark() ? 'dark' : null);
+    el._chart.setOption({ backgroundColor: 'transparent', textStyle: { fontFamily: FONT }, ...optionFn() });
+  };
+  charts.push(render);
+  render();
+}
+
+/* SLOT: 차트 정의 — optionFn 안에서 cssVar로 색을 읽으면 테마 전환 시 자동 갱신 */
+makeChart('chart1', () => ({
+  xAxis: { type: 'category', data: ['A', 'B', 'C'] },
+  yAxis: { type: 'value' },
+  series: [{ type: 'bar', data: [3, 7, 5], itemStyle: { color: cssVar('--accent') } }],
+  grid: { left: 50, right: 20, top: 20, bottom: 30 },
+}));
+
+/* ===== 렌더 + 테마 전환·리사이즈 배선 ===== */
+const renderAll = () => { renderDiagram('arch-src', 'arch'); charts.forEach((r) => r()); };
+renderDiagram('arch-src', 'arch');
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll);
+window.addEventListener('resize', () => document.querySelectorAll('.chart > div').forEach((el) => el._chart && el._chart.resize()));
+
+/* 애니메이션은 이해 보조 목적만 — 엣지 흐름·상태 토글 패턴은 references/stack-guide.md "애니메이션" 섹션 참조 */
+</script>
+</body>
+</html>
