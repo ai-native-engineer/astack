@@ -39,6 +39,7 @@ import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.mi
 - **architecture-beta 금지** (SKILL.md 철칙). flowchart + subgraph로 그룹을 표현한다.
 - 레이아웃: ELK 등록 성공 시 `initialize({ layout: 'elk' })`. 복잡한 그래프에서 기본 dagre보다 엣지 교차가 훨씬 적다.
 - 노드 안 텍스트는 `<br/>`로 줄 분리. 한 줄 ~20자 이내 권장 (CJK 클리핑 이슈 mermaid#7354).
+- **라벨 강조 (제목·핵심 문구)**: `securityLevel: 'loose'`면 라벨에 HTML 허용 — 첫 줄 제목은 `<b style='font-size:14px'>이름</b>`, 역할 태그·핵심 문구는 `<span style='color:var(--변수)'>`. htmlLabels는 foreignObject로 렌더되므로 **페이지 CSS 변수가 그대로 해석돼 다크/라이트 자동 추종** (실측 검증). style 속성은 작은따옴표로 — 라벨의 큰따옴표와 충돌한다. 서브그래프 제목·엣지 라벨에도 동일하게 적용 가능. 모든 줄이 같은 굵기면 제목과 설명이 안 갈리므로, 노드마다 제목 볼드 + 역할 태그 색상은 기본으로 넣는다.
 - 색 구분은 `classDef` + `class`로. **fill을 칠하지 말고 stroke 색만** 지정하면 다크/라이트 양쪽에서 테마 기본 fill과 자연스럽게 어울린다. 점선 구분: `stroke-dasharray:6 4`.
 - 테마는 initialize의 `theme: 'dark' | 'default'`로만 — 라이브 전환은 재렌더 필요(템플릿에 배선됨). `fontFamily`는 initialize에서 지정해야 라벨 폭 측정과 실제 렌더 폰트가 일치한다.
 - 손그림 스타일이 필요하면 `look: 'handDrawn'` (rough.js 내장) — Excalidraw 임베드 불필요.
