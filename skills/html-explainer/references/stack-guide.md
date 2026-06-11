@@ -23,7 +23,10 @@ import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.mi
    e0@{ animate: true }
    ```
    점선(`-.->`)도 동작. "이 구성에서 실제로 데이터가 흐르는 경로"만 animate하면 그 자체가 설명이 된다.
-2. **상태 토글 (구성 A ↔ B)** — 모드 버튼 → 다이어그램 재렌더(모드별 animate 목록 교체) + SVG 후처리 dim + 차트 `setOption` 색 교체 + 표·트리 CSS 클래스 전환을 한 번에. 켜고 끌 때 무엇이 살아나는지가 직접 보인다. SVG 후처리 주의점:
+2. **상태 토글 (구성 A ↔ B)** — 모드 버튼 → 다이어그램 재렌더(모드별 animate 목록 교체) + SVG 후처리 dim + 차트 `setOption` 색 교체 + 표·트리 CSS 클래스 전환을 한 번에. 켜고 끌 때 무엇이 살아나는지가 직접 보인다.
+   - 토글 UI는 **다이어그램 카드 안 상단에 배치** — 카드에 `position: relative` + `padding-top`(~58px)으로 스트립을 확보하고 토글을 absolute로 올린다. SVG 위에 그냥 띄우면 레인 라벨을 가린다.
+   - 버튼에 `<kbd>1</kbd>` `<kbd>2</kbd>` 키캡을 표기하고 **숫자 단축키로도 전환**: keydown에서 modifier 조합(meta/ctrl/alt)은 무시, 스페이스는 페이지 스크롤과 충돌하므로 쓰지 않는다. 키캡 표기로 충분하니 "단축키로 전환" 안내 문구는 따로 넣지 않는다.
+   - SVG 후처리 주의점:
    - mermaid `classDef opacity`는 도형(rect)에만 적용 — 텍스트까지 dim하려면 렌더 후 노드 그룹(`g[id*="flowchart-<id>-"]`)에 `style.opacity` 적용.
    - 엣지 path id에는 렌더 프리픽스가 붙음(`m3-e7`) — `[id$="-e7"]` ends-with로 매칭.
    - 엣지 라벨(`.edgeLabels .edgeLabel`)은 측정용 복제가 섞여 총개수가 엣지 수의 배수 — 배수를 계산해 묶음으로 dim.
