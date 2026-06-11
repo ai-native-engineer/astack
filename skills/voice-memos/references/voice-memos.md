@@ -2,6 +2,8 @@
 
 Apple Voice Memos 앱이 만든 `.m4a`/`.qta` 녹음 파일을 `apple-stt`(macOS SpeechAnalyzer)로 전사하고, 요약·제목 생성·알림까지 다루는 풀 파이프라인. 이 스킬에서 가장 비중이 큰 소스다.
 
+평소에는 launchd 워처가 새 녹음을 감지해 아래 §1·§3·§5를 자동 실행한다(`watcher.md`). 아래 명령들은 수동 재실행·부분 실행용.
+
 ## 위치
 
 - 원본: `~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/*.{m4a,qta}`
@@ -51,11 +53,14 @@ python3 ~/.claude/skills/voice-memos/scripts/correct.py --all --force
 
 주의: claude-agent-sdk에는 WebSearch 도구가 없다. `allowed_tools=["WebSearch"]`를 주면 max_turns를 소진하고 빈 응답을 반환하므로 추가하지 말 것.
 
+claude-agent-sdk 의존이라 스킬 디렉터리의 uv venv로 실행하고, Claude Code 세션 안에서는 `CLAUDECODE`를 unset한다 (run.sh와 동일).
+
 ```bash
-python3 ~/.claude/skills/voice-memos/scripts/summarize.py            # 미요약만
-python3 ~/.claude/skills/voice-memos/scripts/summarize.py --all --force
-python3 ~/.claude/skills/voice-memos/scripts/summarize.py --recent 5
-python3 ~/.claude/skills/voice-memos/scripts/summarize.py --file <path/transcript.md>
+cd ~/.claude/skills/voice-memos && unset CLAUDECODE
+uv run python scripts/summarize.py            # 미요약만
+uv run python scripts/summarize.py --all --force
+uv run python scripts/summarize.py --recent 5
+uv run python scripts/summarize.py --file <path/transcript.md>
 ```
 
 또는 LLM이 직접 전사본을 읽고 아래 템플릿으로 요약을 만들어 `summary.md`에 저장한다.

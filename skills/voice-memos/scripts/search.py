@@ -5,176 +5,21 @@
 """
 
 import argparse
-import gzip
 import re
-import sqlite3
 import sys
-import zlib
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
+
+import vm_notes
 
 TRANSCRIPTS_DIR = Path.home() / ".voice-memos/transcripts"
 CALL_RECORDINGS_DIR = (
     Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/녹음"
 )
-APPLE_NOTES_DB = (
-    Path.home() / "Library/Group Containers/group.com.apple.notes/NoteStore.sqlite"
-)
 
 # 에이닷 통화 녹음 파일명: `<이름>_<휴대폰번호>_<YYYYMMDD>_<HHMMSS>.txt`
 # 예: `홍길동님_01012345678_20260407_165111.txt`
 CALL_FILENAME_RE = re.compile(r"^(.+?)_(\d{10,11})_(\d{8})_(\d{6})\.txt$")
-
-# Apple Notes는 가상 Path(`apple-note:<Z_PK>`)로 표현해 다른 소스와 동일한 list[Path] 인터페이스 유지.
-NOTE_PATH_PREFIX = "apple-note:"
-
-# Apple Notes 메타 캐시 (Path → dict). iter_transcript_files() 호출 시 갱신.
-_NOTES_META: dict[Path, dict] = {}
-
-
-def is_note(path: Path) -> bool:
-    """Apple Notes 가상 Path인지 판별."""
-    return str(path).startswith(NOTE_PATH_PREFIX)
-
-
-def _note_path(pk: int) -> Path:
-    return Path(f"{NOTE_PATH_PREFIX}{pk}")
-
-
-def _read_varint(data: bytes, pos: int) -> tuple[int, int]:
-    result, shift = 0, 0
-    while pos < len(data):
-        b = data[pos]
-        pos += 1
-        result |= (b & 0x7F) << shift
-        if not (b & 0x80):
-            return result, pos
-        shift += 7
-        if shift > 64:
-            raise ValueError("varint too long")
-    raise ValueError("truncated varint")
-
-
-def _pb_find_field(data: bytes, target_fn: int) -> bytes | None:
-    """단순 protobuf 파서: 첫 번째 매칭 length-delimited 필드 반환."""
-    pos = 0
-    while pos < len(data):
-        try:
-            tag, pos = _read_varint(data, pos)
-        except ValueError:
-            return None
-        wt = tag & 0x07
-        fn = tag >> 3
-        if wt == 0:
-            try:
-                _, pos = _read_varint(data, pos)
-            except ValueError:
-                return None
-        elif wt == 2:
-            try:
-                length, pos = _read_varint(data, pos)
-            except ValueError:
-                return None
-            if pos + length > len(data):
-                return None
-            if fn == target_fn:
-                return data[pos : pos + length]
-            pos += length
-        elif wt == 1:
-            pos += 8
-        elif wt == 5:
-            pos += 4
-        else:
-            return None
-    return None
-
-
-def _decompress_zdata(blob: bytes) -> bytes:
-    if blob[:2] == b"\x1f\x8b":
-        return gzip.decompress(blob)
-    try:
-        return zlib.decompress(blob)
-    except zlib.error:
-        return zlib.decompress(blob, -zlib.MAX_WBITS)
-
-
-def _decode_note_body(zdata: bytes) -> str:
-    """ZDATA(zlib + protobuf) → 본문 텍스트.
-
-    경로: NoteStoreProto -> document(2) -> note(3) -> note_text(2)
-    """
-    raw = _decompress_zdata(zdata)
-    doc = _pb_find_field(raw, 2)
-    if doc is None:
-        return ""
-    note = _pb_find_field(doc, 3)
-    if note is None:
-        return ""
-    text = _pb_find_field(note, 2)
-    if text is None:
-        return ""
-    return text.decode("utf-8", errors="replace")
-
-
-def _core_data_to_dt(ts: float | None) -> datetime | None:
-    """Core Data timestamp(2001-01-01 UTC 기준 초)를 로컬 naive datetime으로."""
-    if ts is None:
-        return None
-    return datetime.fromtimestamp(ts + 978307200, tz=timezone.utc).astimezone().replace(tzinfo=None)
-
-
-def _refresh_notes_meta() -> None:
-    """NoteStore.sqlite를 mode=ro로 직접 읽어 _NOTES_META를 갱신."""
-    _NOTES_META.clear()
-    if not APPLE_NOTES_DB.exists():
-        return
-    try:
-        conn = sqlite3.connect(f"file:{APPLE_NOTES_DB}?mode=ro", uri=True)
-    except sqlite3.OperationalError:
-        return
-    try:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT Z_PK, ZTITLE2 FROM ZICCLOUDSYNCINGOBJECT WHERE ZTITLE2 IS NOT NULL"
-        )
-        folder_map = {pk: name for pk, name in cur.fetchall()}
-
-        cur.execute(
-            """
-            SELECT
-              c.Z_PK, c.ZTITLE1, c.ZMODIFICATIONDATE1,
-              c.ZFOLDER, c.ZCRYPTOINITIALIZATIONVECTOR, d.ZDATA
-            FROM ZICCLOUDSYNCINGOBJECT c
-            LEFT JOIN ZICNOTEDATA d ON d.ZNOTE = c.Z_PK
-            WHERE c.ZTITLE1 IS NOT NULL
-            """
-        )
-        for pk, title, mtime_raw, folder_pk, crypto_iv, zdata in cur.fetchall():
-            path = _note_path(pk)
-            _NOTES_META[path] = {
-                "pk": pk,
-                "title": title,
-                "mtime": _core_data_to_dt(mtime_raw),
-                "folder": folder_map.get(folder_pk, "_unfiled"),
-                "locked": crypto_iv is not None,
-                "zdata": zdata,
-                "body": None,  # lazy 디코딩
-            }
-    finally:
-        conn.close()
-
-
-def _get_note_body(path: Path) -> str:
-    """캐시된 본문 반환. 처음 호출 시 디코딩."""
-    meta = _NOTES_META.get(path)
-    if not meta or meta.get("locked") or not meta.get("zdata"):
-        return ""
-    if meta["body"] is None:
-        try:
-            meta["body"] = _decode_note_body(meta["zdata"])
-        except Exception:
-            meta["body"] = ""
-    return meta["body"]
 
 
 def parse_date_range(date_str: str) -> tuple[datetime, datetime]:
@@ -250,9 +95,8 @@ def call_to_datetime(path: Path) -> datetime | None:
 
 def file_to_datetime(path: Path) -> datetime | None:
     """파일 종류(Voice Memo / 통화 녹음 / Apple Notes)에 맞춰 datetime을 추출합니다."""
-    if is_note(path):
-        meta = _NOTES_META.get(path)
-        return meta["mtime"] if meta else None
+    if vm_notes.is_note(path):
+        return vm_notes.note_meta(path).get("mtime")
     if is_call_recording(path):
         return call_to_datetime(path)
     return dir_to_datetime(path)
@@ -272,8 +116,8 @@ def iter_transcript_files() -> list[Path]:
             for f in CALL_RECORDINGS_DIR.glob("*.txt")
             if CALL_FILENAME_RE.match(f.name)
         )
-    _refresh_notes_meta()
-    files.extend(_NOTES_META.keys())
+    vm_notes.refresh_notes_meta()
+    files.extend(vm_notes.all_note_paths())
     return files
 
 
@@ -288,18 +132,72 @@ def search_by_date(date_str: str) -> list[Path]:
     return results
 
 
-def search_by_keyword(keyword: str) -> list[Path]:
-    """키워드로 전사/메모 본문을 검색합니다."""
-    needle = keyword.lower()
-    results = []
+def _extract_snippets(
+    haystack: str, keywords: list[str], radius: int = 120, max_snippets: int = 2
+) -> tuple[int, list[str]]:
+    """본문에서 키워드 매칭 주변 스니펫과 총 매칭 횟수를 추출합니다.
+
+    radius: 매칭 위치 좌우로 포함할 글자 수.
+    max_snippets: 파일당 최대 스니펫 수(겹치는 구간은 합쳐 1개로).
+    transcript는 한 줄이 문단 통째인 경우가 많아, 라인 단위가 아니라
+    매칭 위치 ±radius로 잘라 줄바꿈을 공백으로 평탄화한다.
+    """
+    low = haystack.lower()
+    positions: list[tuple[int, int]] = []  # (pos, match_len)
+    for kw in keywords:
+        k = kw.lower()
+        if not k:
+            continue
+        start = 0
+        while True:
+            i = low.find(k, start)
+            if i == -1:
+                break
+            positions.append((i, len(k)))
+            start = i + len(k)
+    total = len(positions)
+    positions.sort()
+    snippets: list[str] = []
+    used: list[tuple[int, int]] = []
+    for pos, mlen in positions:
+        if len(snippets) >= max_snippets:
+            break
+        s = max(0, pos - radius)
+        e = min(len(haystack), pos + mlen + radius)
+        if any(s < ue and e > us for us, ue in used):
+            continue  # 이미 출력한 스니펫과 겹침
+        used.append((s, e))
+        body = haystack[s:e].replace("\n", " ").strip()
+        snippets.append(f"{'…' if s > 0 else ''}{body}{'…' if e < len(haystack) else ''}")
+    return total, snippets
+
+
+def search_by_keyword(
+    keywords: list[str], mode: str = "any"
+) -> list[tuple[Path, int, list[str]]]:
+    """키워드(들)로 전사/메모 본문을 검색합니다.
+
+    keywords: 검색어 리스트. mode="any"는 하나라도 매칭, "all"은 전부 매칭.
+    반환: (path, 총_매칭_횟수, 스니펫) 리스트. 매칭 횟수 내림차순 정렬.
+    """
+    needles = [k.lower() for k in keywords if k]
+    results: list[tuple[Path, int, list[str]]] = []
     for f in sorted(iter_transcript_files(), key=str):
-        if is_note(f):
-            meta = _NOTES_META.get(f, {})
-            haystack = (meta.get("title") or "") + "\n" + _get_note_body(f)
+        if vm_notes.is_note(f):
+            haystack = vm_notes.note_haystack(f)
         else:
-            haystack = f.read_text(encoding="utf-8")
-        if needle in haystack.lower():
-            results.append(f)
+            try:
+                haystack = f.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+        low = haystack.lower()
+        present = [n for n in needles if n in low]
+        matched = len(present) == len(needles) if mode == "all" else bool(present)
+        if not matched:
+            continue
+        total, snippets = _extract_snippets(haystack, keywords)
+        results.append((f, total, snippets))
+    results.sort(key=lambda t: t[1], reverse=True)
     return results
 
 
@@ -323,13 +221,21 @@ def list_all_dates() -> list[str]:
     return sorted(dates, reverse=True)
 
 
-def format_result(filepath: Path, show_preview: bool = True) -> str:
+def format_result(
+    filepath: Path,
+    show_preview: bool = True,
+    match_count: int | None = None,
+    match_snippets: list[str] | None = None,
+) -> str:
     """검색 결과를 포맷팅합니다.
 
     라벨은 데이터 소스 출처만 표시한다:
     - [음성 메모]  Apple Voice Memos
     - [에이닷]    에이닷 통화 녹음
     - [메모]      Apple Notes
+
+    match_count/match_snippets가 주어지면(키워드 검색) 라벨에 매칭 횟수를 붙이고,
+    미리보기를 파일 도입부 대신 매칭 위치 주변 스니펫으로 대체한다.
     """
     dt = file_to_datetime(filepath)
     date_str = (
@@ -337,21 +243,26 @@ def format_result(filepath: Path, show_preview: bool = True) -> str:
         if dt
         else (
             str(filepath)
-            if is_note(filepath)
+            if vm_notes.is_note(filepath)
             else (filepath.name if is_call_recording(filepath) else filepath.parent.name)
         )
     )
 
-    if is_note(filepath):
-        meta = _NOTES_META.get(filepath, {})
+    if vm_notes.is_note(filepath):
+        meta = vm_notes.note_meta(filepath)
         title = meta.get("title", "?")
         folder = meta.get("folder", "?")
         line = f"  [메모]      {date_str}  {folder}/{title}"
+        if match_count is not None:
+            line += f"  ({match_count}회)"
         if show_preview:
-            if meta.get("locked"):
+            if match_snippets:
+                for sn in match_snippets:
+                    line += f"\n         {sn}"
+            elif meta.get("locked"):
                 line += "\n         (잠긴 메모 — 본문 검색 제외)"
             else:
-                body = _get_note_body(filepath)
+                body = vm_notes.note_body(filepath)
                 if body:
                     # 본문 첫 줄이 제목과 동일한 경우가 많아 두 번째 줄부터 미리보기
                     lines = [ln for ln in body.splitlines() if ln.strip()]
@@ -374,7 +285,14 @@ def format_result(filepath: Path, show_preview: bool = True) -> str:
             f"{filepath.parent.parent.name}/{filepath.parent.name}"
         )
 
+    if match_count is not None:
+        line += f"  ({match_count}회)"
+
     if show_preview:
+        if match_snippets:
+            for sn in match_snippets:
+                line += f"\n         {sn}"
+            return line
         content = filepath.read_text(encoding="utf-8")
         if is_call_recording(filepath):
             summary_block = _extract_call_summary(content)
@@ -426,6 +344,8 @@ def main():
     parser = argparse.ArgumentParser(description="음성 메모 전사본 검색")
     parser.add_argument("--date", type=str, help="날짜로 검색 (2026-03-10, 2026-03, today, yesterday, this-week, this-month)")
     parser.add_argument("--keyword", type=str, help="키워드로 내용 검색")
+    parser.add_argument("--any", dest="any_kw", type=str, help="쉼표로 구분한 키워드 중 하나라도 매칭 (OR)")
+    parser.add_argument("--all", dest="all_kw", type=str, help="쉼표로 구분한 키워드 모두 매칭 (AND)")
     parser.add_argument("--recent", type=int, help="최근 N개 파일 표시")
     parser.add_argument("--dates", action="store_true", help="전사 파일이 있는 날짜 목록")
     parser.add_argument("--no-preview", action="store_true", help="미리보기 숨김")
@@ -439,18 +359,34 @@ def main():
             print(f"  {d}")
         return
 
+    kw_results: list[tuple[Path, int, list[str]]] | None = None
     results = []
     if args.date:
         results = search_by_date(args.date)
+    elif args.all_kw:
+        kws = [k.strip() for k in args.all_kw.split(",") if k.strip()]
+        kw_results = search_by_keyword(kws, mode="all")
+    elif args.any_kw:
+        kws = [k.strip() for k in args.any_kw.split(",") if k.strip()]
+        kw_results = search_by_keyword(kws, mode="any")
     elif args.keyword:
-        results = search_by_keyword(args.keyword)
+        kw_results = search_by_keyword([args.keyword], mode="any")
     elif args.recent:
         results = list_recent(args.recent)
     else:
         results = list_recent(10)
 
     if args.count:
-        print(f"{len(results)}건")
+        print(f"{len(kw_results) if kw_results is not None else len(results)}건")
+        return
+
+    if kw_results is not None:
+        if not kw_results:
+            print("검색 결과 없음")
+            return
+        print(f"{len(kw_results)}건 검색됨 (매칭 많은 순):")
+        for f, cnt, snips in kw_results:
+            print(format_result(f, show_preview=not args.no_preview, match_count=cnt, match_snippets=snips))
         return
 
     if not results:

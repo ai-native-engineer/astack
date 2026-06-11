@@ -18,7 +18,7 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 | Skill | What it does | External deps |
 |-------|--------------|---------------|
 | `session-history` | Unified view & search of Claude Code (`~/.claude`) + Codex (`~/.codex`) sessions — list, timeline, full-text grep, show. | Python 3 |
-| `voice-memos` | Apple Voice Memos / call recordings / Apple Notes / Caret MCP → transcribe, correct, search, summarize, notify. | macOS, Python 3, `apple-stt`, `ffmpeg`, (optional) Caret MCP, Telegram/Discord |
+| `voice-memos` | Apple Voice Memos / call recordings / Apple Notes / Caret MCP → transcribe, correct, search, summarize, notify. Includes a launchd watcher pipeline (auto transcribe → summarize → notify on new recordings, incl. call `.m4a`) with FDA diagnostics. | macOS, Python 3, `apple-stt`, `ffmpeg`, (optional) Caret MCP, Telegram/Discord |
 | `imessage` | Read & search macOS Messages (iMessage/SMS/RCS) via readonly SQLite (decodes `attributedBody`); send via `osascript`. MCP-free, on-demand. | macOS, Python 3 (stdlib only), Full Disk Access |
 | `chrome-devtools-cli` | Drive headless Chrome from the terminal via `chrome-devtools-mcp`'s standalone CLI — navigate, click/fill, screenshot, console/network inspect, JS eval, Lighthouse audit, performance trace (Core Web Vitals), heap snapshot. On-demand alternative to the MCP server. | Node.js, `chrome-devtools-mcp` (`npm i -g chrome-devtools-mcp@latest`), Chrome/Chromium |
 | `meta-ads-cli` | Manage Meta (Facebook/Instagram) ads from the shell via the `meta` CLI — campaign/adset/ad/creative CRUD, performance insights (spend/CTR/CPC/ROAS, breakdowns), pixel conversion tracking, catalogs. Mental model + setup/commands/recipes references; full options delegated to `meta --help`. | PyPI `meta-ads` (`uv tool install meta-ads --python 3.13`), a Meta system-user access token |
@@ -36,6 +36,7 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 - `apple-stt` (macOS SpeechAnalyzer) for transcription; `ffmpeg` for `.qta` files
 - Python deps: `cd skills/voice-memos && uv sync`
 - **Optional notifications**: copy `skills/voice-memos/.env.example` → `skills/voice-memos/.env` and fill in your Telegram/Discord values. Everything else works without it; only sending is skipped.
+- **Optional automation**: register a launchd LaunchAgent that runs `scripts/run.sh` on new recordings — setup, log reading, and Full Disk Access diagnostics in `skills/voice-memos/references/watcher.md`.
 
 ## Notes
 

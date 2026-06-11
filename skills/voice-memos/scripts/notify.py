@@ -14,13 +14,16 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-TRANSCRIPTS_DIR = Path.home() / ".voice-memos/transcripts"
-ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+from config import (
+    ENV_FILE,
+    TRANSCRIPTS_DIR,
+    iter_transcript_files,
+    strip_process_markers,
+    summary_path_for,
+    transcript_path_for,
+)
 
 NOTIFIED_MARKER = "<!-- notified -->"
-SUMMARIZED_MARKER = "<!-- summarized -->"
-
-PROCESS_MARKERS = [NOTIFIED_MARKER, SUMMARIZED_MARKER, "<!-- corrected -->"]
 
 
 def load_env():
@@ -36,30 +39,8 @@ def load_env():
             os.environ.setdefault(key.strip(), value.strip())
 
 
-def strip_process_markers(content: str) -> str:
-    """처리 마커를 제거하고 내용을 반환합니다."""
-    for marker in PROCESS_MARKERS:
-        content = content.replace(marker, "")
-    return content.strip()
-
-
-def iter_transcript_files() -> list[Path]:
-    """전사 파일 목록을 반환합니다."""
-    return list(TRANSCRIPTS_DIR.rglob("transcript.md"))
-
-
-def summary_path_for(transcript_path: Path) -> Path:
-    """transcript.md 경로에서 summary.md 경로를 반환합니다."""
-    return transcript_path.parent / "summary.md"
-
-
-def transcript_path_for(summary_path: Path) -> Path:
-    """summary.md 경로에서 transcript.md 경로를 반환합니다."""
-    return summary_path.parent / "transcript.md"
-
-
 def read_summary_file(filepath: Path) -> str | None:
-    """요약 파일의 본문을 읽습니다."""
+    """별도 요약 파일의 본문을 읽습니다."""
     content = strip_process_markers(filepath.read_text(encoding="utf-8"))
     return content if content else None
 
@@ -77,19 +58,8 @@ def extract_summary_from_transcript(filepath: Path) -> str | None:
     return snippet if snippet else None
 
 
-def extract_transcript(filepath: Path) -> str | None:
-    """마크다운에서 전사 내용만 추출합니다."""
-    content = filepath.read_text(encoding="utf-8")
-    marker = "## 전사 내용"
-    idx = content.find(marker)
-    if idx == -1:
-        return None
-    text = strip_process_markers(content[idx + len(marker):])
-    return text if text else None
-
-
-def send_discord(webhook_url: str, title: str, summary: str) -> bool:
-    """Discord webhook으로 메시지를 전송합니다. 성공 시 True."""
+def send_discord(webhook_url: str, title: str, summary: str):
+    """Discord webhook으로 메시지를 전송합니다."""
     if len(summary) > 2048:
         summary = summary[:2045] + "..."
 
@@ -111,25 +81,15 @@ def send_discord(webhook_url: str, title: str, summary: str) -> bool:
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            status = getattr(resp, "status", 200)
-            if 200 <= status < 300:
-                print(f"  {title} → Discord")
-                return True
-            print(f"  [ERROR] Discord status={status}")
-            return False
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        urllib.request.urlopen(req)
+        print(f"  {title} → Discord")
+    except urllib.error.URLError as error:
         print(f"  [ERROR] Discord: {error}")
-        return False
 
 
-def send_telegram(token: str, chat_id: str, title: str, summary: str) -> bool:
-    """Telegram bot으로 메시지를 전송합니다. 성공 시 True.
-
-    parse_mode를 사용하지 않습니다. summary에 `_`/`*`/`[` 같은 Markdown
-    특수문자가 있을 때 API가 400을 뱉거나 렌더링이 깨지는 것을 피하기 위함.
-    """
-    text = f"[{title}]\n\n{summary}"
+def send_telegram(token: str, chat_id: str, title: str, summary: str):
+    """Telegram bot으로 메시지를 전송합니다."""
+    text = f"*{title}*\n\n{summary}"
     if len(text) > 4096:
         text = text[:4093] + "..."
 
@@ -137,6 +97,7 @@ def send_telegram(token: str, chat_id: str, title: str, summary: str) -> bool:
         {
             "chat_id": chat_id,
             "text": text,
+            "parse_mode": "Markdown",
         }
     ).encode("utf-8")
 
@@ -147,28 +108,19 @@ def send_telegram(token: str, chat_id: str, title: str, summary: str) -> bool:
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            status = getattr(resp, "status", 200)
-            if 200 <= status < 300:
-                print(f"  {title} → Telegram")
-                return True
-            print(f"  [ERROR] Telegram status={status}")
-            return False
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        urllib.request.urlopen(req)
+        print(f"  {title} → Telegram")
+    except urllib.error.URLError as error:
         print(f"  [ERROR] Telegram: {error}")
-        return False
 
 
-def format_title(filepath: Path, is_summary: bool = True) -> str:
-    """디렉터리 경로에서 읽기 쉬운 제목을 생성합니다.
-
-    지원 형식: `YYYYMMDD/HHMMSS`, `YYYYMMDD/HHMMSS-<uuid8>`.
-    """
-    from datetime import datetime
-
-    suffix = "녹음 요약" if is_summary else "녹음 전문"
+def format_title(filepath: Path) -> str:
+    """디렉터리 경로(YYYYMMDD/HHMMSS)에서 읽기 쉬운 제목을 생성합니다."""
+    suffix = "녹음 요약"
     try:
-        time_part = filepath.parent.name.split("-", 1)[0]
+        from datetime import datetime
+
+        time_part = filepath.parent.name
         date_part = filepath.parent.parent.name
         dt = datetime.strptime(f"{date_part} {time_part}", "%Y%m%d %H%M%S")
         return dt.strftime(f"%Y년 %m월 %d일 %H시 %M분 %S초 {suffix}")
@@ -195,59 +147,47 @@ def notify_from_paths(
     transcript_path: Path | None,
     summary_path: Path | None,
     force: bool = False,
-) -> bool:
+):
     """전사/요약 파일 조합을 기준으로 알림을 전송합니다."""
     if not force and (is_notified(summary_path) or is_notified(transcript_path)):
         return False
 
     summary = None
-    is_summary = False
     marker_target = None
+    title_file = None
 
     if summary_path is not None and summary_path.exists():
         summary = read_summary_file(summary_path)
         if summary:
-            is_summary = True
             marker_target = summary_path
             title_file = summary_path
 
     if summary is None and transcript_path is not None and transcript_path.exists():
         summary = extract_summary_from_transcript(transcript_path)
         if summary:
-            is_summary = True
             marker_target = transcript_path
             title_file = transcript_path
 
-    if summary is None and transcript_path is not None and transcript_path.exists():
-        summary = extract_transcript(transcript_path)
-        if summary:
-            is_summary = False
-            marker_target = transcript_path
-            title_file = transcript_path
-
+    # 요약이 없으면 전문을 보내지 않고 스킵
     if not summary or marker_target is None:
         return False
 
-    title = format_title(title_file, is_summary=is_summary)
+    title = format_title(title_file)
+    sent = False
 
     discord_url = os.environ.get("DISCORD_WEBHOOK_URL")
+    if discord_url:
+        send_discord(discord_url, title, summary)
+        sent = True
+
     telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-    telegram_configured = bool(telegram_token and telegram_chat_id)
+    if telegram_token and telegram_chat_id:
+        send_telegram(telegram_token, telegram_chat_id, title, summary)
+        sent = True
 
-    if not discord_url and not telegram_configured:
+    if not sent:
         print("  [SKIP] Discord/Telegram 설정 없음")
-        return False
-
-    results: list[bool] = []
-    if discord_url:
-        results.append(send_discord(discord_url, title, summary))
-    if telegram_configured:
-        results.append(send_telegram(telegram_token, telegram_chat_id, title, summary))
-
-    if not results or not all(results):
-        # 구성된 채널 중 하나라도 실패하면 마커를 찍지 않아 다음 실행에 재시도.
-        # 중복 발송 가능성은 있지만 실패 은폐보다 안전.
         return False
 
     mark_notified(marker_target)
@@ -284,7 +224,7 @@ def main():
         notify_from_paths(transcript_path, summary_path, force=True)
         return
 
-    files = sorted(iter_transcript_files(), key=lambda p: p.parent, reverse=True)
+    files = sorted(iter_transcript_files(TRANSCRIPTS_DIR), reverse=True)
     sent = 0
     for transcript_path in files:
         if notify_from_paths(transcript_path, summary_path_for(transcript_path)):

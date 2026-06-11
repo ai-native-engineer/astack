@@ -1,7 +1,8 @@
 [project]
-name = "voice-memos-skill"
+name = "voice-memos"
 version = "0.1.0"
-description = "Voice Memos Skill 스크립트 의존성"
+description = "Apple Voice Memos 전사 자동 추출, AI 요약, 알림 전송 파이프라인"
+readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "anyio>=4.12.1",

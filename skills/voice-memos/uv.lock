@@ -504,7 +504,7 @@ wheels = [
 ]
 
 [[package]]
-name = "voice-memos-skill"
+name = "voice-memos"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
