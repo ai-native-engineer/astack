@@ -4,6 +4,8 @@
 날짜, 키워드, 최근 N개 등 다양한 조건으로 전사 파일을 검색합니다.
 """
 
+from __future__ import annotations
+
 import argparse
 import re
 import sys

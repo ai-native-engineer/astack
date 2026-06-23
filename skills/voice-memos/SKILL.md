@@ -83,7 +83,7 @@ python3 ~/.claude/skills/voice-memos/scripts/search.py --recent 5 --no-preview -
 전사본은 한 줄이 길어 Read 도구의 토큰 제한에 걸린다. `references/voice-memos.md` §4의 fold + Read 병렬 패턴을 따른다. 단:
 
 - 통화 녹음 .txt는 줄이 짧아 보통 Read 직접 가능 (`references/call-recordings.md`)
-- Apple Notes는 가상 Path(`apple-note:<Z_PK>`)라 Read 불가. `search.py`가 미리보기를 보여주므로 보통 충분. 전문이 필요하면 `scripts/vm_notes.py`의 `note_body()`로 읽거나 sqlite 직접 쿼리 (`references/apple-notes.md`).
+- Apple Notes는 가상 Path(`apple-note:<Z_PK>`)라 Read 불가. `search.py`가 미리보기를 보여주므로 보통 충분. 전문이 필요하면 `scripts/vm_notes.py`의 `note_body()`로 읽는다 - NoteStore.sqlite를 raw로 직접 쿼리하면 본문이 zlib+protobuf로 압축돼 있어 Traceback난다 (`references/apple-notes.md`).
 
 ### "텔레그램으로 보내줘" / "디스코드로 보내줘"
 

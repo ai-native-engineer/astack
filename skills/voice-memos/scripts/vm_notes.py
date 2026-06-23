@@ -15,6 +15,8 @@ Apple Notes는 가상 Path(`apple-note:<Z_PK>`)로 표현해 다른 소스와 �
 list[Path] 인터페이스를 유지한다.
 """
 
+from __future__ import annotations
+
 import gzip
 import sqlite3
 import subprocess
