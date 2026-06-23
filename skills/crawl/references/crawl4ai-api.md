@@ -112,7 +112,8 @@ cfg = CrawlerRunConfig(markdown_generator=DefaultMarkdownGenerator(
 
 - `PruningContentFilter(threshold=0.48, threshold_type="fixed"`(score≥threshold)`|"dynamic"`(밀도 따라 조정)`, min_word_threshold=N)`: 텍스트/링크 밀도 + "nav/footer" 패턴 휴리스틱 → 쿼리 없이 구조 무관
 - `BM25ContentFilter(user_query=, bm25_threshold=1.0, language="english", use_stemming=True)`: 특정 주제일 때만. `filter_content(html)`로 2-pass 체이닝 가능(Pruning→BM25)
-- 과공격적이면 footer/sidebar 핵심 손실 → threshold↓ 또는 raw 폴백
+- 과공격적이면 footer/sidebar 핵심 손실 -> threshold 낮추거나 raw 폴백
+- ⚠ **이미지를 죽인다**: 이미지 노드를 텍스트 밀도 기준으로 prune해 전부 제거(실측 10->0, `ignore_images`도 무효). 이미지 보존이 필요하면 fit_markdown 말고 raw_markdown + 셀렉터/cross-page 정제(`crawl-mirror.py` 방식: 여러 페이지 공통 줄=nav/footer 제거하되 이미지 줄은 페이지 고유라 보존)
 
 ## 마크다운 생성 제어
 

@@ -23,16 +23,19 @@ description: 웹 페이지/문서 사이트를 무료·완전 로컬로 크롤�
 
 ⚠ `crwl crawl`의 기본 출력은 마크다운이 **아니다** — `-o`를 빼면 stdout이든 `-O` 파일이든 html 포함 JSON 덤프가 나온다(`.md` 확장자도 무시됨). `-O`는 경로만 정하고 포맷은 `-o`가 정한다. 마크다운은 항상 `-o md`(본문만은 `-o md-fit`)로 명시한다. (`crawl-mirror.py`는 포맷을 자체 처리하므로 예외.)
 
-## 문서 사이트 → URL 경로 미러링 (주력)
+## 문서 사이트 -> URL 경로 미러링 (주력)
 
-**출력 경로: 항상 현재 디렉토리(`.`)** — 사용자가 명시하지 않으면 `--out`을 별도 지정하지 않는다.
+**출력 경로: 항상 현재 디렉토리(`.`)** — 사용자가 명시하지 않으면 `--out`을 별도 지정하지 않는다. 두 모드:
 
 ```bash
-scripts/crawl-mirror.py <seed-url> --pattern "*<host>/<path>*" --lang en
-# → ./<host>/<path>/<page>.md  (URL 경로 = 파일 경로) · 본문만 · 페이지당 1파일 · source 주석 포함
+# 전체 크롤: --pattern이 따라갈 URL 범위(= prefix). 여러 페이지를 페이지별 파일로 미러
+scripts/crawl-mirror.py <seed-url> --pattern "*<host>/<path>*" --lang en [--assets]
+# 단일 페이지: 그 URL 1장만 (deep-crawl, cross-page 정제 없음)
+scripts/crawl-mirror.py <url> --single [--assets]
+# -> ./<host>/<path>/<page>.md  (URL 경로 = 파일 경로, 페이지당 1파일, source 주석 포함)
 ```
 
-`https://host/a/b` → `host/a/b.md`. 디렉토리이자 페이지인 경로는 `a.md` 파일과 `a/` 폴더가 공존한다.
+**추출 파이프라인**(nav/footer 제거 + 이미지 보존): `target_elements`로 본문 위주 추출(발견은 전체 DOM 유지) -> 전체 크롤이면 **cross-page 반복 제거**(여러 페이지 공통 줄 = nav/footer, 이미지 줄은 페이지 고유라 보존) -> `strip_chrome`(Mintlify 패턴). 이미지는 `--assets`로 로컬 다운로드 + 상대경로 치환. `https://host/a/b` -> `host/a/b.md`(디렉토리이자 페이지인 경로는 `a.md`와 `a/`가 공존).
 
 ## 문서 사이트 함정 (crawl-mirror.py 기본값에 반영됨)
 
