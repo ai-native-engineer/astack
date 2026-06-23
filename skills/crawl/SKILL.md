@@ -7,7 +7,9 @@ description: 웹 페이지/문서 사이트를 무료·완전 로컬로 크롤�
 # Crawl
 
 공식 `crwl` CLI(crawl4ai, `~/.local/bin/crwl`) + 이 스킬의 `scripts/`로 웹페이지·문서를 마크다운으로 변환.
-**권위 소스: `crwl crawl --help`, `crwl examples`, 각 스크립트 `--help`.** 여기엔 모드 선택과 비자명한 함정만 둔다. crwl CLI 패턴·crawl4ai Python API(스크립트 작성용)·실측 함정은 `references/crawl4ai-api.md`.
+**권위 소스: `crwl crawl --help`, `crwl examples`, 각 스크립트 `--help`.** 여기엔 모드 선택과 비자명한 함정만 둔다. 스크립트 작성·crawl4ai API는 주제별 reference:
+- `references/crawl4ai-api.md` — 코어(CLI·발견/추출 분리·deep-crawl·seeding·마크다운·캡처·정제·실측 함정)
+- `references/crawl4ai-robustness.md` — 안 되는 사이트 대응(봇 차단·동적/무한스크롤·Shadow DOM·로그인 세션·프록시·지역위장·동시성)
 
 ## 모드 선택 — crwl CLI 우선, 스크립트는 CLI가 못 하는 것만
 
