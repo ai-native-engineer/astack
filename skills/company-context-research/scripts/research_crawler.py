@@ -290,7 +290,7 @@ def download_attachments(tsv_path: Path, out_dir: Path, limit: int = 20, report_
                 enc_data = match.group(1)
                 if enc_data.endswith(".pdf"):
                     enc_data = enc_data[:-4]
-                host = origin_host if origin_host else "www.companya.example.com"
+                host = origin_host if origin_host else urlparse(url).netloc
                 target_urls = [
                     f"https://{host}/investment/download.php?file={enc_data}",
                     f"https://{host}/common/download.php?file={enc_data}",
@@ -387,95 +387,17 @@ def write_tables(root: Path, manifest_rows, attachment_rows, link_inventory_rows
 
 # --- Feature A: Finance Chart Visualizer ---
 def generate_finance_charts(market_data_path: Path):
-    if not market_data_path.exists():
-        print(f"File {market_data_path} not found. Skipping visualization.")
-        return
-    text = market_data_path.read_text(encoding="utf-8")
-    
-    # Extract financial blocks (Annual and Q1)
-    revenue_2025, opex_2025, net_2025 = None, None, None
-    revenue_q1, opex_q1, net_q1 = None, None, None
-    
-    # 2025 Annual parse
-    match_rev = re.search(r"매출액.*?\s*([\d,]+)\s*(?:억|만\s*원)", text)
-    match_op = re.search(r"영업이익.*?\s*([\d,]+)\s*(?:억|만\s*원)", text)
-    match_net = re.search(r"당기순이익.*?\s*([\d,]+)\s*(?:억|만\s*원)", text)
-    
-    # DART 013 Fallback 2026 Q1 parse
-    match_rev_q1 = re.search(r"2026년 1분기 연결 기준 실적.*?매출액.*?\s*([\d,]+)\s*(?:억|만\s*원)", text, re.DOTALL)
-    match_op_q1 = re.search(r"영업이익.*?\s*([\d,]+)\s*(?:억|만\s*원)", text, re.DOTALL)
-    match_net_q1 = re.search(r"당기순이익.*?\s*([\d,]+)\s*(?:억|만\s*원)", text, re.DOTALL)
-    
-    def parse_amount(m):
-        if not m: return 0
-        raw = m.group(1).replace(",", "")
-        return int(raw)
-
-    rev_val = parse_amount(match_rev)
-    op_val = parse_amount(match_op)
-    net_val = parse_amount(match_net)
-    
-    rev_q1_val = 1132  # A사 실측 보정
-    op_q1_val = 112
-    net_q1_val = 147
-    
-    # Build text-based bar charts (█ blocks)
-    def build_bar(val, max_val, scale=20):
-        if max_val == 0: return ""
-        length = int((val / max_val) * scale)
-        return "█" * max(length, 1) + f" ({val}억 원)"
-
-    max_val = max(rev_val, rev_q1_val, 1)
-    
-    chart_content = f"""
-## 📊 3개년 & 최신 실적 추이 시각화 (Financial Visualizer)
-
-### [2025년도 연결 결산 기준 실적]
-* **매출액**    : {build_bar(4637, 4637)}
-* **영업이익**  : {build_bar(332, 4637)}
-* **당기순이익**: {build_bar(290, 4637)}
-
-### [2026년도 1분기(Q1) 연결 실적]
-* **매출액**    : {build_bar(1132, 4637)}
-* **영업이익**  : {build_bar(112, 4637)}
-* **당기순이익**: {build_bar(147, 4637)}
-"""
-    # Insert chart before 'Risks and anomalies' or at the bottom
-    if "## Risks and anomalies" in text:
-        updated = text.replace("## Risks and anomalies", chart_content + "\n## Risks and anomalies")
-    else:
-        updated = text + "\n" + chart_content
-        
-    market_data_path.write_text(updated, encoding="utf-8")
-    print("Finance visualization chart generated in 03-market-data.md.")
+    # Placeholder. Engagement-specific hardcoded financials were removed for public release.
+    # Reimplement generically (parse figures from the market-data file) before use.
+    print("Finance visualization not implemented in this build.")
+    return
 
 # --- Feature B: Export Risk Scanner ---
 def scan_export_risk(market_data_path: Path, brief_path: Path):
-    if not (market_data_path.exists() and brief_path.exists()):
-        return
-    market_text = market_data_path.read_text(encoding="utf-8")
-    
-    # Detect export ratio (e.g. 92.1% or similar)
-    match_ratio = re.search(r"수출\(해외\s*매출\).*?\s*([\d\.]+)%", market_text)
-    if match_ratio:
-        ratio = float(match_ratio.group(1))
-        if ratio >= 90.0:
-            print(f"Export ratio detected: {ratio}%. Appending export risk warning to brief.")
-            brief_text = brief_path.read_text(encoding="utf-8")
-            
-            warning_content = f"""
-### ⚠️ 글로벌 수출 기업 환율 및 물류 리스크 특이사항 (Export Risk Scanner)
-* **초고비중 해외 의존도 ({ratio}%)**: 전체 연결 실적의 {ratio}%가 북미/인도 등 해외 종속 회사와 글로벌 이커머스(아마존 등) 채널에 극단적으로 편중되어 있습니다.
-* **환율 변동성 노출**: 원화 강세(원/달러 환율 하락) 시 연결 영업마진이 급격히 축소되는 리스크가 존재하며, 현지 유통 법인의 컨사인먼트 재고(Consignment Inventory) 배분 딜레이가 손익 왜곡으로 직접 연결됩니다.
-* **물류비 민감도**: SCFI(상하이컨테이너운임지수) 급등이나 지정학적 해상 해송 노선 봉쇄 발생 시 해외 D2C 물류 인프라 비용 부담이 폭증할 수 있습니다.
-* *전략적 제안 방향*: 6회차 개인 프로젝트에서 '글로벌 아마존/C사 재고 배분 플래너(Consignment Planner)' 및 Snowflake 데이터 마트의 '환율 일일 감지 마진 계산기' 구현을 인라인 제안할 것을 강력히 권고합니다.
-"""
-            if "## Suggested outreach angles" in brief_text:
-                updated = brief_text.replace("## Suggested outreach angles", warning_content + "\n## Suggested outreach angles")
-            else:
-                updated = brief_text + "\n" + warning_content
-            brief_path.write_text(updated, encoding="utf-8")
-            print("Export risk warning appended to 05-company-brief.md.")
+    # Placeholder. Engagement-specific export-risk template was removed for public release.
+    # Reimplement generically before use.
+    print("Export risk scan not implemented in this build.")
+    return
 
 # --- Core Modes Execution ---
 def crawl_mode(seeds, keywords, max_pages, max_hops, out_root, download=False, download_limit=20):
