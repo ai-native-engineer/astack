@@ -8,9 +8,10 @@ SK텔레콤 에이닷이 통화 녹음을 iCloud Drive에 올리는 소스. 파�
 ## 위치
 
 - 디렉터리: `~/Library/Mobile Documents/com~apple~CloudDocs/녹음/`
-- 파일명 규약: `<이름>_<휴대폰번호>_<YYYYMMDD>_<HHMMSS>.{txt,m4a}`
-  - 예: `홍길동님_01012345678_20260407_165111.txt`
-- 정규식 (search.py): `^(.+?)_(\d{10,11})_(\d{8})_(\d{6})\.txt$`
+- 파일명 예시: `<이름>_<전화번호>_<YYYYMMDD>_<HHMMSS>.txt`, `<전화번호>_<YYYYMMDD>_<HHMMSS>.txt`
+  - 예: `홍길동님_01012345678_20260407_165111.txt`, `01012345678_20260407_165111.txt`
+- `search.py`는 이 디렉터리의 `.txt` 전체와 `.transcript.md`를 에이닷으로 포함하고, 날짜 정렬/필터링은 파일명 끝의 `_YYYYMMDD_HHMMSS` suffix로 처리한다.
+- `.m4a` 자동 전사(`transcribe_calls.py`)는 파일명 끝의 `_YYYYMMDD_HHMMSS.m4a` suffix가 있는 통화 녹음을 대상으로 한다.
 
 ## .txt 파일 구조
 
@@ -44,21 +45,21 @@ SK텔레콤 에이닷이 통화 녹음을 iCloud Drive에 올리는 소스. 파�
 워처 `run.sh`의 2단계. `scripts/transcribe_calls.py`가 통화 .m4a를 apple-stt로 전사한다. Voice Memos와 달리 통화 m4a에는 tsrp atom이 없어 `extract.py`가 못 다루므로 별도 경로다.
 
 - iCloud placeholder(dataless) 파일이면 `brctl download`로 받아 크기 안정화까지 대기 후 전사.
-- 산출물: `~/.voice-memos/transcripts/YYYYMMDD/HHMMSS/transcript.md` — `extract.py`와 동일한 `## 전사 내용` 마커 포맷. 제목은 `YYYY-MM-DD HH:MM:SS <상대>님과의 통화`, 화자 라벨 없음.
+- 산출물: 원본 옆 `<원본>.transcript.md` + `<원본>.summary.md`. 전사 파일은 `extract.py`와 동일한 `## 전사 내용` 마커 포맷. 제목은 `YYYY-MM-DD HH:MM:SS <상대>님과의 통화`, 화자 라벨 없음.
 - 이후 `summarize.py`(요약)·`notify.py`(알림)가 그대로 이어받는다.
-- 같은 통화에 .txt가 있든 없든 .m4a를 전사한다. 따라서 search 결과에 같은 통화가 `[에이닷]`(.txt)과 `[음성 메모]`(transcripts 산출물) 양쪽 라벨로 중복 노출될 수 있다 — transcripts 쪽 제목의 `~님과의 통화`로 구분.
+- 같은 통화에 .txt가 있든 없든 .m4a를 전사한다. 따라서 search 결과에 같은 통화가 `[에이닷]` 원본 .txt와 `[에이닷]` 파생 `.transcript.md`로 중복 노출될 수 있다.
 
 ## 통합 원칙
 
-- **iCloud 원본을 변형하지 않는다.** .txt·.m4a 모두 수정하면 다른 기기에 전파된다. 전사 산출물은 `~/.voice-memos/` 아래에만 생긴다.
+- **iCloud 원본을 변형하지 않는다.** .txt·.m4a 원본은 수정하지 않고, 파생 전사/요약 파일만 같은 `녹음/` 폴더에 `.transcript.md`/`.summary.md`로 둔다.
 - .txt에는 `correct.py`(단어장 교정)를 적용하지 않고 search.py 인덱싱만 한다.
 - `search.py` 라벨: `[에이닷]`. 미리보기는 `[통화요약]` 섹션 전체를 들여쓰기로 표시. 섹션이 없으면 `[녹음 내용]` 첫 80자.
 
 ## 검색 동작
 
-- `iter_transcript_files()`가 디렉터리를 glob해서 정규식에 맞는 .txt만 포함.
-- `call_to_datetime()`이 파일명에서 `YYYYMMDD_HHMMSS` 파싱.
-- `format_result()`에서 연락처(`홍길동님`)를 표시 이름으로 사용.
+- `iter_transcript_files()`가 디렉터리를 glob해서 모든 `.txt`와 `.transcript.md`를 포함.
+- `call_to_datetime()`이 파일명 끝의 `_YYYYMMDD_HHMMSS` suffix에서 날짜를 파싱.
+- `format_result()`에서 suffix를 제거한 prefix를 표시 이름으로 사용하되, prefix 끝의 전화번호 꼬리는 제거.
 
 ## 전문 읽기
 

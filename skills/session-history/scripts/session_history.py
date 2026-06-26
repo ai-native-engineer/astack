@@ -5,14 +5,14 @@ Subcommands:
     list      세션 목록 조회 (기본)
     show      특정 세션의 전체 대화 내역 보기
     timeline  오늘 작업 시간순 타임라인 (데일리 노트용)
-    grep      세션 전문 검색 (preview 아닌 실제 대화 내용)
+    rg        세션 전문 검색 (preview 아닌 실제 대화·도구 기록)
 
 Usage:
     python3 session_history.py                              # 오늘 세션 목록
     python3 session_history.py list --cwd                   # 현재 디렉토리 프로젝트만
     python3 session_history.py list --search pytest         # 키워드 검색
     python3 session_history.py timeline                     # 오늘 타임라인
-    python3 session_history.py grep "gcloud"                # 전문 검색
+    python3 session_history.py rg "gcloud"                  # 대화·도구 기록 검색
     python3 session_history.py show --last                  # 가장 최근 세션
     python3 session_history.py show abc123 --full           # 도구 호출 포함
     python3 session_history.py show abc123 --limit 20       # 앞 20개만
@@ -667,10 +667,15 @@ def cmd_timeline(args):
 # ─── grep 서브커맨드 ───────────────────────────────────────────
 
 def grep_claude_session(fpath: Path, keyword: str, context_lines: int = 0):
-    """Claude Code 세션 JSONL에서 keyword 포함 메시지 반환."""
+    """Claude Code 세션 JSONL에서 keyword 포함 대화·도구 기록 반환."""
     hits = []
     keyword_lower = keyword.lower()
     messages = []
+
+    def add_message(role, text, ts):
+        if isinstance(text, str) and text.strip():
+            messages.append({"role": role, "text": text.strip(), "ts": ts})
+
     with open(fpath, encoding="utf-8") as f:
         for line in f:
             try:
@@ -683,16 +688,32 @@ def grep_claude_session(fpath: Path, keyword: str, context_lines: int = 0):
                 msg = d.get("message", {})
                 content = msg.get("content", "")
                 if isinstance(content, list):
-                    parts = [c["text"] if isinstance(c, dict) and c.get("type") == "text" else "" for c in content]
-                    content = "\n".join(parts)
-                if content.strip():
-                    messages.append({"role": "user", "text": content.strip(), "ts": ts})
+                    for c in content:
+                        if isinstance(c, dict) and c.get("type") == "text":
+                            add_message("user", c.get("text", ""), ts)
+                        elif isinstance(c, dict) and c.get("type") == "tool_result":
+                            add_message("tool", c.get("content", ""), ts)
+                        elif isinstance(c, str):
+                            add_message("user", c, ts)
+                else:
+                    add_message("user", content, ts)
             elif entry_type == "assistant":
                 for part in d.get("message", {}).get("content", []) or []:
                     if isinstance(part, dict) and part.get("type") == "text":
-                        text = part["text"].strip()
-                        if text:
-                            messages.append({"role": "assistant", "text": text, "ts": ts})
+                        add_message("assistant", part.get("text", ""), ts)
+                    elif isinstance(part, dict) and part.get("type") == "tool_use":
+                        name = part.get("name", "")
+                        inp = json.dumps(part.get("input", {}) or {}, ensure_ascii=False)
+                        add_message("tool", f"[tool: {name}] {inp}", ts)
+            elif entry_type == "tool_result":
+                msg = d.get("message", {})
+                content = msg.get("content", "")
+                if isinstance(content, list):
+                    for part in content:
+                        if isinstance(part, dict):
+                            add_message("tool", part.get("content", ""), ts)
+                else:
+                    add_message("tool", content, ts)
 
     for i, msg in enumerate(messages):
         if keyword_lower in msg["text"].lower():
@@ -712,39 +733,58 @@ def grep_claude_session(fpath: Path, keyword: str, context_lines: int = 0):
 
 
 def grep_codex_session(fpath: Path, keyword: str):
-    """Codex rollout JSONL에서 keyword 포함 메시지 반환."""
+    """Codex rollout JSONL에서 keyword 포함 대화·도구 기록 반환."""
     hits = []
     keyword_lower = keyword.lower()
+
+    def add_hit(role, text, ts):
+        if not isinstance(text, str) or keyword_lower not in text.lower():
+            return
+        idx = text.lower().find(keyword_lower)
+        start = max(0, idx - 60)
+        end = min(len(text), idx + len(keyword) + 90)
+        excerpt = ("..." if start > 0 else "") + text[start:end] + ("..." if end < len(text) else "")
+        hits.append({
+            "role": role,
+            "ts": ts,
+            "excerpt": excerpt.replace("\n", " "),
+        })
+
     with open(fpath, encoding="utf-8") as f:
         for line in f:
             try:
                 d = json.loads(line.strip())
             except json.JSONDecodeError:
                 continue
-            if d.get("type") != "event_msg":
-                continue
+            entry_type = d.get("type")
             payload = d.get("payload", {}) or {}
             ts = d.get("timestamp", "")
-            msg_type = payload.get("type", "")
-            if msg_type not in ("user_message", "agent_message"):
+            if entry_type == "event_msg":
+                msg_type = payload.get("type", "")
+                if msg_type in ("user_message", "agent_message"):
+                    role = "user" if msg_type == "user_message" else "assistant"
+                    add_hit(role, (payload.get("message", "") or "").strip(), ts)
+                elif msg_type == "patch_apply_begin":
+                    add_hit("tool", json.dumps(payload.get("changes", {}) or {}, ensure_ascii=False), ts)
                 continue
-            text = (payload.get("message", "") or "").strip()
-            if not text or keyword_lower not in text.lower():
+            if entry_type != "response_item":
                 continue
-            idx = text.lower().find(keyword_lower)
-            start = max(0, idx - 60)
-            end = min(len(text), idx + len(keyword) + 90)
-            excerpt = ("..." if start > 0 else "") + text[start:end] + ("..." if end < len(text) else "")
-            hits.append({
-                "role": "user" if msg_type == "user_message" else "assistant",
-                "ts": ts,
-                "excerpt": excerpt.replace("\n", " "),
-            })
+            rtype = payload.get("type", "")
+            if rtype in ("function_call", "custom_tool_call"):
+                raw = payload.get("arguments", "") or payload.get("input", "")
+                if not isinstance(raw, str):
+                    raw = json.dumps(raw, ensure_ascii=False)
+                add_hit("tool", f"[{payload.get('name', '')}] {raw}", ts)
+            elif rtype in ("function_call_output", "custom_tool_call_output"):
+                output = payload.get("output", "")
+                if not isinstance(output, str):
+                    output = json.dumps(output, ensure_ascii=False)
+                add_hit("tool", output, ts)
     return hits
 
 
 def cmd_grep(args):
-    """세션 파일 전문 검색. history.jsonl preview가 아닌 실제 대화 내용 검색."""
+    """세션 파일 전문 검색. history.jsonl preview가 아닌 실제 대화·도구 기록 검색."""
     keyword = args.keyword
     start_ms, end_ms, label = date_range(args)
     cwd_filter = str(Path.cwd()) if getattr(args, "cwd", False) else None
@@ -794,13 +834,16 @@ def cmd_grep(args):
             })
 
     results.sort(key=lambda r: r["first_ts_ms"])
+    if getattr(args, "limit", None) is not None:
+        results = results[:args.limit]
 
     if args.format == "json":
         out = [{**r, "fpath": str(r["fpath"]), "sid": r["sid"]} for r in results]
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return
 
-    lines = [f'# grep: "{keyword}" ({label})', ""]
+    command_label = "rg" if getattr(args, "command", "") == "rg" else "grep"
+    lines = [f'# {command_label}: "{keyword}" ({label})', ""]
     if not results:
         lines.append("매칭 없음.")
         print("\n".join(lines))
@@ -816,7 +859,7 @@ def cmd_grep(args):
         lines.append(f"\n{tool_tag} {r['sid'][:12]}  {proj}  {time_str}")
         lines.append(f"  파일: {r['fpath']}")
         for hit in r["hits"][:3]:  # 세션당 최대 3건
-            role_icon = "👤" if hit["role"] == "user" else "🤖"
+            role_icon = {"user": "👤", "assistant": "🤖"}.get(hit["role"], "🔧")
             # ts 파싱
             try:
                 if isinstance(hit["ts"], str):
@@ -1059,8 +1102,8 @@ def main():
   %(prog)s list --search pytest            키워드 검색 (preview)
   %(prog)s timeline                        오늘 타임라인 (데일리 노트용)
   %(prog)s timeline --days 3 --cwd         현재 프로젝트 3일 타임라인
-  %(prog)s grep "gcloud"                   전문 검색 (실제 대화 내용)
-  %(prog)s grep "gcloud" --days 14         14일간 전문 검색
+  %(prog)s rg "gcloud"                     대화·도구 기록 검색
+  %(prog)s rg "gcloud" --days 14           14일간 대화·도구 기록 검색
   %(prog)s show --last                     가장 최근 세션
   %(prog)s show abc12345 --files           수정된 파일 목록
   %(prog)s show abc12345 --limit 20        앞 20개 메시지만
@@ -1086,11 +1129,12 @@ def main():
     tl_parser.add_argument("--compact", action="store_true", help="중간 스냅샷 생략")
 
     # grep
-    grep_parser = subparsers.add_parser("grep", help="세션 전문 검색 (실제 대화 내용)", parents=[common])
+    grep_parser = subparsers.add_parser("grep", aliases=["rg"], help="세션 전문 검색 (대화·도구 기록)", parents=[common])
     grep_parser.add_argument("keyword", help="검색할 키워드")
     grep_parser.add_argument("--days", type=int, default=7, help="최근 N일 (기본: 7)")
     grep_parser.add_argument("--date", help="조회할 날짜 (YYYY-MM-DD)")
     grep_parser.add_argument("--cwd", action="store_true", help="현재 디렉토리 프로젝트만")
+    grep_parser.add_argument("--limit", type=int, default=None, help="결과 세션 최대 N개")
 
     # show
     show_parser = subparsers.add_parser("show", help="특정 세션 대화 보기", parents=[common])
@@ -1113,7 +1157,7 @@ def main():
         cmd_list(args)
     elif args.command == "timeline":
         cmd_timeline(args)
-    elif args.command == "grep":
+    elif args.command in ("grep", "rg"):
         cmd_grep(args)
     elif args.command == "show":
         cmd_show(args)

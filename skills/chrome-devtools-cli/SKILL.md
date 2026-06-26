@@ -1,7 +1,7 @@
 ---
 argument-hint: "[subcommand]"
 name: chrome-devtools-cli
-description: chrome-devtools CLI(chrome-devtools-mcp 패키지의 standalone CLI 모드)로 헤드리스 Chrome을 제어 — 페이지 이동, 클릭/입력, 스크린샷, 콘솔/네트워크 검사, JS 평가, Lighthouse 감사, 성능 트레이스(Core Web Vitals LCP/INP/CLS), 힙 스냅샷. Use when user says 'chrome-devtools', '브라우저 자동화', '헤드리스 브라우저', '스크린샷 찍어', 'Lighthouse', '성능 감사', '페이지 성능', 'Core Web Vitals', '콘솔 로그 확인', '네트워크 요청 확인', '웹페이지 클릭/입력 자동화', 'CDP', or needs CDP-level browser control from the terminal. chrome-devtools는 MCP 서버 대신 이 전역 CLI로 쓰길 권장(컨텍스트 절약).
+description: chrome-devtools CLI(chrome-devtools-mcp 패키지의 standalone CLI 모드)로 헤드리스 Chrome을 제어 — 페이지 이동, 클릭/입력, 스크린샷, 콘솔/네트워크 검사, JS 평가, Lighthouse 감사, 성능 트레이스(Core Web Vitals LCP/INP/CLS), 힙 스냅샷. Use when user says 'chrome-devtools', '브라우저 자동화', '헤드리스 브라우저', '스크린샷 찍어', 'Lighthouse', '성능 감사', '페이지 성능', 'Core Web Vitals', '콘솔 로그 확인', '네트워크 요청 확인', '웹페이지 클릭/입력 자동화', 'CDP', or needs CDP-level browser control from the terminal. chrome-devtools는 MCP 서버가 아니라 이 전역 CLI로 쓴다(MCP 재등록 금지).
 ---
 
 # chrome-devtools CLI
@@ -10,7 +10,7 @@ description: chrome-devtools CLI(chrome-devtools-mcp 패키지의 standalone CLI
 
 `chrome-devtools`는 `chrome-devtools-mcp` 패키지가 제공하는 **전역 CLI 바이너리**다. MCP 서버 대신 on-demand로 Bash에서 호출해 헤드리스 Chrome을 제어한다(컨텍스트 비용 0, 풀 기능, Google 공식 유지보수). MCP의 모든 도구가 그대로 서브커맨드로 노출된다.
 
-**권장**: 같은 패키지를 MCP 서버로도 등록할 수 있지만(도구 ~40개가 컨텍스트에 상주), 컨텍스트 절약을 위해 MCP 등록은 빼고 이 CLI로만 on-demand 호출하는 구성을 권장한다.
+**권장**: 같은 패키지를 MCP 서버로도 등록할 수 있지만(도구 ~40개가 컨텍스트에 상주), 컨텍스트 절약을 위해 MCP 등록은 빼고 이 CLI로만 on-demand 호출하는 구성을 권장한다. `mcp__chrome-devtools__*` 도구가 안 보여도 정상이다.
 
 설치 확인: `which chrome-devtools` (없으면 `pnpm add -g chrome-devtools-mcp@latest`).
 
@@ -85,13 +85,7 @@ chrome-devtools list_pages --output-format=json | jq '.pages[] | select(.selecte
 
 ## 실험적/카테고리 기능
 
-일부 커맨드는 데몬 기동 시 플래그가 필요하다 (도움말에 `(requires flag: ...)` 표기):
-- 메모리(heapsnapshot 상세): `--experimentalMemory=true`
-- 좌표 클릭 `click_at`: `--experimentalVision=true`
-- 화면 녹화 `screencast_*`: `--experimentalScreencast=true`
-- 확장프로그램 관리: `--categoryExtensions=true`
-
-이 플래그들은 글로벌 설정이라 `chrome-devtools start <플래그>`로 데몬을 띄운 뒤 해당 커맨드를 쓴다.
+일부 커맨드(메모리·좌표 클릭·화면 녹화·확장프로그램 등)는 데몬 기동 시 플래그가 필요하다 — 도움말에 `(requires flag: ...)`로 표기된다. 플래그는 글로벌 설정이라 `chrome-devtools start <플래그>`로 데몬을 띄운 뒤 해당 커맨드를 쓴다. 커맨드↔플래그 전체 매핑은 `references/commands.md`, 설치본 기준은 `chrome-devtools <command> --help`.
 
 ## 전체 커맨드 레퍼런스
 

@@ -49,7 +49,9 @@ python3 ~/.claude/skills/voice-memos/scripts/correct.py --all --force
 
 ## 3. 요약 (summarize)
 
-전사본을 claude-agent-sdk(`claude-sonnet-4-6[1m]`)로 요약. 결과는 같은 디렉터리의 `summary.md`에 저장. 요약과 함께 `## 제목`을 생성해 `transcript.md`의 frontmatter(`- **제목**:`)와 H1 헤딩에 주입한다(멱등).
+전사본을 claude-agent-sdk(`claude-sonnet-4-6`)로 요약. 결과는 같은 디렉터리의 `summary.md`에 저장. 요약과 함께 `## 제목`을 생성해 `transcript.md`의 frontmatter(`- **제목**:`)와 H1 헤딩에 주입한다(멱등).
+
+기본 모델은 standard context다. `[1m]` 모델은 usage credits가 꺼져 있으면 파이프라인을 실패시키므로, 정말 긴 전사본에서 1M context가 필요하고 과금을 켠 경우에만 쓴다.
 
 주의: claude-agent-sdk에는 WebSearch 도구가 없다. `allowed_tools=["WebSearch"]`를 주면 max_turns를 소진하고 빈 응답을 반환하므로 추가하지 말 것.
 
@@ -99,12 +101,12 @@ uv run python scripts/summarize.py --file <path/transcript.md>
 
 Voice Memos 전사본에는 화자 라벨이 없다. 다자 대화·미팅을 요약할 때:
 
-1. 전사본에 등장하는 이름·닉네임(참석자들의 이름 등)을 기계적으로 특정 발화자에게 매핑하지 않는다.
+1. 전사본에 등장하는 이름·닉네임(예: `화자1`, `화자2` 등)을 기계적으로 특정 발화자에게 매핑하지 않는다.
 2. 사용자의 관점·의견·결정을 추론·요약하기 전에 "이 녹음에서 당신은 어느 발언을 했는지" 사용자에게 먼저 묻는다. 특히 다음 상황은 필수:
    - 사용자의 의사결정·심리·평가를 요약할 때
    - 특정 인물의 발언을 사용자에게 귀속시킬 때
    - 발언 주체에 따라 결론이 달라질 때
-3. 사용자 호칭(본인 이름·닉네임)이 전사본에 등장하면 사용자를 지칭할 가능성이 높지만, 그 문장이 사용자의 **발화**인지 사용자**에 대한 언급**인지 반드시 구분한다.
+3. AGENTS.md의 사용자 호칭(본인 이름·닉네임)이 전사본에 등장하면 사용자를 지칭할 가능성이 높지만, 그 문장이 사용자의 **발화**인지 사용자**에 대한 언급**인지 반드시 구분한다.
 4. 추측으로 화자를 특정해 요약하지 말고, 불확실하면 묻고 답을 받은 뒤 요약을 확정한다.
 
 ### [필수] Caret MCP 사전 보강

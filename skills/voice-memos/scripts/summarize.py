@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Claude Code SDK를 사용하여 음성 메모 전사본의 요약을 생성합니다.
+Claude Code SDK를 사용하여 전사본의 요약을 생성합니다.
 
-전사된 마크다운 파일을 읽어 Claude(claude-sonnet-4-6[1m])로 요약을 생성하고,
-같은 디렉터리의 summary.md에 저장합니다.
+전사된 마크다운 파일을 읽어 Claude(claude-sonnet-4-6)로 요약을 생성하고,
+대응하는 요약 파일에 저장합니다.
 """
 
 import sys
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -54,7 +55,7 @@ SYSTEM_PROMPT = """\
 출력 형식 (마크다운):
 
 ## 제목
-(전사본의 핵심 주제를 담은 20자 내외의 한국어 명사구 제목 한 줄. 날짜·따옴표·마침표 없이. 예: "비즈니스피치 교육과 대모산개발단 방향성 회고")
+(전사본의 핵심 주제를 담은 20자 내외의 한국어 명사구 제목 한 줄. 날짜·따옴표·마침표 없이. 예: "신규 기능 기획과 팀 방향성 회고")
 
 ## 교정 사항
 | 원문 | 교정 | 근거 |
@@ -96,6 +97,7 @@ def load_vocab() -> list[str]:
 
 SUMMARIZED_MARKER = "<!-- summarized -->"
 NOTIFIED_MARKER = "<!-- notified -->"
+CALL_TRANSCRIPT_DATETIME_RE = re.compile(r"_(\d{8})_(\d{6})\.transcript\.md$")
 
 
 def parse_title(summary: str) -> str:
@@ -197,6 +199,34 @@ def extract_transcript(filepath: Path) -> str:
     return content[idx + len(marker) :].strip()
 
 
+def recorded_at_for(filepath: Path) -> str:
+    """전사 파일에서 녹음일시를 읽습니다."""
+    try:
+        content = filepath.read_text(encoding="utf-8")
+    except OSError:
+        content = ""
+
+    for line in content.splitlines()[:20]:
+        if line.startswith("- **녹음일시**:"):
+            return line.split(":", 1)[1].strip()
+
+    match = CALL_TRANSCRIPT_DATETIME_RE.search(filepath.name)
+    if match:
+        try:
+            dt = datetime.strptime(f"{match.group(1)} {match.group(2)}", "%Y%m%d %H%M%S")
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            pass
+
+    try:
+        time_part = filepath.parent.name
+        date_part = filepath.parent.parent.name
+        dt = datetime.strptime(f"{date_part} {time_part}", "%Y%m%d %H%M%S")
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return "알 수 없음"
+
+
 def build_summary_content(summary: str, preserve_notified: bool) -> str:
     """요약 파일 내용을 구성합니다."""
     markers = [SUMMARIZED_MARKER]
@@ -223,18 +253,11 @@ async def summarize_file(filepath: Path, force: bool = False) -> bool:
 
     options = ClaudeAgentOptions(
         system_prompt=SYSTEM_PROMPT,
-        model="claude-sonnet-4-6[1m]",
+        model="claude-sonnet-4-6",
         max_turns=3,
     )
 
-    # 디렉터리 경로에서 날짜/시간 추출
-    try:
-        time_part = filepath.parent.name
-        date_part = filepath.parent.parent.name
-        dt = datetime.strptime(f"{date_part} {time_part}", "%Y%m%d %H%M%S")
-        date_str = dt.strftime("%Y-%m-%d %H:%M:%S")
-    except ValueError:
-        date_str = "알 수 없음"
+    date_str = recorded_at_for(filepath)
 
     vocab = load_vocab()
     vocab_section = ""

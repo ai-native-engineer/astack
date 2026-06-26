@@ -15,6 +15,8 @@ import urllib.request
 from pathlib import Path
 
 from config import (
+    CALL_SUMMARY_SUFFIX,
+    CALL_TRANSCRIPT_SUFFIX,
     ENV_FILE,
     TRANSCRIPTS_DIR,
     iter_transcript_files,
@@ -116,6 +118,11 @@ def send_telegram(token: str, chat_id: str, title: str, summary: str):
 
 def format_title(filepath: Path) -> str:
     """디렉터리 경로(YYYYMMDD/HHMMSS)에서 읽기 쉬운 제목을 생성합니다."""
+    if filepath.name.endswith(CALL_SUMMARY_SUFFIX):
+        return filepath.name[: -len(CALL_SUMMARY_SUFFIX)]
+    if filepath.name.endswith(CALL_TRANSCRIPT_SUFFIX):
+        return filepath.name[: -len(CALL_TRANSCRIPT_SUFFIX)]
+
     suffix = "녹음 요약"
     try:
         from datetime import datetime
@@ -201,7 +208,7 @@ def resolve_input_paths(filepath: Path) -> tuple[Path | None, Path | None]:
         return None, None
 
     filepath = filepath.resolve()
-    if filepath.name == "summary.md":
+    if filepath.name == "summary.md" or filepath.name.endswith(CALL_SUMMARY_SUFFIX):
         return transcript_path_for(filepath), filepath
     else:
         return filepath, summary_path_for(filepath)

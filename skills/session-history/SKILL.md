@@ -1,7 +1,7 @@
 ---
 argument-hint: "[query]"
 name: session-history
-description: Claude Code + Codex 통합 세션 히스토리 조회. 세션 목록, 전체 대화 내역, 도구 호출 포함 상세 보기를 지원. Use when user says "오늘 뭐 했지", "세션 히스토리", "session history", "작업 내역", "오늘 한 일", "뭐 했더라", "history", "대화 내역", or wants to review past Claude Code/Codex sessions.
+description: "Claude Code and Codex session history lookup across lists, timelines, full conversation details, tool calls, grep/search, and token usage. Use when user asks 세션 히스토리, 작업 내역, 오늘 한 일, 뭐 했더라, history, 대화 내역, or wants to review past sessions. Do NOT use for personal reflection synthesis, automation packaging, memory updates, or searching current repo files."
 ---
 
 # Session History
@@ -12,71 +12,31 @@ Claude Code (`~/.claude/`) + Codex (`~/.codex/`) 통합 세션 히스토리.
 
 ## 사용법
 
-### 세션 목록 (list)
+네 서브커맨드: `list`(목록)·`timeline`(시간순, 데일리 노트용)·`rg`(세션 전문 검색)·`show`(대화 보기). `grep`도 같은 검색의 호환 alias다. 대표 호출:
 
 ```bash
-python3 ~/.claude/skills/session-history/scripts/session_history.py                          # 오늘 세션 목록 (파일 경로 포함)
-python3 ~/.claude/skills/session-history/scripts/session_history.py list --cwd               # 현재 디렉토리 프로젝트만
-python3 ~/.claude/skills/session-history/scripts/session_history.py list --date 2026-03-17
-python3 ~/.claude/skills/session-history/scripts/session_history.py list --days 7
-python3 ~/.claude/skills/session-history/scripts/session_history.py list --search pytest     # 키워드 검색 (preview 기준)
+SH=~/.claude/skills/session-history/scripts/session_history.py
+python3 $SH list --cwd                # 현재 프로젝트 오늘 세션 (절대 경로 포함)
+python3 $SH rg "gcloud" --days 30     # 30일간 세션 JSONL 전문 검색 (맥락 발췌)
+python3 $SH rg "error" --days 30 --limit 5  # 실패 신호가 있는 세션 5개만 보기
+python3 $SH show --last --files       # 가장 최근 세션의 수정 파일 목록
 ```
 
-목록에 각 세션의 절대 파일 경로가 기본으로 표시된다.
+서브커맨드별 옵션은 다르다. 특히 `--limit`은 `show`·`rg`에만 있고 `list`엔 없다(목록 범위는 `--days`/`--date`로 조절). 출력 형식은 `--format text|json`만 받는다(`compact` 값 없음 — 압축 출력은 `timeline --compact` 전용 플래그). 페이지네이션용 `--offset`은 없다. 그 밖의 플래그는 실행 전 `python3 $SH <subcommand> -h`로 확인한다.
 
-### 타임라인 (timeline) — 데일리 노트용
+비자명한 동작:
 
-```bash
-python3 ~/.claude/skills/session-history/scripts/session_history.py timeline                 # 오늘 시간순 타임라인
-python3 ~/.claude/skills/session-history/scripts/session_history.py timeline --days 3        # 최근 3일
-python3 ~/.claude/skills/session-history/scripts/session_history.py timeline --cwd           # 현재 프로젝트만
-python3 ~/.claude/skills/session-history/scripts/session_history.py timeline --compact       # 중간 스냅샷 생략
-```
-
-모든 세션을 시간순으로 나열. 데일리 노트 붙여넣기에 바로 쓸 수 있는 형태.
-
-### 전문 검색 (grep) — 실제 대화 내용 검색
-
-```bash
-python3 ~/.claude/skills/session-history/scripts/session_history.py grep "gcloud"            # 기본 7일간 전문 검색
-python3 ~/.claude/skills/session-history/scripts/session_history.py grep "gcloud" --days 30  # 30일간
-python3 ~/.claude/skills/session-history/scripts/session_history.py grep "gcloud" --cwd      # 현재 프로젝트만
-```
-
-`list --search`와 달리 history.jsonl preview가 아닌 **실제 세션 JSONL 파일 전문**을 검색. 키워드 주변 맥락 발췌 포함.
-
-### 세션 대화 보기 (show)
-
-```bash
-python3 ~/.claude/skills/session-history/scripts/session_history.py show --last              # 가장 최근 세션
-python3 ~/.claude/skills/session-history/scripts/session_history.py show <세션ID>            # 대화만
-python3 ~/.claude/skills/session-history/scripts/session_history.py show <세션ID> --full     # 도구 호출 포함
-python3 ~/.claude/skills/session-history/scripts/session_history.py show <세션ID> --files    # 수정된 파일 목록만
-python3 ~/.claude/skills/session-history/scripts/session_history.py show <세션ID> --limit 20 # 앞 20개만
-python3 ~/.claude/skills/session-history/scripts/session_history.py show <세션ID> --format json
-```
-
-`show` 결과 헤더에 세션 파일 절대 경로가 표시된다.
-
-세션 ID는 prefix 매칭. 목록에 표시되는 12자리를 그대로 붙여넣는 것을 권장 (UUID v7 특성상 앞 8자리는 동시 생성 세션끼리 충돌 가능).
-
-`--files`는 두 섹션을 출력한다:
-- **구조화된 파일 변경** — Claude Code의 `Edit`/`Write`/`MultiEdit`/`NotebookEdit`와 Codex의 `apply_patch`/`patch_apply_begin`에서 경로를 직접 추출해 집계.
-- **Bash/shell 변경 의심** — `rm`/`mv`/`cp`/`sed -i`/`tee`/`>` 등 파일 변경 패턴이 포함된 Claude `Bash` 호출 및 Codex `shell` function call.
-
-## 공통 옵션
-
-| 옵션 | 값 | 설명 |
-|------|-----|------|
-| `--tool` | `all`, `claude`, `codex` | 조회할 도구 (기본: all) |
-| `--format` | `text`, `json` | 출력 형식 (기본: text) |
-| `--cwd` | flag | 현재 작업 디렉토리 기준 프로젝트 필터 (list/timeline/grep 공통) |
-| `--include-subagents` | flag | Claude Code(`/subagents/`)·Codex(`exec`/swarm) 세션 포함. 기본은 제외 |
+- `rg`는 `list --search`(history.jsonl preview)와 달리 **실제 세션 JSONL의 대화·도구 호출·도구 결과**를 검색한다.
+- `rg --limit N`은 매칭 세션 수를 제한한다. 세션 안에서는 앞 3개 매칭만 요약하고, 전체 맥락은 `show <ID> --full`로 본다.
+- 세션 ID는 prefix 매칭. 목록의 12자리를 그대로 붙여넣는 것을 권장 (UUID v7 특성상 앞 8자리는 동시 생성 세션끼리 충돌 가능).
+- `--files`는 두 섹션을 출력한다:
+  - **구조화된 파일 변경** — `Edit`/`Write`/`MultiEdit`/`NotebookEdit` + Codex `apply_patch`/`patch_apply_begin`에서 경로 추출.
+  - **Bash/shell 변경 의심** — `rm`/`mv`/`cp`/`sed -i`/`tee`/`>` 등 파일 변경 패턴이 든 `Bash` 호출 및 Codex `shell` call.
 
 ## 워크플로우
 
 1. **현재 프로젝트 맥락 복원**: `list --cwd` → `show <ID>` 또는 `show --last`
-2. **특정 작업 찾기**: `grep "키워드"` (7일 기본) → `show <ID>`
+2. **특정 작업 찾기**: `rg "키워드"` (7일 기본) → `show <ID>`
 3. **오늘 데일리 노트**: `timeline` → 출력 복사 붙여넣기
 4. **전체 목록**: `list --days 7` → 세션 ID와 파일 경로 확인
 

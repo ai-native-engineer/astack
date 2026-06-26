@@ -1,14 +1,7 @@
 ---
 argument-hint: "[query]"
 name: voice-memos
-description: >
-  Apple Voice Memos·에이닷 통화 녹음·Apple Notes·Caret MCP를 통합해 음성 메모와
-  개인 노트를 추출, 교정, 검색, 요약, 전문 읽기, 알림 전송한다. 전사 자동화
-  워처(launchd)의 진단·재시작도 다룬다.
-  "음성 메모", "voice memo", "전사", "메모 검색", "메모 찾아줘", "녹음 내용",
-  "메모 추출", "메모 교정", "전문 가져와줘", "메모 내용 읽어줘",
-  "텔레그램으로 보내줘", "최근 메모", "오늘 메모", "전사가 안 됐어",
-  "알림이 안 와" 요청에 사용.
+description: "Apple Voice Memos, 에이닷 통화 녹음, Apple Notes, Caret MCP 개인 노트를 추출, 전사, 교정, 검색, 요약, 전문 읽기, 알림 전송, launchd watcher 진단/재시작으로 처리. Use when user asks 음성 메모, voice memo, 전사, 녹음 내용, 메모 찾아줘, 최근/오늘 메모, 전문 가져와줘, 텔레그램으로 보내줘, 전사가 안 됐어, 알림이 안 와. Do NOT use for YouTube 자막, 회의록 작성 only from text, 일반 파일 검색, or non-personal audio production."
 ---
 
 # Voice Memos
@@ -30,7 +23,8 @@ description: >
 
 ## 경로
 
-- 산출물(transcript/summary): `~/.voice-memos/transcripts/YYYYMMDD/HHMMSS/transcript.md` + `summary.md`
+- Apple Voice Memos 산출물(transcript/summary): `~/.voice-memos/transcripts/YYYYMMDD/HHMMSS/transcript.md` + `summary.md`
+- 에이닷 `.m4a` 산출물: `~/Library/Mobile Documents/com~apple~CloudDocs/녹음/<원본>.transcript.md` + `<원본>.summary.md`
 - 단어장: `~/.voice-memos/corrections.json`
 - 워처 로그: `~/.voice-memos/logs/watcher.log`
 - 스크립트: `~/.claude/skills/voice-memos/scripts/`
@@ -61,6 +55,16 @@ python3 ~/.claude/skills/voice-memos/scripts/search.py --recent 5 --no-preview -
 1. `bash ~/.claude/skills/voice-memos/scripts/run.sh --skip-notify` — 전사(음성 메모+통화)→요약 일괄. 개별 실행은 `references/voice-memos.md` §1·§3
 2. LLM이 직접 요약할 때: **Caret MCP 사전 보강** — `caret_search_knowledge` / `caret_search_notes` 병렬 호출 후 `caret_get_note`로 관련 노트 전문 확보 (`references/caret.md`) → `references/voice-memos.md` §3 템플릿으로 `summary.md` 저장
 
+### "화자 분리해줘" / "누가 말한 건지 알고 싶어"
+
+해당 음성 메모의 transcript 디렉토리(`transcripts/YYYYMMDD/HHMMSS/`)를 확인한 뒤:
+
+```bash
+bash ~/.claude/skills/voice-memos/scripts/diarize.sh <audio.m4a> <transcript_dir> [apple|argmax|both] [start] [end]
+```
+
+출력: 기존 `transcript_dir/diarized.md` (transcript.md·summary.md와 같은 폴더).
+
 ### "전사만 해줘"
 
 `python3 ~/.claude/skills/voice-memos/scripts/extract.py` — `apple-stt`(macOS SpeechAnalyzer)로 오디오 직접 전사. 옵션은 `references/voice-memos.md` §1.
@@ -83,7 +87,7 @@ python3 ~/.claude/skills/voice-memos/scripts/search.py --recent 5 --no-preview -
 전사본은 한 줄이 길어 Read 도구의 토큰 제한에 걸린다. `references/voice-memos.md` §4의 fold + Read 병렬 패턴을 따른다. 단:
 
 - 통화 녹음 .txt는 줄이 짧아 보통 Read 직접 가능 (`references/call-recordings.md`)
-- Apple Notes는 가상 Path(`apple-note:<Z_PK>`)라 Read 불가. `search.py`가 미리보기를 보여주므로 보통 충분. 전문이 필요하면 `scripts/vm_notes.py`의 `note_body()`로 읽는다 - NoteStore.sqlite를 raw로 직접 쿼리하면 본문이 zlib+protobuf로 압축돼 있어 Traceback난다 (`references/apple-notes.md`).
+- Apple Notes는 가상 Path(`apple-note:<Z_PK>`)라 Read 불가. `search.py`가 미리보기를 보여주므로 보통 충분. 전문이 필요하면 `scripts/vm_notes.py`의 `note_body()`로 읽는다 — NoteStore.sqlite를 raw로 직접 쿼리하면 본문이 zlib+protobuf로 압축돼 있어 Traceback난다(`references/apple-notes.md`).
 
 ### "텔레그램으로 보내줘" / "디스코드로 보내줘"
 
@@ -97,6 +101,8 @@ python3 ~/.claude/skills/voice-memos/scripts/notify.py
 ### "전사가 안 됐어" / "알림이 안 와" / 워처 점검
 
 launchd 워처 구성·로그 판독·FDA 권한 진단·재시작 절차는 `references/watcher.md`.
+Telegram 에러 알림을 붙여주면 마지막 `[ERROR]` 단계부터 본다. `apple-stt 0/N`은 새 전사 대상 없음이나
+무음 파일 누적일 수 있으므로, 요약 단계의 `Fatal error in message reader`가 있으면 먼저 모델/SDK/CLI 경로를 확인한다.
 
 ### "음성 메모 제목 바꿔줘" / "앱 안 이름 바꿔줘"
 
@@ -106,7 +112,7 @@ Voice Memos 앱 안에서 보이는 표시 이름만 변경 (원본 .m4a 파일�
 
 - **응답 언어**: 한국어. 영어·일본어 원문 인용은 원문 유지.
 - **화자 분리 한계**: Voice Memos 전사본에는 화자 라벨이 없다. 사용자의 발언·의사결정·심리를 추론·요약하기 전에 어느 발언이 본인 것인지 사용자에게 먼저 확인한다. 사용자 호칭(본인 이름·닉네임)이 등장해도 그 문장이 사용자의 **발화**인지 사용자**에 대한 언급**인지 구분한다. 상세 절차는 `references/voice-memos.md` §3.
-- **iCloud 원본 보존**: 통화 녹음(.txt/.m4a)과 Apple Notes는 원본을 변형하지 않는다 (산출물은 `~/.voice-memos/`에만, Notes는 `mode=ro` 직접 쿼리).
+- **원본 보존**: Voice Memos 원본, 에이닷 통화 녹음(.txt/.m4a), Apple Notes는 변형하지 않는다. 파생 위치는 소스별로 다르다. Voice Memos 산출물은 `voice-memos/transcripts/`, 에이닷 `.m4a` 산출물은 원본 옆 `<원본>.transcript.md`/`<원본>.summary.md`, Notes는 `mode=ro` 직접 쿼리.
 - **Caret 사전 보강 필수**: 요약·교정에 들어가기 전에 Caret MCP 검색을 건너뛰지 않는다. 관련 지식이 없는 경우에만 생략 가능. 검색 결과의 `summary` 필드만으로 판단하지 말고 `caret_get_note`로 전문을 확보한다.
 
 ## scripts/ 인덱스

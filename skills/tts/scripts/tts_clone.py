@@ -50,7 +50,6 @@ PHONETIC_RULES = [
     (re.compile(r"(?<![A-Za-z0-9])CapCut(?![A-Za-z0-9])", re.I), "캡컷"),
     (re.compile(r"(?<![A-Za-z0-9])YouTube(?![A-Za-z0-9])", re.I), "유튜브"),
     (re.compile(r"(?<![A-Za-z0-9])Remotion(?![A-Za-z0-9])", re.I), "리모션"),
-    (re.compile(r"(?<![A-Za-z0-9])GRANTER(?![A-Za-z0-9])", re.I), "그랜터"),
     (re.compile(r"(?<![A-Za-z0-9])HTML(?![A-Za-z0-9])", re.I), "에이치티엠엘"),
     (re.compile(r"(?<![A-Za-z0-9])API(?![A-Za-z0-9])", re.I), "에이피아이"),
     (re.compile(r"(?<![A-Za-z0-9])MCP(?![A-Za-z0-9])", re.I), "엠씨피"),
@@ -134,6 +133,7 @@ def gen_one(model, ref_audio, ref_text, text, out_dir, prefix, extra=None):
 
 def gen_extra_from_args(args):
     flag_map = {
+        "lang": "--lang_code",
         "duration_multiplier": "--duration_multiplier",
         "speed": "--speed",
         "ddpm_steps": "--ddpm_steps",

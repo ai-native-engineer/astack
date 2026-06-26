@@ -1,6 +1,6 @@
 ---
 name: meta-ads-cli
-description: Meta(Facebook·Instagram) 광고를 터미널·스크립트·AI 에이전트로 관리하는 `meta` CLI(PyPI `meta-ads`, Marketing API 래퍼). 캠페인·광고세트·광고·크리에이티브 CRUD, 성과 insights(지출·노출·CTR·CPC·ROAS, 기간/연령/성별/플랫폼 breakdown), 데이터셋(픽셀) 전환추적, 제품 카탈로그, 페이지 조회. 시스템 사용자 토큰으로 인증하고 `.env`로 계정 설정. Use when the user mentions "메타 광고", "페이스북 광고", "인스타 광고", "Meta ads", "meta ads cli", "광고 캠페인 생성/수정/삭제/조회", "광고 성과/인사이트", "전환 추적/픽셀", "광고 자동화", or wants to read or manage Meta advertising from the shell.
+description: "Meta Facebook/Instagram ads CLI workflow for campaign/adset/ad/creative CRUD, insights, breakdowns, pixels, conversion tracking, catalogs, and page lookup. Use when user asks 메타 광고, 페이스북/인스타 광고, Meta ads, campaign/adset/ad/creative, 광고 성과/인사이트, ROAS/CTR/CPC, pixel, catalog, or ad automation. Do NOT use for Google Ads, organic social posting, general marketing strategy, SimilarWeb traffic, or non-Meta analytics."
 ---
 
 # Meta Ads CLI (`meta`)

@@ -1,6 +1,6 @@
 ---
 name: data-go-kr
-description: 한국 공공데이터포털(data.go.kr)의 임의 API를 작업 단위로 검색→활용신청 안내→호출하는 범용 스킬. API당 고정 스킬이 아니라 long-tail 전체를 온디맨드로 다루고, 성공한 호출은 레시피로 캐시해 다음부터 직행. 호출은 사용자 키(DATA_GO_KR_API_KEY) 직접, 프록시 없음. Use when user says "공공데이터", "공공 API", "data.go.kr", "나라장터"(입찰/낙찰/계약 조회), "국민연금 사업장", "사업자등록 상태조회", "건축물대장", or any task needing Korean government open APIs.
+description: "Korean data.go.kr public API work-unit search, application guidance, direct API calls with user key, and recipe caching for long-tail public datasets. Use when user asks 공공데이터, 공공 API, data.go.kr, 나라장터, 국민연금 사업장, 사업자등록 상태조회, 건축물대장, or Korean government open API data. Do NOT use for Snowflake, Google Sheets, SimilarWeb, DART-only company research, generic web crawling, or non-Korean APIs."
 argument-hint: "[할 작업]"
 license: MIT
 ---

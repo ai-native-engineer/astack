@@ -1,7 +1,6 @@
-# chrome-devtools CLI 전체 커맨드 레퍼런스
+# chrome-devtools CLI 커맨드 맵
 
-설치본 기준 진실 원천은 항상 `chrome-devtools --help` / `chrome-devtools <command> --help`.
-(아래는 chrome-devtools-mcp v1.1.1 기준. `--output-format=json`은 모든 커맨드에 붙일 수 있다.)
+**권위 소스는 항상 `chrome-devtools --help` / `chrome-devtools <command> --help`.** 아래는 어떤 작업에 어떤 커맨드가 있고 무엇이 플래그를 요구하는지 빠르게 훑기 위한 **비권위 스냅샷**이다 — 플래그 상세는 버전에 따라 바뀌니 신뢰하지 말고 `--help`로 확인한다. `--output-format=json`은 모든 커맨드에 붙일 수 있다.
 
 ## 데몬 관리
 

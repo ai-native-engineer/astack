@@ -57,6 +57,17 @@ gh api --paginate user/orgs --jq '.[].login' | jq -R . | jq -s .
 13. **explore는 키워드+토픽을 둘 다 돌려 병합**: 키워드만 → 자기태깅 토픽 레포 누락, 토픽만 → 이름/설명 매치 레포 누락. `--sort` 유효값은 `stars|updated|forks|help-wanted-issues`(gh 기준; explore CLI는 stars/updated/forks 노출). 병합 후 정렬키로 재정렬(updated는 `pushedAt` 기준).
 14. **`--good-first-issues`/`--help-wanted-issues`는 필터 전용**: 레포를 "GFI≥N개"로 거르지만 그 수를 JSON으로 돌려주진 않는다(JSON 필드 목록에 없음). explore는 표시용 카운트를 per-repo `gh search issues --repo R --label "..." --json url | jq length`로 보강(trending `--issues`와 동일 패턴).
 
+## 스크립트 옵션 (전체 시그니처)
+
+SKILL.md는 각 모드의 핵심 사용법만 둔다. 전체 플래그는 아래가 권위 소스다(스크립트가 `--help`를 지원하지 않을 경우).
+
+- `explore.sh "<주제>" [--language L] [--min-stars N] [--sort stars|updated|forks] [--limit N] [--no-issues] [--json|--html]`
+- `discover.sh [--language L] [--label L].. [--topic KW] [--min-stars N] [--curated] [--top N] [--hot] [--summary] [--max-age D] [--stale-ok] [--include-linked] [--sort recent|comments-asc] [--json]`
+- `trending.sh [language] [--since daily|weekly|monthly] [--limit N] [--highlight a,b] [--issues] [--json]`
+- `bootstrap.sh <owner/repo> [branch] [--dir D] [--dry]`
+- `contributions.sh [username] [--json|--html|--emit-markdown]`
+- `stats.sh [username] [--json|--html]`
+
 ## JSON 출력 스키마
 
 - explore (→ render_html.py): `{type:"explore", generated, query:{topic,language,min_stars,sort,with_issues}, count, repos:[{repo,stars,forks,language,pushed,open_issues,url,description,gfi,hw}]}` (`gfi/hw`는 `--no-issues`면 null)

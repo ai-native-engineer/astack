@@ -7,7 +7,15 @@ if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
 fi
 
 raw_target="$1"
-base_dir="${2:-./company-context}"
+if [ "$#" -ge 2 ]; then
+  base_dir="$2"
+else
+  if [ -d "01-context" ]; then
+    base_dir="./01-context/company"
+  else
+    base_dir="./company-context"
+  fi
+fi
 stamp="$(date +%Y%m%d)"
 slug="$(printf '%s' "$raw_target" | tr '[:space:]' '-' | sed -E 's#/+#-#g; s/-+/-/g; s/^-|-$//g')"
 

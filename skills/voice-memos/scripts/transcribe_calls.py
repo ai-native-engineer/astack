@@ -3,7 +3,7 @@
 에이닷 통화 녹음(.m4a) 자동 전사.
 
 iCloud 녹음 폴더의 통화 m4a를 apple-stt로 전사해
-transcripts/<YYYYMMDD>/<HHMMSS>/transcript.md 로 저장한다.
+같은 폴더의 `<원본>.transcript.md`로 저장한다.
 
 Apple Voice Memos와 달리 통화 m4a에는 tsrp atom이 없어 extract.py로는
 처리할 수 없으므로 별도 경로로 둔다. 저장 포맷은 extract.py와 동일하게
@@ -21,12 +21,15 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-CALLS_DIR = Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/녹음"
-TRANSCRIPTS_DIR = Path.home() / ".voice-memos/transcripts"
+from config import CALL_RECORDINGS_DIR, CALL_TRANSCRIPT_SUFFIX
+
+CALLS_DIR = CALL_RECORDINGS_DIR
 APPLE_STT = Path.home() / "scripts/apple-stt"
 
-# <이름>_<휴대폰번호>_<YYYYMMDD>_<HHMMSS>.m4a
-FILENAME_RE = re.compile(r"^(.+?)_(\d{10,11})_(\d{8})_(\d{6})\.m4a$")
+# 에이닷 통화 녹음 폴더의 m4a는 이름/번호 변형이 있을 수 있으므로,
+# 날짜 정렬/필터링에 필요한 suffix만 엄격하게 본다.
+FILENAME_RE = re.compile(r"^(?P<prefix>.+)_(?P<date>\d{8})_(?P<time>\d{6})\.m4a$")
+TRAILING_PHONE_RE = re.compile(r"^(?P<contact>.+)_(?P<phone>\d{7,11})$")
 
 DOWNLOAD_TIMEOUT = 180  # dataless 다운로드 대기 상한(초)
 SETTLE_CHECKS = 3       # 크기 안정 판정 연속 횟수
@@ -71,7 +74,16 @@ def parse_filename(name: str):
     match = FILENAME_RE.match(name)
     if not match:
         return None
-    contact, phone, date_part, time_part = match.groups()
+    prefix = match.group("prefix")
+    phone_match = TRAILING_PHONE_RE.match(prefix)
+    if phone_match:
+        contact = phone_match.group("contact")
+        phone = phone_match.group("phone")
+    else:
+        contact = prefix
+        phone = ""
+    date_part = match.group("date")
+    time_part = match.group("time")
     try:
         dt = datetime.strptime(f"{date_part}{time_part}", "%Y%m%d%H%M%S")
     except ValueError:
@@ -114,7 +126,7 @@ def generate_markdown(contact: str, phone: str, dt: datetime, name: str, text: s
         f"# {date_str} {contact_label}님과의 통화",
         "",
         f"- **녹음일시**: {date_str}",
-        f"- **상대**: {contact} ({phone})",
+        f"- **상대**: {contact}" + (f" ({phone})" if phone else ""),
         "- **언어**: ko-KR",
         f"- **원본파일**: `{name}`",
         "- **전사**: apple-stt (화자 라벨 없음)",
@@ -132,10 +144,9 @@ def process_file(path: Path, force: bool = False) -> bool:
     parsed = parse_filename(path.name)
     if parsed is None:
         return False
-    contact, phone, date_part, time_part, dt = parsed
+    contact, phone, _date_part, _time_part, dt = parsed
 
-    out_dir = TRANSCRIPTS_DIR / date_part / time_part
-    out_path = out_dir / "transcript.md"
+    out_path = path.with_name(f"{path.stem}{CALL_TRANSCRIPT_SUFFIX}")
     if out_path.exists() and not force and transcript_has_body(out_path):
         return False
 
@@ -148,11 +159,10 @@ def process_file(path: Path, force: bool = False) -> bool:
     if not text:
         return False
 
-    out_dir.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
         generate_markdown(contact, phone, dt, path.name, text), encoding="utf-8"
     )
-    print(f"  {path.name} → {date_part}/{time_part}/transcript.md")
+    print(f"  {path.name} → {out_path.name}")
     return True
 
 

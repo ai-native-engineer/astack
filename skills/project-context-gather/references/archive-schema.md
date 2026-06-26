@@ -1,6 +1,6 @@
 # 아카이브 frontmatter 스키마 + 템플릿
 
-`./context/`의 소스 아카이브 `.md`는 맨 위에 아래 YAML frontmatter를 둔다. 이게 메타데이터의 **단일 소스**이고, 재실행 머지(upsert)와 `scripts/context_status.py` 뷰어가 이 값을 읽는다. frontmatter는 **flat key: value만** 쓴다(중첩·리스트 금지 — 스크립트가 의존성 없이 파싱하도록).
+`01-context/company/`의 소스 아카이브 `.md`는 맨 위에 아래 YAML frontmatter를 둔다. 이게 메타데이터의 **단일 소스**이고, 재실행 머지(upsert)와 `scripts/context_status.py` 뷰어가 이 값을 읽는다. frontmatter는 **flat key: value만** 쓴다(중첩·리스트 금지 — 스크립트가 의존성 없이 파싱하도록).
 
 ## 템플릿
 
@@ -14,7 +14,7 @@ collected_first: 2026-05-29
 collected_last: 2026-06-08
 range_start: 2026-04-14
 range_end: 2026-06-08
-anchor: "1730000000.000000"
+anchor: "1780904238.829539"
 items: 23
 scope: "general, team-updates"
 ---
@@ -71,10 +71,10 @@ anchor를 못 구하는 소스는 빈 문자열로 두고, 머지 시 기존 본
 
 ```bash
 # 전체 소스 현황 표
-python3 ~/.claude/skills/project-context-gather/scripts/context_status.py ./context
+python3 ~/.claude/skills/project-context-gather/scripts/context_status.py 01-context/company
 
 # 특정 소스의 anchor만 (재수집 증분 검색에 그대로 사용)
-python3 ~/.claude/skills/project-context-gather/scripts/context_status.py ./context --source slack
+python3 ~/.claude/skills/project-context-gather/scripts/context_status.py 01-context/company --source slack
 ```
 
 기존(frontmatter 없는) 아카이브는 스크립트가 파일명·본문 헤더에서 best-effort로 파싱해 `*`로 표시한다. 다음 머지 때 위 frontmatter를 얹으면 정식 관리로 전환된다.

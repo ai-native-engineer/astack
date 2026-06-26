@@ -5,8 +5,8 @@
 소스별 수집 현황을 표로 출력한다. --source 로 특정 소스의 anchor(증분 기준점)만 조회.
 표준 라이브러리만 사용 (의존성 0).
 
-  python3 context_status.py [dir]            # 기본 ./context, 현황 표
-  python3 context_status.py ./context --source slack   # slack anchor만 출력
+  python3 context_status.py [dir]            # 기본: 01-context/company(없으면 context), 현황 표
+  python3 context_status.py 01-context/company --source slack   # slack anchor만 출력
 """
 import argparse
 import glob
@@ -65,9 +65,19 @@ def load(path):
 
 def main():
     ap = argparse.ArgumentParser(description="context/ 아카이브 수집 현황 뷰어")
-    ap.add_argument("dir", nargs="?", default="./context", help="아카이브 폴더 (기본 ./context)")
+    ap.add_argument("dir", nargs="?", default=None,
+                    help="아카이브 폴더 (기본: 01-context/company 있으면 그걸, 없으면 레거시 context)")
     ap.add_argument("--source", help="이 소스의 anchor(증분 기준점)만 출력")
     args = ap.parse_args()
+
+    if args.dir is None:
+        # 하위호환: 신규 규약(01-context/company) 우선, 없으면 레거시(context)
+        for cand in ("01-context/company", "context"):
+            if os.path.isdir(cand):
+                args.dir = cand
+                break
+        else:
+            args.dir = "01-context/company"
 
     files = sorted(glob.glob(os.path.join(args.dir, "*.md")))
     if not files:

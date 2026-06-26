@@ -1,7 +1,7 @@
 ---
-argument-hint: "<주제> | [username]"
+argument-hint: "[주제] [username]"
 name: oss-explore
-description: GitHub CLI(gh) 기반 오픈소스 발견·기여·회고 올인원 툴킷. (1) 주제/분야로 오픈소스를 발견 — 키워드+토픽 검색을 병합해 star·활성도·언어로 평가하고 각 레포의 기여 가능성(good first issue/help wanted 수)까지 자동 표시, (2) good first issue·help wanted 이슈 단위로 기여 진입점 발굴(star 하한·신선도·미선점 필터), (3) github.com/trending 탐색, (4) fork→clone→브랜치 기여 워크플로 부트스트랩, (5) 내가/특정 유저가 기여한 외부 레포를 "소속 조직" vs "순수 외부 OSS"로 분류·정리, (6) 머지율·연/월/요일별·언어별 기여 통계. 터미널 표 또는 다크/라이트 HTML 리포트. 주제·언어·기간·star 하한은 전부 사용자 인자(특정 분야 하드코딩 없음). Use when user says "오픈소스 찾아줘", "X 관련 오픈소스", "마케팅 오픈소스", "벡터DB 오픈소스", "음악 오픈소스", "open source for X", "기여할 곳 찾아", "good first issue", "트렌딩", "trending", "내 오픈소스 기여", "컨트리뷰션 정리", "기여 통계", "오픈소스 포트폴리오", "oss-explore", "where to contribute", or wants to discover open-source projects by topic, find issues to contribute to, browse trending repos, or inventory/visualize GitHub contributions. gh 인증(gh auth) 필요.
+description: "GitHub open-source discovery, contribution entry-point finding, trending exploration, fork/clone/branch bootstrap, and contribution portfolio/stat reports using gh. Use when user asks 오픈소스 찾아줘, X 관련 OSS, good first issue, where to contribute, trending repos, 내 오픈소스 기여, contribution stats, or OSS portfolio. Do NOT use for private repo code review, generic GitHub issue triage, package docs lookup, or non-GitHub research."
 ---
 
 # oss-explore
@@ -17,7 +17,7 @@ description: GitHub CLI(gh) 기반 오픈소스 발견·기여·회고 올인원
 
 ## 6가지 모드 (발견 → 기여 → 회고)
 
-### 1. 주제로 발견 — `explore.sh "<주제>" [--language L] [--min-stars N] [--sort stars|updated|forks] [--limit N] [--no-issues] [--json|--html]`
+### 1. 주제로 발견 — `explore.sh "<주제>" [옵션]`
 분야/키워드로 오픈소스를 **발견**한다. **키워드 검색**(이름/설명/README)과 **토픽 검색**(GitHub 토픽)을 둘 다 돌려 fullName 기준 병합·dedup → star/활성도/언어로 평가. **기본으로 각 레포의 기여 가능성(good first issue/help wanted 열린 이슈 수)을 자동 보강**해 "발견과 동시에 어디에 기여할 수 있는지"를 한 표에 보여준다(`--no-issues`로 끄면 빠른 발견 모드).
 ```bash
 "$SC/explore.sh" "marketing" --min-stars 500          # 마케팅 OSS, star 500↑, 기여 가능성 포함
@@ -26,7 +26,7 @@ description: GitHub CLI(gh) 기반 오픈소스 발견·기여·회고 올인원
 "$SC/explore.sh" "legal" --html                        # HTML 리포트
 ```
 
-### 2. 이슈 단위 기여 진입점 발굴 — `discover.sh [--language L] [--label L].. [--topic KW] [--min-stars N] [--curated] [--top N] [--hot] [--summary] [--max-age D] [--stale-ok] [--include-linked] [--sort recent|comments-asc] [--json]`
+### 2. 이슈 단위 기여 진입점 발굴 — `discover.sh [옵션]`
 비기너 친화 라벨 동의어 **~10종**(good first issue / help wanted / first-timers-only / easy / beginner / starter ...)을 OR로 검색. **기여자 관점 기본값**: PR 연결된 이슈 제외(`--include-linked`로 포함), 1년 넘거나 blocked/wontfix/stale 제외(`--max-age`/`--stale-ok`), 상위 20건(`--top`). 💬 댓글수(🆕0=아직 아무도 안 집음). `--min-stars`로 양산/이벤트성 제거+star순. **`--curated`**는 awesome-for-beginners 검증 레포만, **`--hot`**은 "good first issue ≥5개인 활성 레포"를 star순, **`--summary`**는 언어별 집계.
 ```bash
 "$SC/discover.sh" --language python                 # 비기너 라벨 전체·PR미연결·최근 1년
@@ -34,14 +34,14 @@ description: GitHub CLI(gh) 기반 오픈소스 발견·기여·회고 올인원
 "$SC/discover.sh" --curated --language python       # 사람이 검증한 레포만(노이즈 최소)
 ```
 
-### 3. 트렌딩 탐색 — `trending.sh [language] [--since daily|weekly|monthly] [--limit N] [--highlight a,b] [--issues] [--json]`
+### 3. 트렌딩 탐색 — `trending.sh [language] [옵션]`
 github.com/trending 파싱. `--highlight`로 관심 키워드 강조(🔖), `--issues`로 각 레포의 good first issue/help wanted 수를 병렬 조회해 "트렌딩 ∩ 기여 가능" 확인.
 ```bash
 "$SC/trending.sh" rust --since weekly
 "$SC/trending.sh" typescript --issues                       # 기여 가능성 컬럼
 ```
 
-### 4. 기여 워크플로 부트스트랩 — `bootstrap.sh <owner/repo> [branch] [--dir D] [--dry]`
+### 4. 기여 워크플로 부트스트랩 — `bootstrap.sh <owner/repo> [branch] [옵션]`
 fork → clone → 기여 브랜치 생성(upstream remote는 gh가 자동 설정). `--dry`로 명령만 미리보기.
 ```bash
 "$SC/bootstrap.sh" owner/repo --dry      # 먼저 확인
@@ -49,15 +49,17 @@ fork → clone → 기여 브랜치 생성(upstream remote는 gh가 자동 설�
 ```
 PR 생성은 자동화하지 않는다(레포별 규약이 다름). 부트스트랩 후: `git push -u origin <branch>` → `gh pr create --web`. 커밋/브랜치 규약은 `dev` 스킬의 git-convention 참고.
 
-### 5. 기여 내역 정리 (회고) — `contributions.sh [username] [--json|--html|--emit-markdown]`
+### 5. 기여 내역 정리 (회고) — `contributions.sh [username] [옵션]`
 머지 PR을 "본인 소유가 아닌" 레포별로 집계 → **소속 조직 vs 순수 외부 OSS**로 분류 → 외부는 star 내림차순. username 생략/`@me`면 현재 로그인.
 ```bash
 "$SC/contributions.sh"                 # 내 기여
 "$SC/contributions.sh" --emit-markdown # 프로필 README/이력서용 shields.io 배지 테이블(외부 OSS만)
 ```
 
-### 6. 기여 통계 (회고) — `stats.sh [username] [--json|--html]`
+### 6. 기여 통계 (회고) — `stats.sh [username] [옵션]`
 전체 PR 대비 머지율, **연도별·월별·요일별** 추이, 언어별 분포. HTML은 막대 차트. 레포별 언어 조회로 다소 느릴 수 있다.
+
+각 스크립트의 전체 플래그·기본값은 `references/commands.md`의 "스크립트 옵션" 절(또는 `<script> --help` 미지원 시 그 표)을 참조한다.
 
 ## 핵심 함정 (스크립트에 이미 반영)
 

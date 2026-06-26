@@ -2,7 +2,7 @@
 
 > publicDataPk: 15129397 · 상세: https://www.data.go.kr/data/15129397/openapi.do
 > checked: 2026-06-10 · 상태: **실호출 검증됨** (getScsbidListSttusServc, inqryDiv=1+YYYYMMDDHHMM+type=json으로 HTTP 200·resultCode 00 확인. 활용신청 승인 2026-06-10, 일일 1000건/오퍼레이션)
-> 심층 문서: `docs/260610_조달청_OpenAPI참고자료_나라장터_낙찰정보서비스_1.1.md` (원본 .docx 동봉 — 전체 오퍼레이션 23종·응답 필드 정의·샘플 URL)
+> 심층 문서: `docs/260610-g2b-scsbid-reference-1.1.md` (원본 .docx 동봉 — 전체 오퍼레이션 23종·응답 필드 정의·샘플 URL)
 
 ## 언제 쓰나
 

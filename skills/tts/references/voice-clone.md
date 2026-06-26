@@ -38,8 +38,9 @@ TTS에는 화면용 표기보다 **귀로 들었을 때 자연스러운 발화�
 - `OS` → `오에스`
 - `PDF` → `피디에프`
 - `CTA` → `씨티에이` 또는 문맥상 `콜투액션`
-- `URL`, `MCP`, 제품 코드, 쿠폰 코드처럼 그대로 읽으면 어색한 표기는 한국어 발화로 바꾼다. 예: `GRANTER` → `코드 그랜터`.
+- `URL`, `MCP`, 제품 코드, 쿠폰 코드처럼 그대로 읽으면 어색한 표기는 한국어 발화로 바꾼다. 예: `NOVA` → `코드 노바`.
 - 숫자는 기계적으로 모두 한글화하지 않는다. 발음이 불안정하거나 영상에서 중요한 숫자만 발화 기준으로 고친다. 예: `44일` → `사십사 일`, `73억` → `칠십삼억`.
+- 고유명사는 붙여 쓰면 TTS·ASR이 흔들릴 수 있다. 발음이 중요한 이름은 발화용 띄어쓰기를 둔다. 예: `코드스쿨` → `코드 스쿨`.
 
 줄바꿈/청크 기준:
 - 한 줄이 곧 한 청크다. 빈 줄은 무시된다.
@@ -69,7 +70,7 @@ python3 tts_clone.py join  --proj DIR --loudnorm-out edit.wav # 편집용 loudno
 TTS 원본은 문장별 음량이 조금 작거나 편차가 있을 수 있다. 긴 나레이션을 영상 편집에 넣을 때는 원본과 편집용 파일을 둘 다 남긴다.
 
 ```bash
-python3 tts_clone.py chunk --voice myvoice --text-file script.txt \
+python3 tts_clone.py chunk --voice myvoice --text-file script.txt --lang ko \
   --out out/raw.wav \
   --loudnorm-out out/edit.wav
 ```
@@ -83,9 +84,15 @@ python3 tts_clone.py chunk --voice myvoice --text-file script.txt \
 - 드라이버가 **끝 ~60ms 페이드아웃 + 무음 패딩**(`afade`+`apad`)으로 보정한다.
 - 생성 텍스트에는 드라이버가 청크마다 줄바꿈 두 줄을 붙여 EOS 여백을 준다.
 - 의심 청크 찾기: `python3 tts_clone.py audit --proj DIR`. 원본 `seg_NN_000.wav`의 마지막 120ms max volume이 기본 `-18 dB`보다 크면 `RISK`로 표시한다.
+- `audit`는 원본 청크 꼬리 음량을 보는 보수적 휴리스틱이라 오탐이 있다. 특히 정규화본은 페이드와 패딩이 적용되므로, `RISK`가 있어도 자동 전사와 직접 청취에서 문장 끝이 보존되면 사용 가능하다.
 - 1차 재생성: `python3 tts_clone.py regen --proj DIR --seg N --duration-multiplier 1.08`. 그래도 짧으면 `1.12`까지 올린다. 말이 너무 늘어지면 `1.05`로 낮춘다.
 - 2차 재생성: 해당 문장을 더 짧게 쪼개거나 마지막 표현을 바꾼다. 예: `확인해주세요.`가 잘리면 `확인해 주세요.`처럼 띄어 쓰거나, `확인해주시면 됩니다.`처럼 종결을 바꾼다.
 - `--gap`/무음 패딩은 끊김을 숨길 뿐 마지막 음절을 복구하지 못한다. 실제 끝음이 짧게 생성된 경우에는 `duration_multiplier` 또는 문장 재작성으로 다시 뽑는 것이 맞다.
+
+## 생성 후 검증
+- 한국어 생성 로그에서 `Language: ko`가 찍히는지 확인한다. `tts_clone.py --lang ko`는 내부에서 `mlx_audio.tts.generate --lang_code ko`로 전달되어야 한다.
+- 긴 결과물이나 외부 공유용 음성은 `mlx_whisper <final.wav> --language ko`로 자동 전사를 뽑아 대본과 대조한다.
+- `mlx_whisper`는 기본적으로 현재 폴더에 같은 이름의 `.txt`를 만들 수 있으므로, 임시 전사 파일은 산출물 폴더로 옮기거나 검증 후 정리한다.
 
 ## concat 함정
 `ffmpeg -f concat` demuxer는 입력 포맷(코덱·SR·채널·sample_fmt)이 다르면 **첫 파일 뒤에서 조용히 멈춘다**(무음 파일 불일치로 N개 중 1개만 합쳐지는 사고). → 드라이버는 모든 세그먼트를 동일 포맷(24kHz/mono/`pcm_s16le`)으로 정규화한 뒤 concat한다. 직접 셸로 짤 때도 동일 포맷을 보장할 것. (zsh에서 `LINES=(...)` 배열 할당은 특수변수 충돌로 실패 — 다른 이름을 쓴다.)

@@ -22,6 +22,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+import subprocess
 import xml.etree.ElementTree as ET
 from datetime import date, timedelta
 
@@ -59,28 +60,118 @@ def outlet_from_url(url):
         return ""
 
 
-# ---------- 네이버 뉴스 검색 API ----------
+# ---------- 네이버 뉴스 검색 API / 폴백 ----------
+
+def search_naver_direct_curl(query, start=1, display=100):
+    cid = os.environ.get("NAVER_CLIENT_ID")
+    csec = os.environ.get("NAVER_CLIENT_SECRET")
+    if not (cid and csec):
+        return None
+        
+    url = ("https://openapi.naver.com/v1/search/news.json?"
+           + urllib.parse.urlencode({"query": query, "display": display, "start": start, "sort": "date"}))
+    
+    cmd = [
+        "curl", "-s", "-X", "GET",
+        "-H", f"X-Naver-Client-Id: {cid}",
+        "-H", f"X-Naver-Client-Secret: {csec}",
+        "-m", "15",
+        url
+    ]
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return json.loads(res.stdout)
+    except Exception as e:
+        print(f"  ! naver curl fallback failed: {e}", file=sys.stderr)
+        return None
+
+
+def search_tavily_news(query):
+    print(f"  -> Falling back to Tavily News Search for {query!r}...", file=sys.stderr)
+    cmd = ["tvly", "search", query, "--topic", "news", "--limit", "30", "--format", "json"]
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        data = json.loads(res.stdout)
+        items = []
+        for it in data.get("results", []):
+            pub_date = it.get("published_date") or ""
+            if "T" in pub_date:
+                pub_date = pub_date.split("T")[0]
+            items.append({
+                "source": "tavily-news",
+                "date": pub_date,
+                "outlet": outlet_from_url(it.get("url")),
+                "title": clean_text(it.get("title")),
+                "url": it.get("url"),
+                "decoded": "-",
+            })
+        return items
+    except Exception as e:
+        print(f"  ! Tavily CLI fallback failed: {e}", file=sys.stderr)
+        
+        tavily_key = os.environ.get("TAVILY_API_KEY")
+        if tavily_key:
+            try:
+                url = "https://api.tavily.com/search"
+                headers = {"Content-Type": "application/json"}
+                req_data = json.dumps({
+                    "api_key": tavily_key,
+                    "query": query,
+                    "search_depth": "advanced",
+                    "topic": "news",
+                    "max_results": 30
+                }).encode('utf-8')
+                resp_body = fetch(url, headers=headers, data=req_data, timeout=15)
+                data = json.loads(resp_body)
+                items = []
+                for it in data.get("results", []):
+                    pub_date = it.get("published_date") or ""
+                    if "T" in pub_date:
+                        pub_date = pub_date.split("T")[0]
+                    items.append({
+                        "source": "tavily-news",
+                        "date": pub_date,
+                        "outlet": outlet_from_url(it.get("url")),
+                        "title": clean_text(it.get("title")),
+                        "url": it.get("url"),
+                        "decoded": "-",
+                    })
+                return items
+            except Exception as ex:
+                print(f"  ! Tavily API direct fallback failed: {ex}", file=sys.stderr)
+        return []
+
 
 def search_naver(query, delay=0.15):
     """sort=date로 페이징 전수 회수. start<=1000 제한이라 쿼리당 최대 ~1,100건."""
     cid = os.environ.get("NAVER_CLIENT_ID")
     csec = os.environ.get("NAVER_CLIENT_SECRET")
     if not (cid and csec):
-        print("  ! NAVER_CLIENT_ID/NAVER_CLIENT_SECRET 없음 — naver 스킵 "
-              "(agents-env run NAVER_CLIENT_ID NAVER_CLIENT_SECRET -- ... 로 실행)", file=sys.stderr)
-        return [], None
+        print("  ! NAVER_CLIENT_ID/NAVER_CLIENT_SECRET 없음 — Tavily News Search로 대체합니다.", file=sys.stderr)
+        return search_tavily_news(query), 0
+        
     headers = {"X-Naver-Client-Id": cid, "X-Naver-Client-Secret": csec}
     items, total = [], None
     starts = list(range(1, 1000, 100)) + [1000]
+    
+    fallback_to_tavily = False
     for start in starts:
         url = ("https://openapi.naver.com/v1/search/news.json?"
                + urllib.parse.urlencode({"query": query, "display": 100, "start": start, "sort": "date"}))
+        body = None
         try:
-            body = json.loads(fetch(url, headers=headers))
-        except urllib.error.HTTPError as e:
-            detail = e.read().decode("utf-8", errors="replace")[:200]
-            hint = " (403이면 개발자센터 앱 'API 설정'에서 '검색' 체크 확인)" if e.code == 403 else ""
-            print(f"  ! naver HTTP {e.code}{hint}: {detail}", file=sys.stderr)
+            body = json.loads(fetch(url, headers=headers, timeout=15))
+        except Exception as e:
+            print(f"  ! naver urllib fetch failed (start={start}): {e}. Trying curl fallback...", file=sys.stderr)
+            curl_res = search_naver_direct_curl(query, start=start, display=100)
+            if curl_res:
+                body = curl_res
+            else:
+                print(f"  ! naver curl fallback also failed. Will fallback to Tavily.", file=sys.stderr)
+                fallback_to_tavily = True
+                break
+                
+        if not body or "items" not in body:
             break
         total = body.get("total", total)
         page = body.get("items", [])
@@ -99,6 +190,13 @@ def search_naver(query, delay=0.15):
         if start + len(page) > min(total or 0, 1000):
             break
         time.sleep(delay)
+        
+    if fallback_to_tavily or not items:
+        tavily_items = search_tavily_news(query)
+        if tavily_items:
+            items = tavily_items
+            total = len(items)
+            
     return items, total
 
 

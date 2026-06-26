@@ -19,9 +19,14 @@ CALL_RECORDINGS_DIR = (
     Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/녹음"
 )
 
-# 에이닷 통화 녹음 파일명: `<이름>_<휴대폰번호>_<YYYYMMDD>_<HHMMSS>.txt`
-# 예: `홍길동님_01012345678_20260407_165111.txt`
-CALL_FILENAME_RE = re.compile(r"^(.+?)_(\d{10,11})_(\d{8})_(\d{6})\.txt$")
+# 에이닷 통화 녹음 폴더의 원본 .txt와 파생 .transcript.md를 검색 대상으로 본다.
+# 날짜 정렬/필터링은 파일명 끝의 `_YYYYMMDD_HHMMSS` suffix만 사용한다.
+CALL_TEXT_SUFFIX = ".txt"
+CALL_TRANSCRIPT_SUFFIX = ".transcript.md"
+CALL_DATETIME_SUFFIX_RE = re.compile(
+    r"^(?P<prefix>.+)_(?P<date>\d{8})_(?P<time>\d{6})(?P<suffix>\.txt|\.transcript\.md)$"
+)
+CALL_TRAILING_PHONE_RE = re.compile(r"^(?P<contact>.+)_(?P<phone>\d{7,11})$")
 
 
 def parse_date_range(date_str: str) -> tuple[datetime, datetime]:
@@ -78,21 +83,45 @@ def dir_to_datetime(transcript_path: Path) -> datetime | None:
 
 
 def is_call_recording(path: Path) -> bool:
-    """파일이 iCloud 통화 녹음(.txt) 디렉터리에 속하는지 확인합니다."""
-    return path.parent == CALL_RECORDINGS_DIR
+    """파일이 iCloud 통화 녹음 검색 대상인지 확인합니다."""
+    return path.parent == CALL_RECORDINGS_DIR and (
+        path.name.endswith(CALL_TEXT_SUFFIX) or path.name.endswith(CALL_TRANSCRIPT_SUFFIX)
+    )
+
+
+def is_call_text(path: Path) -> bool:
+    """에이닷 원본 .txt 자동 전사본인지 확인합니다."""
+    return path.parent == CALL_RECORDINGS_DIR and path.name.endswith(CALL_TEXT_SUFFIX)
+
+
+def is_call_transcript(path: Path) -> bool:
+    """에이닷 .m4a에서 생성한 파생 전사본인지 확인합니다."""
+    return path.parent == CALL_RECORDINGS_DIR and path.name.endswith(CALL_TRANSCRIPT_SUFFIX)
 
 
 def call_to_datetime(path: Path) -> datetime | None:
     """통화 녹음 파일명에서 datetime을 파싱합니다."""
-    match = CALL_FILENAME_RE.match(path.name)
+    match = CALL_DATETIME_SUFFIX_RE.match(path.name)
     if not match:
         return None
     try:
         return datetime.strptime(
-            f"{match.group(3)} {match.group(4)}", "%Y%m%d %H%M%S"
+            f"{match.group('date')} {match.group('time')}", "%Y%m%d %H%M%S"
         )
     except ValueError:
         return None
+
+
+def call_display_name(path: Path) -> str:
+    """에이닷 통화 녹음 파일명에서 표시명을 추출합니다."""
+    match = CALL_DATETIME_SUFFIX_RE.match(path.name)
+    if not match:
+        return path.stem
+    prefix = match.group("prefix")
+    contact_match = CALL_TRAILING_PHONE_RE.match(prefix)
+    if contact_match:
+        return contact_match.group("contact")
+    return prefix
 
 
 def file_to_datetime(path: Path) -> datetime | None:
@@ -109,15 +138,13 @@ def iter_transcript_files() -> list[Path]:
 
     - Voice Memos transcript: `~/.voice-memos/transcripts/**/transcript.md`
     - iCloud 통화 녹음: `~/Library/Mobile Documents/com~apple~CloudDocs/녹음/*.txt`
+      + `*.transcript.md`
     - Apple Notes: `~/Library/.../NoteStore.sqlite` (mode=ro 직접 쿼리)
     """
     files = list(TRANSCRIPTS_DIR.rglob("transcript.md"))
     if CALL_RECORDINGS_DIR.exists():
-        files.extend(
-            f
-            for f in CALL_RECORDINGS_DIR.glob("*.txt")
-            if CALL_FILENAME_RE.match(f.name)
-        )
+        files.extend(CALL_RECORDINGS_DIR.glob("*.txt"))
+        files.extend(CALL_RECORDINGS_DIR.glob(f"*{CALL_TRANSCRIPT_SUFFIX}"))
     vm_notes.refresh_notes_meta()
     files.extend(vm_notes.all_note_paths())
     return files
@@ -278,9 +305,7 @@ def format_result(
         return line
 
     if is_call_recording(filepath):
-        match = CALL_FILENAME_RE.match(filepath.name)
-        contact = match.group(1) if match else filepath.stem
-        line = f"  [에이닷]    {date_str}  {contact}"
+        line = f"  [에이닷]    {date_str}  {call_display_name(filepath)}"
     else:
         line = (
             f"  [음성 메모] {date_str}  "
@@ -297,18 +322,29 @@ def format_result(
             return line
         content = filepath.read_text(encoding="utf-8")
         if is_call_recording(filepath):
-            summary_block = _extract_call_summary(content)
-            if summary_block:
-                indented = "\n".join(
-                    f"         {ln}" if ln else "" for ln in summary_block.splitlines()
-                )
-                line += f"\n{indented}"
-            else:
-                # [통화요약] 섹션이 없으면 [녹음 내용] 일부를 폴백으로 노출
-                idx = content.find("[녹음 내용]")
+            if is_call_text(filepath):
+                summary_block = _extract_call_summary(content)
+                if summary_block:
+                    indented = "\n".join(
+                        f"         {ln}" if ln else "" for ln in summary_block.splitlines()
+                    )
+                    line += f"\n{indented}"
+                else:
+                    # [통화요약] 섹션이 없으면 [녹음 내용] 일부를 폴백으로 노출
+                    idx = content.find("[녹음 내용]")
+                    if idx != -1:
+                        preview = (
+                            content[idx + len("[녹음 내용]") :]
+                            .strip()[:80]
+                            .replace("\n", " ")
+                        )
+                        if preview:
+                            line += f"\n         {preview}..."
+            elif is_call_transcript(filepath):
+                idx = content.find("## 전사 내용")
                 if idx != -1:
                     preview = (
-                        content[idx + len("[녹음 내용]") :]
+                        content[idx + len("## 전사 내용") :]
                         .strip()[:80]
                         .replace("\n", " ")
                     )

@@ -141,7 +141,7 @@ press	https://news.example.com/...	Funding news	02-public-press.md	2026-06-10	Th
 
 ### press/
 
-- `press-inventory.tsv`: 외부 보도 인벤토리 (`scripts/search_press.py` 산출). 컬럼: `source / date / outlet / title / url / decoded / queries`. 읽을 기사 선별과 원문 미러 규칙은 `references/press-coverage.md`.
+- `press-inventory.tsv`: 외부 보도 인벤토리 (`scripts/search_press.py` 산출). 컬럼: `source / date / outlet / title / url / decoded / queries`. 읽을 기사 선별과 원문 미러 규칙은 `references/ref-technical-sweep.md` §3 (Press Coverage).
 
 ### public-mirror/
 
