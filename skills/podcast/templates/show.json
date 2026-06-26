@@ -1,0 +1,14 @@
+{
+  "title": "My Podcast",
+  "description": "쇼 한 줄 설명",
+  "author": "작성자 이름",
+  "owner_name": "작성자 이름",
+  "email": "you@example.com",
+  "link": "https://OWNER.github.io/REPO/",
+  "image": "https://OWNER.github.io/REPO/cover.jpg",
+  "language": "ko",
+  "category": "Technology",
+  "subcategory": "Tech News",
+  "explicit": false,
+  "type": "episodic"
+}
