@@ -39,6 +39,7 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 | `find-skills` | Discover and install agent skills from the open skills ecosystem via the Skills CLI. | Node.js, `skills` CLI (`npx skills`) |
 | `context7-cli` | Context7 `ctx7` CLI workflow — fetch up-to-date library docs, find/install/generate AI coding skills, and configure Context7 MCP for your editor. | Node.js, `ctx7` (`npm i -g ctx7@latest`) |
 | `kakaotalk` | macOS KakaoTalk read/search/send via the Accessibility API (atomacos) — list/search chatrooms, read history, send messages, all without stealing the mouse cursor (keyboard + AX actions only). Self-contained minimal message contract before sending. | macOS, KakaoTalk app, Python 3 (`atomacos`) |
+| `goal-plan` | Durable `/goal` harness for long-running agent work: GOAL.md instructions plus a `progress.tsv` scoreboard (edited only via `goal_log.py`), scaffolded into a git worktree so the main tree stays free and each loop step is a resumable commit. Vendor-neutral core with per-runtime notes for Claude Code and Codex. | git, Python 3 (stdlib only) |
 
 ## voice-memos setup
 
