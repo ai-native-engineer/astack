@@ -35,9 +35,8 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 | `ocr` | Local OCR for images and scanned PDFs via macOS Vision (`ocrmypdf` + AppleOCR plugin) — fully on-device, no cloud upload. | macOS, `ocrmypdf` (`uv tool install ocrmypdf --with ocrmypdf-appleocr`) |
 | `similarweb` | SimilarWeb free-endpoint domain analytics — traffic, rank, visitor estimates, traffic sources, AI/LLM referrals, SEO keyword value, competitor comparison. No API key. | Python 3 / `uv` (auto-installs `requests`) |
 | `humanize-korean` | Detect and rewrite AI-ish Korean — translationese, mechanical parallelism, passive overuse, citation clutter, uniform rhythm — while preserving meaning. 40+ tell-patterns with a scholarship reference. | none (prompt/reference skill) |
-| `find-docs` | Fetch current library/framework/SDK docs and code examples on demand via the Context7 CLI (`ctx7`). | Node.js, `ctx7` (`npm i -g ctx7@latest`) |
 | `find-skills` | Discover and install agent skills from the open skills ecosystem via the Skills CLI. | Node.js, `skills` CLI (`npx skills`) |
-| `context7-cli` | Context7 `ctx7` CLI workflow — fetch up-to-date library docs, find/install/generate AI coding skills, and configure Context7 MCP for your editor. | Node.js, `ctx7` (`npm i -g ctx7@latest`) |
+| `context7-cli` | Context7 `ctx7` CLI — fetch up-to-date library/framework/SDK docs and code examples on demand, plus find/install/generate AI coding skills. | Node.js, `ctx7` (`npm i -g ctx7@latest`) |
 | `kakaotalk` | macOS KakaoTalk read/search/send via the Accessibility API (atomacos) — list/search chatrooms, read history, send messages, all without stealing the mouse cursor (keyboard + AX actions only). Self-contained minimal message contract before sending. | macOS, KakaoTalk app, Python 3 (`atomacos`) |
 | `goal-plan` | Durable `/goal` harness for long-running agent work: GOAL.md instructions plus a `progress.tsv` scoreboard (edited only via `goal_log.py`), scaffolded into a git worktree so the main tree stays free and each loop step is a resumable commit. Vendor-neutral core with per-runtime notes for Claude Code and Codex. | git, Python 3 (stdlib only) |
 

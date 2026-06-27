@@ -4,6 +4,12 @@ Retrieves and queries up-to-date documentation and code examples from Context7 f
 
 If the user already provided a library ID in `/org/project` or `/org/project/version` format, pass it directly to `ctx7 docs`.
 
+## Contents
+
+- Step 1: Resolve a Library
+- Step 2: Query Documentation
+- Authentication
+
 ## Step 1: Resolve a Library
 
 Resolves a package/product name to a Context7-compatible library ID and returns matching libraries.

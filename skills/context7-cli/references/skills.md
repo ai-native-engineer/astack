@@ -2,6 +2,17 @@
 
 Manage AI coding skills from the Context7 registry. Skills are Markdown files that teach AI coding agents best practices, patterns, and workflows for specific libraries or tasks.
 
+## Contents
+
+- Install
+- Search
+- Suggest
+- Generate (AI-powered)
+- List
+- Remove
+- Info
+- IDE Flags
+
 ## Install
 
 Install skills from any GitHub repository. Repository format is always `/owner/repo`.
