@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[제목]</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* 팔레트는 토픽에 맞게 바꾼다. 기본은 따뜻한 에디토리얼 톤(라이트/다크). */
+  :root, [data-theme="light"] {
+    --bg:#f7f6f3; --surface:#fff; --surface-2:#f1efea; --text:#1c1b19; --muted:#6b665d;
+    --border:#e2ded6; --line:#d8d3c9; --accent:#1c1b19; --accent-soft:#eceae4;
+    --good:#2f8f4e; --bad:#c2362f;
+  }
+  [data-theme="dark"] {
+    --bg:#16151a; --surface:#1e1d24; --surface-2:#26252e; --text:#ece9e3; --muted:#a39e94;
+    --border:#34323c; --line:#3c3a45; --accent:#ece9e3; --accent-soft:#2a2932;
+    --good:#5fc97e; --bad:#f08079;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body { font-family:"Pretendard",-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg); color:var(--text); line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .serif { font-family:"Gowun Batang","Pretendard",serif; }
+  .mono { font-family:"JetBrains Mono",monospace; }
+
+  #root { min-height:100%; display:flex; flex-direction:column; }
+  .stage { flex:1; display:flex; flex-direction:column; max-width:880px; width:100%; margin:0 auto; padding:0 28px; }
+
+  /* 상단 진행 바 + 카운터 + 테마 토글 */
+  .topbar { display:flex; align-items:center; gap:16px; padding:22px 0 0; }
+  .counter { font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--muted); letter-spacing:.04em; white-space:nowrap; }
+  .prog { flex:1; height:3px; background:var(--accent-soft); border-radius:3px; overflow:hidden; }
+  .prog > i { display:block; height:100%; background:var(--accent); border-radius:3px; transition:width .45s cubic-bezier(.4,0,.2,1); }
+  .themebtn { background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px; width:34px; height:30px; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
+  .themebtn:hover { color:var(--text); border-color:var(--line); }
+
+  /* 단계 본문 (한 스텝 = 한 화면) */
+  .panel { flex:1; display:flex; flex-direction:column; justify-content:center; padding:36px 0; }
+  .step-anim { animation:fadeUp .42s cubic-bezier(.2,.7,.2,1); }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  .eyebrow { font-family:"JetBrains Mono",monospace; font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+  h1.disp { font-family:"Gowun Batang",serif; font-weight:700; font-size:clamp(28px,5vw,44px); line-height:1.25; letter-spacing:-.01em; }
+  h1.disp em { font-family:"Instrument Serif","Gowun Batang",serif; font-style:italic; }
+  .lead { font-size:16px; color:var(--muted); margin-top:16px; max-width:600px; }
+  .body-txt { font-size:15px; margin-top:14px; max-width:620px; }
+  .body-txt b { font-weight:700; }
+
+  /* 인터랙티브 위젯 공통 프레임 (직접 조작해 정보를 드러내는 곳) */
+  .demo { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; margin-top:26px; }
+  .demo .ask { font-size:15px; margin-bottom:14px; }
+  .simbtn { border:1px solid var(--line); background:var(--surface-2); color:var(--text); border-radius:8px; padding:9px 16px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+  .simbtn:hover { border-color:var(--accent); }
+  .reveal { margin-top:14px; padding:14px; border-radius:10px; background:var(--accent-soft); font-size:14px; }
+
+  /* 핵심 한 줄 (마지막 스텝) */
+  .key { text-align:center; padding:20px 0; }
+  .key .big { font-family:"Gowun Batang",serif; font-weight:700; font-size:clamp(24px,4.5vw,38px); line-height:1.45; }
+
+  /* 하단 네비 */
+  .nav { display:flex; align-items:center; justify-content:space-between; padding:18px 0 30px; border-top:1px solid var(--border); }
+  .nav button.move { font:inherit; font-size:14px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--surface); color:var(--text); border-radius:9px; padding:9px 18px; }
+  .nav button.move:hover:not(:disabled) { border-color:var(--accent); }
+  .nav button.move:disabled { opacity:.32; cursor:default; }
+  .nav button.primary { background:var(--accent); color:var(--bg); border-color:var(--accent); }
+  .dots { display:flex; gap:8px; }
+  .dots i { width:8px; height:8px; border-radius:50%; background:var(--line); cursor:pointer; transition:transform .2s, background .2s; }
+  .dots i.on { background:var(--accent); transform:scale(1.35); }
+  .hint { text-align:center; font-size:11.5px; color:var(--muted); padding-bottom:22px; font-family:"JetBrains Mono",monospace; letter-spacing:.03em; }
+</style>
+<!-- React + Babel: 메이저 버전 고정(@latest 금지). in-browser Babel 경고는 정상. -->
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback } = React;
+
+/* 스텝 이름 = 진행바·dots·카운터의 단일 소스. 스텝 수만큼 적는다. */
+const STEP_NAMES = ["시작", "개념 한 단계", "핵심 한 줄"];
+const TOTAL = STEP_NAMES.length;
+const pad = (n) => String(n).padStart(2, "0");
+
+/* 예시 인터랙티브 위젯: 직접 눌러 답을 드러낸다(수동 읽기 X, 능동 조작 O). */
+function DemoWidget() {
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="demo">
+      <div className="ask">[질문/조작 안내 한 줄 - 학습자가 무엇을 해볼지]</div>
+      {shown
+        ? <div className="reveal">[직접 조작하면 드러나는 결과/설명]</div>
+        : <button className="simbtn" onClick={() => setShown(true)}>직접 해보기</button>}
+    </div>
+  );
+}
+
+/* 한 스텝 = 한 개념. eyebrow -> 제목 -> 한 줄 설명 -> (있으면) 위젯 1개. */
+function Steps({ step }) {
+  switch (step) {
+    case 0: return (<div>
+      <div className="eyebrow">[꼭지 라벨]</div>
+      <h1 className="disp">[큰 제목, 긴 한국어는 <br/>로 수동 줄바꿈]</h1>
+      <p className="lead">[한 줄 도입 - 무엇을 다루는지]</p>
+      <p className="body-txt">[클릭하며 직접 만져보고, 마지막에 스스로 답하게 된다는 안내]</p>
+    </div>);
+    case 1: return (<div>
+      <div className="eyebrow">[꼭지 라벨]</div>
+      <h1 className="disp">[개념 제목]</h1>
+      <p className="body-txt">[개념 한 줄 정의. <b>핵심어</b>만 굵게.]</p>
+      <DemoWidget />
+    </div>);
+    case 2: return (<div className="key">
+      <div className="eyebrow" style={{ textAlign: "center" }}>오늘 한 줄</div>
+      <div className="big">[기억할 핵심 한 문장]</div>
+      <p className="lead" style={{ margin: "22px auto 0", textAlign: "center" }}>[이 한 줄을 언제 쓰는지]</p>
+    </div>);
+    default: return null;
+  }
+}
+
+function App() {
+  const [step, setStep] = useState(0);
+  const [theme, setTheme] = useState(
+    () => (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+  );
+  useEffect(() => { document.documentElement.setAttribute("data-theme", theme); }, [theme]);
+
+  const last = step === TOTAL - 1;
+  const go = useCallback((n) => setStep(Math.max(0, Math.min(TOTAL - 1, n))), []);
+  const next = useCallback(() => { if (last) setStep(0); else go(step + 1); }, [last, step, go]);
+  const prev = useCallback(() => go(step - 1), [step, go]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return; // 입력 보호
+      if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); next(); }
+      else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); prev(); }
+      else if (e.key === "Home") go(0);
+      else if (e.key === "End") go(TOTAL - 1);
+      else if (/^[1-9]$/.test(e.key)) go(+e.key - 1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [next, prev, go]);
+
+  return (
+    <div className="stage">
+      <div className="topbar">
+        <span className="counter mono">{pad(step + 1)} / {pad(TOTAL)} · {STEP_NAMES[step]}</span>
+        <div className="prog"><i style={{ width: ((step + 1) / TOTAL * 100) + "%" }}></i></div>
+        <button className="themebtn" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} title="다크/라이트">{theme === "dark" ? "☀" : "☾"}</button>
+      </div>
+
+      <div className="panel">
+        <div className="step-anim" key={step}>
+          <Steps step={step} />
+        </div>
+      </div>
+
+      <div className="nav">
+        <button className="move" onClick={prev} disabled={step === 0}>← 이전</button>
+        <div className="dots">
+          {STEP_NAMES.map((_, i) => <i key={i} className={i === step ? "on" : ""} onClick={() => go(i)} title={STEP_NAMES[i]}></i>)}
+        </div>
+        <button className={"move" + (last ? " primary" : "")} onClick={next}>{last ? "처음으로 ↺" : "다음 →"}</button>
+      </div>
+      <div className="hint">← → 이동 · 숫자키 점프 · Space 다음</div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
