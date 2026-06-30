@@ -20,11 +20,12 @@ curriculum 스킬의 Phase 4 세부. 발산 게이트 다음 ntn 안전 동기�
 
 ## 4-0. 안전 전제 (파괴적 쓰기 전 필수)
 
-`ntn pages update`는 전체 교체 = 파괴적. 그 전에 셋을 지킨다:
+`ntn pages update`는 전체 교체 = 파괴적. 그 전에 넷을 지킨다:
 
 - **신뢰 채널** - ntn 읽기는 hang/0바이트/**크로스 오염**(다른 페이지 내용이 섞여 나옴)이 실측됐다(2026-06-19). 오염된 읽기 위에서 비교/검증하면 거짓 통과한다. 파괴적 쓰기 전/후의 상태 확인/발산 게이트/round-trip은 **직접 Notion REST API**로 한다: `agents-env run NOTION_API_KEY@<tag> -- python3/curl`(토큰을 child에만 주입, `GET /v1/pages/<id>`, `/v1/blocks/<id>/children`; 이미지 삽입은 `POST /v1/file_uploads` 후 image 블록 `after_block` PATCH). page-id 실존 확인은 `curriculum_gate.py verify-pages`가 이 채널을 쓴다(토큰 태그는 4-2절). ntn hang/timeout/0바이트가 보이면 즉시 직접 API로 폴백.
 - **페이지 정체성** - AGENTS의 page-id 매핑은 stale일 수 있다. 쓰기 전 직접 API로 `title`과 본문 첫 섹션이 의도한 회차와 맞는지 확인한다(예: "4회차"라 적힌 id가 실제 "3회차" 페이지일 수 있음).
 - **성숙 페이지 = surgical** - 이미 발행됐거나 사용자가 직접 발전시킨 페이지는 전체교체 금지. 변경 블록만 직접 API로 고치고, **무엇이 바뀌는지 diff를 먼저 사용자에게 보여 승인**받은 뒤 반영한다. "추가"는 추가만 - 최소 diff.
+- **충실도 사이드카 (외부 훅, 우회 불가)** - `notion_reflect.py` 쓰기는 PreToolUse 훅 `~/.claude/hook-utils/curriculum-write-gate.py`가 가로채 본문 옆 `<본문>.fidelity.json`(이식 원본을 `sources`로 선언)을 요구한다. 소스에 없는 net-new(발명) 블록 비율이 한도를 넘으면 쓰기를 차단한다(`--skip-gate`로 못 뚫음 - gate-review와 별개 훅). 반영 전에 사이드카로 기존 자료 소스를 선언하고 본문을 그 흐름/구조 그대로 이식한다.
 
 ## 4-1. 발산 게이트 (케이스 3 노션 직접 편집 - 베이스를 노션으로)
 

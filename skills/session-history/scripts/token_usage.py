@@ -4,8 +4,9 @@
 Aggregation notes:
 - Claude Code: sum assistant message usage, deduplicated by requestId.
 - Codex: sum event_msg.token_count.info.last_token_usage.
-- The primary "effective" total excludes cache-read/cached-input tokens because
-  those can make local context throughput look much larger than uncached usage.
+- The primary "pure" total excludes cache read, cached input, and Claude cache
+  creation tokens. "effective" is kept as a secondary metric for cache-read
+  excluded usage that still includes Claude cache creation.
 """
 
 from __future__ import annotations
@@ -203,6 +204,7 @@ def add_claude_usage(totals, usage):
     totals["cache_read_input_tokens"] += cache_read
     totals["total_tokens"] += input_tokens + output_tokens + cache_create + cache_read
     totals["effective_tokens"] += input_tokens + output_tokens + cache_create
+    totals["pure_tokens"] += input_tokens + output_tokens
     totals["cache_tokens"] += cache_read
     totals["calls"] += 1
 
@@ -218,7 +220,9 @@ def add_codex_usage(totals, usage):
     totals["output_tokens"] += output_tokens
     totals["reasoning_output_tokens"] += reasoning_output
     totals["total_tokens"] += total_tokens
-    totals["effective_tokens"] += max(0, input_tokens - cached_input) + output_tokens
+    pure_tokens = max(0, input_tokens - cached_input) + output_tokens
+    totals["effective_tokens"] += pure_tokens
+    totals["pure_tokens"] += pure_tokens
     totals["cache_tokens"] += cached_input
     totals["calls"] += 1
 
@@ -390,9 +394,11 @@ def summarize(rows):
 
     total = sum(t["total_tokens"] for t in by_tool.values())
     effective_total = sum(t["effective_tokens"] for t in by_tool.values())
+    pure_total = sum(t["pure_tokens"] for t in by_tool.values())
     return {
         "total_tokens": total,
         "effective_tokens": effective_total,
+        "pure_tokens": pure_total,
         "by_tool": {tool: dict(values) for tool, values in by_tool.items()},
         "by_cwd": {f"{tool}\t{cwd}": dict(values) for (tool, cwd), values in by_cwd.items()},
         "by_session": {f"{tool}\t{sid}": dict(values) for (tool, sid), values in by_session.items()},
@@ -415,6 +421,7 @@ def format_text(summary, rows, label, args):
     terminal_width = shutil.get_terminal_size((120, 20)).columns
     total_tokens = summary["total_tokens"]
     effective_total = summary.get("effective_tokens", total_tokens)
+    pure_total = summary.get("pure_tokens", effective_total)
     first_seen, last_seen = observed_period(rows)
     lines = []
     filters = []
@@ -426,7 +433,9 @@ def format_text(summary, rows, label, args):
         filters.append("main-only")
 
     panel_lines = [
-        f"합계  {fmt_int(effective_total)} tokens  ({fmt_compact_tokens(effective_total)}, 캐시 제외)",
+        f"실사용  {fmt_int(pure_total)} tokens  ({fmt_compact_tokens(pure_total)}, 캐시 읽기/생성 제외)",
+        f"캐시생성포함  {fmt_int(effective_total)} tokens  ({fmt_compact_tokens(effective_total)}, 캐시 읽기 제외)",
+        f"전체처리량  {fmt_int(total_tokens)} tokens  ({fmt_compact_tokens(total_tokens)}, 캐시 포함)",
         f"시작  {first_seen.strftime('%Y-%m-%d') if first_seen else '-'}",
         f"최근  {last_seen.strftime('%Y-%m-%d %H:%M') if last_seen else '-'}",
         f"로그  {fmt_int(len(rows))} events",
@@ -441,8 +450,8 @@ def format_text(summary, rows, label, args):
         values = summary["by_tool"].get(tool, {})
         if not values:
             continue
-        tokens = values.get("effective_tokens", values.get("total_tokens", 0))
-        share = f"{(tokens / effective_total * 100):.1f}%" if effective_total else "0.0%"
+        tokens = values.get("pure_tokens", values.get("effective_tokens", values.get("total_tokens", 0)))
+        share = f"{(tokens / pure_total * 100):.1f}%" if pure_total else "0.0%"
         if tool == "claude":
             detail = (
                 f"in {fmt_compact_tokens(values.get('input_tokens', 0))}, "
@@ -457,7 +466,7 @@ def format_text(summary, rows, label, args):
         tool_rows.append([
             "Claude Code" if tool == "claude" else "Codex",
             f"{fmt_int(tokens)} ({fmt_compact_tokens(tokens)})",
-            token_bar(tokens, effective_total),
+            token_bar(tokens, pure_total),
             share,
             fmt_int(values.get("calls", 0)),
             detail,
@@ -465,7 +474,7 @@ def format_text(summary, rows, label, args):
     if tool_rows:
         lines.append(style("도구별", "1;37"))
         lines.append(make_table(
-            ["도구", "토큰", "비중", "%", "호출", "구성"],
+            ["도구", "실사용", "비중", "%", "호출", "구성"],
             tool_rows,
             ["left", "right", "left", "right", "right", "left"],
         ))
@@ -475,24 +484,24 @@ def format_text(summary, rows, label, args):
     by_cwd = []
     for key, values in summary["by_cwd"].items():
         tool, cwd = key.split("\t", 1)
-        by_cwd.append((values.get("effective_tokens", values.get("total_tokens", 0)), tool, cwd, values))
+        by_cwd.append((values.get("pure_tokens", values.get("effective_tokens", values.get("total_tokens", 0))), tool, cwd, values))
     project_rows = []
     fixed_width = 5 + 8 + 21 + 20 + 8 + 15
     project_width = max(28, min(70, terminal_width - fixed_width))
     for rank, (total, tool, cwd, values) in enumerate(sorted(by_cwd, reverse=True)[: args.limit], 1):
         label_name = "Claude" if tool == "claude" else "Codex"
-        share = f"{(total / effective_total * 100):.1f}%" if effective_total else "0.0%"
+        share = f"{(total / pure_total * 100):.1f}%" if pure_total else "0.0%"
         project_rows.append([
             str(rank),
             label_name,
             f"{fmt_compact_tokens(total)}",
-            token_bar(total, effective_total, width=14),
+            token_bar(total, pure_total, width=14),
             share,
             fmt_int(values.get("calls", 0)),
             trim_to_width(shorten_home(cwd), project_width),
         ])
     lines.append(make_table(
-        ["#", "도구", "토큰", "비중", "%", "호출", "프로젝트"],
+        ["#", "도구", "실사용", "비중", "%", "호출", "프로젝트"],
         project_rows,
         ["right", "left", "right", "left", "right", "right", "left"],
     ))
@@ -504,25 +513,25 @@ def format_text(summary, rows, label, args):
         for key, values in summary["by_session"].items():
             tool, sid = key.split("\t", 1)
             meta = summary["session_meta"].get(key, {})
-            by_session.append((values.get("effective_tokens", values.get("total_tokens", 0)), tool, sid, values, meta))
+            by_session.append((values.get("pure_tokens", values.get("effective_tokens", values.get("total_tokens", 0))), tool, sid, values, meta))
         session_rows = []
         session_project_width = max(24, min(56, terminal_width - fixed_width))
         for rank, (total, tool, sid, values, meta) in enumerate(sorted(by_session, reverse=True)[: args.limit], 1):
             label_name = "Claude" if tool == "claude" else "Codex"
             session_id = sid[:12] + ("*" if meta.get("subagent") else "")
-            share = f"{(total / effective_total * 100):.1f}%" if effective_total else "0.0%"
+            share = f"{(total / pure_total * 100):.1f}%" if pure_total else "0.0%"
             session_rows.append([
                 str(rank),
                 label_name,
                 session_id,
                 f"{fmt_compact_tokens(total)}",
-                token_bar(total, effective_total, width=14),
+                token_bar(total, pure_total, width=14),
                 share,
                 fmt_int(values.get("calls", 0)),
                 trim_to_width(shorten_home(meta.get("cwd", "")), session_project_width),
             ])
         lines.append(make_table(
-            ["#", "도구", "세션", "토큰", "비중", "%", "호출", "프로젝트"],
+            ["#", "도구", "세션", "실사용", "비중", "%", "호출", "프로젝트"],
             session_rows,
             ["right", "left", "left", "right", "left", "right", "right", "left"],
         ))

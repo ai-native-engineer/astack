@@ -9,9 +9,9 @@
 
 기존 검증 자료를 충분히 봤나에서 출발한다(고객사 A/고객사 B "왜 기존 자료 안봤어"). 제작 직후 자기검수는 authoring 3-0에서 이미 했으니 건너뛴다.
 
-- 탐색 소스는 항상 셋 다: 강의 모듈 DB + 강의자료 워크스페이스/조직 노션 전수 + 로컬 교안. 모듈 DB는 빈약하니 그것만 보고 고착 금지(명령 전문은 authoring 3-0).
-- 강의자료 워크스페이스는 `<lecture-ws-token>`, 조직은 프로젝트 지정 워크스페이스 토큰로 각각 `ntn api /search` 결과 JSON을 만든 뒤 `python3 curriculum_gate.py explore --topic "<주제>" --workspace-id <org-workspace-id> --datasource <ds-id> --local-root <루트> --notion-hits notion-search-org.json notion-search-lecture.json` -> `curriculum-candidates-*.md` OK(**참고 자료 최신순 10개 이상** = 기본 임계 10, 최신순 정렬+수정일 표기; 후보 <10/DB 미탐색/노션 미탐색이면 비0). `<company-ws-token>` 토큰은 회사 데이터용이라 curriculum 강의자료 탐색에 쓰지 않는다. 의도적 제외만 `--no-db`/`--no-notion`, 니치라 10개 미만이면 `--min-candidates` 낮추고 사유 명시.
-- 후보를 `ntn pages get`으로 실제로 떠서 비교한 것만 `[x]` + 근거 칸. 최선 1개 선택, `최선 후보: <후보명>` + 왜 최선인지 근거 한 줄(기준: 정확도/적합성/밀도/출처 안정성/이미지). `python3 curriculum_gate.py gate-candidates curriculum-candidates-*.md`로 `[x]`/근거/최선 후보를 통과시킨다.
+- 탐색 소스는 항상 셋 다: 강의 모듈 DB + 노션(강의자료/조직) 전수 + 로컬 교안. 모듈 DB는 빈약하니 그것만 보고 고착 금지.
+- 명령(3소스 explore -> 후보 산출물 -> gate-candidates 통과)은 authoring 3-0절이 정본이다 - 그대로 따른다.
+- `[x]` 체크는 `ntn pages get`으로 실제로 떠서 비교한 후보만. 최선 1개 선택 + 왜 최선인지 근거 한 줄(기준: 정확도/적합성/밀도/출처 안정성/이미지).
 
 ## 1. 기계 린트 - "초안 띡" smell (먼저, 싸게)
 
