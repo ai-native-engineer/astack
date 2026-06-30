@@ -39,6 +39,7 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 | `context7-cli` | Context7 `ctx7` CLI — fetch up-to-date library/framework/SDK docs and code examples on demand, plus find/install/generate AI coding skills. | Node.js, `ctx7` (`npm i -g ctx7@latest`) |
 | `kakaotalk` | macOS KakaoTalk read/search/send via the Accessibility API (atomacos) — list/search chatrooms, read history, send messages, all without stealing the mouse cursor (keyboard + AX actions only). Self-contained minimal message contract before sending. | macOS, KakaoTalk app, Python 3 (`atomacos`) |
 | `goal-plan` | Durable `/goal` harness for long-running agent work: GOAL.md instructions plus a `progress.tsv` scoreboard (edited only via `goal_log.py`), scaffolded into a git worktree so the main tree stays free and each loop step is a resumable commit. Vendor-neutral core with per-runtime notes for Claude Code and Codex. | git, Python 3 (stdlib only) |
+| `curriculum` | Full lifecycle for beginner/non-developer lecture & course material — design (Backward Design + ADDIE), source research, authoring, Notion sync, and review. Script-enforced quality gates (`curriculum_gate.py`) for deep-source exploration, media verification, hallucination blocking, and draft review. Fill in your own Notion workspace IDs/tokens. | Python 3, `ntn` CLI (for Notion sync) |
 
 ## voice-memos setup
 
