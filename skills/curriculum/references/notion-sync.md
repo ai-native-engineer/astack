@@ -94,7 +94,7 @@ NOTION_WORKSPACE_ID=<workspace-id> ntn pages update <page-id> < page.md         
 - **append `after`는 실제 부모를 조회** - `after`로 준 블록이 synced_block, column, toggle 안에 중첩이면 parent를 페이지로 주면 400. `GET /v1/blocks/<after>`의 `parent.block_id`를 실제 부모로 쓴다. after가 `table_row`면 table엔 비-row 자식을 못 넣으니, table 블록 전체 **다음**에 삽입한다(table의 부모 + after=table id).
 - **synced_block은 편집이 다른 페이지로 동기화된다** - 참조본(reference)을 편집하면 원본(다른 페이지)도, 원본을 편집하면 모든 참조본도 바뀐다(노션은 참조본 children GET 시 원본 block_id를 반환하므로 그 id PATCH = 전 위치 반영). 편집, 이미지 삽입 전 `GET /v1/blocks/<sb>`의 `synced_block.synced_from`으로 original(null)/reference를 판정하고, 동기화로 영향받는 다른 페이지를 사용자에게 알린다. dump는 synced_block을 재귀해야 내부 블록을 놓치지 않는다.
 - **block_id는 적용 전 실존 검증** - 변경 스펙을 LLM(서브에이전트)이 만들면 block_id를 환각, 추정한다(실측 95% 정확, 5%는 가짜). 적용 전 페이지 실제 블록 id 집합과 대조해 없는 id는 버린다. 타입도 대조 - table_row 편집은 실제 table_row만, 스펙의 type이 실제와 다르면 실제 타입으로 PATCH.
-- **마크다운 표는 직접 블록 변환이 안 됨** - 자작 `md→blocks`는 `| a | b |` 표 문법을 paragraph로 깨거나 누락한다. append 본문에 표가 필요하면 불릿 리스트로 풀거나 table 블록을 명시 구성한다.
+- **마크다운 표는 직접 블록 변환이 안 됨** - 자작 `md->blocks`는 `| a | b |` 표 문법을 paragraph로 깨거나 누락한다. append 본문에 표가 필요하면 불릿 리스트로 풀거나 table 블록을 명시 구성한다.
 - **retry는 idempotent하게, 두 번 돌리지 말 것** - append 재시도의 "이미 있으면 skip"이 식별 문구 매칭으로 빗나가면 같은 블록이 2~3개 중복 삽입된다. 재시도 후 인접 동일 `(type, text)` 블록을 dedup으로 정리하고, round-trip으로 append 문구 출현 횟수==1을 확인한다.
 
 ## 4-3. 검증 (반영 직후 필수 - round-trip)
