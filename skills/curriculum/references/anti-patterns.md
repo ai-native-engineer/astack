@@ -22,7 +22,7 @@
 - 괄호 인라인 풀이: "CLI(까만 화면...)" -> 뒷문장에서 자연스럽게 풀거나 용어를 안 쓴다.
 - `[출처: URL]` 인라인 표기 -> 본문에 출처 텍스트를 박지 않는다. 검증 주장의 출처는 섹션 하단 **북마크 카드**로 단다(authoring.md 3-3절, notion-sync.md 4-2절). 사용자가 가장 강하게 거부하는 AI 티다.
 
-상세는 authoring.md 3-3절, 메모리 feedback_avoid_ai_cliche_phrasing.
+상세는 authoring.md 3-3절.
 
 ## 3. 현 버전 UI에 묶인 세세한 절차 (stale 유발)
 
@@ -31,12 +31,12 @@
 ## 4. 학습자 자료에 섞지 말 것
 
 - **강사 메모, 진행 노트** - 시연 팁, 시간 조절, 강사용 캡처 안내 같은 강사용 정보를 학습자 노션 본문에 넣지 않는다(`<details>`로 숨겨도 안티패턴). 강사용은 별도 큐시트(live-lecture-operations-tips.md)로 분리한다.
-- **코드블록 ASCII 아트 다이어그램** - 흐름도, 구조도를 코드펜스 안 박스, 화살표 ASCII로 그리지 않는다. 노드/프로세스 흐름은 `mermaid` 코드블록(노션 `mermaid` 렌더), 그 외 시각자료는 실제 이미지로 한다. 코드블록 언어 규칙 정본은 authoring.md 3-3절.
+- **코드블록 ASCII 아트 다이어그램** - 흐름도, 구조도를 코드펜스 안 박스, 화살표 ASCII로 그리지 않는다. 노드/프로세스 흐름은 `mermaid` 코드블록(노션 `mermaid` 렌더), 그 외 시각자료는 실제 이미지로 한다. 코드블록 언어 규칙 정본은 authoring.md 3-1절.
 
 ## 5. 점검
 
-작성, 이식 직후 1번 기호를 검색해 강의 본문(코드펜스, URL 제외)에서 0인지 확인한다.
+작성, 이식 직후 `review-draft`로 1번 기호와 인라인 출처를 검사한다. 이 검사는 코드펜스를 제외하고 실제 본문 위치를 보고한다.
 
 ```text
-rg -n '→|—|·|[①-⑳]|§|\[출처' <파일>
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/curriculum/scripts/curriculum_gate.py" review-draft <교안.md>
 ```

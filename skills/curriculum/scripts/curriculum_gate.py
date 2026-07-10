@@ -2,34 +2,35 @@
 """curriculum 게이트 - 산문 지시로 자꾸 건너뛰는 결정론적 단계를 산출물/exit-code로 강제.
 
 일곱 서브커맨드 (각각 review.md / authoring.md 3-0절이 hard gate로 참조):
-  explore       딥 탐색: 강의 모듈 DB + 강의자료 워크스페이스/조직 노션 전수 + 로컬 교안을 전수로 모아 후보 목록 산출물 생성.
-                모듈 DB는 아직 빈약하므로 항상 강의자료 워크스페이스/조직 노션 전수(워크스페이스별 `ntn api /search`)도 함께 본다.
-                참고 자료 최신순 10개 미만/DB 미탐색/노션 미탐색이면 비0 종료, 이 산출물 없이 제작/검수 시작 금지(#3 딥 탐색 건너뜀 처방).
+  explore       딥 탐색: 프로젝트가 선언한 모듈 DB + Notion 검색 결과 + 로컬 교안을 모아 후보 목록 산출물을 생성한다.
+                기본 최소 후보는 10개이며 프로젝트 범위에 따라 `--min-candidates`로 조정한다.
+                최소 후보 미달/DB 미탐색/Notion 미탐색이면 비0 종료하고, 이 산출물 없이 제작/검수를 시작하지 않는다.
   gate-candidates 후보 검토 게이트: explore 산출물의 [x] 후보, 근거, 최선 후보 1개를 확인한다.
                 "검색 파일만 만들고 실제 원문은 안 봄"을 막는다.
-  verify-pages  page-id 실존 확인: 직접 Notion REST(신뢰 채널)로 확인, 추측/환각 금지.
-                404(환각)와 401/403(integration 미공유)을 구분. 하나라도 미확인이면 비0 종료
-                (고객사 A 신종: 없는 page-id 18곳 환각 + 미공유를 404로 오판 처방).
+  verify-pages  page-id 접근 확인: 직접 Notion REST(신뢰 채널)로 확인, 추측/환각 금지.
+                401(토큰 무효), 403(권한/capability 부족), 404(없음 또는 미공유)를 구분한다.
+                404만으로 실재 여부를 단정할 수 없으며, 하나라도 미확인이면 비0 종료한다.
   verify-media  로컬 원본 작업본 vs 산출물 미디어 ref 대조. 원본에 있고 산출물에 없으면 비0 종료
-                ("반영했다" 단정 후 이미지 누락 #7, transplant 누락 처방).
+                ("반영했다" 단정 후 이미지 누락 - transplant(이식) 누락 처방).
   review-draft  "초안 띡" smell 린터: 신호 없는 섹션(복붙/이미지/체크리스트 0)·이미지 없는 산출물 섹션·
                 AI slop·안심말·빈펜스를 file:line으로 잡고 고신호면 비0. 판단(페르소나 비평)은 review.md.
-  gate-review   검수 산출물 게이트(Phase4 반영 전제): 검수 리포트 존재 + 교안 review-draft 고신호 0이어야 exit 0.
-                explore가 제작 시작을 게이트하듯, 이건 반영을 게이트한다(검수 생략/약점표만 내고 끝 방지).
-  status        워크스페이스 단계 현황(게이트 아님, 조회용): explore 산출물/검수 리포트 존재 + 교안 고신호로
-                어느 Phase까지 통과했고 다음 필수 게이트가 무엇인지 판정. 단계 전환을 산문 추론 대신 기계 판정.
+  gate-review   Notion 반영 전 기계 게이트: 후보·검수 리포트 형식 + review-draft + format_scan을 확인한다.
+                실제 개선 품질·미디어·page-id·round-trip은 각 전용 게이트의 실행 증거로 별도 확인한다.
+  status        워크스페이스 산출물 가시성 조회(게이트 아님): archives를 빼고 후보·리포트·교안 lint 현황을 보여준다.
+                파일 존재만으로 Phase 통과를 판정하지 않으며, 다음에 실행할 실제 게이트를 안내한다.
 
 게이트 통과 = exit 0. 모델은 응답에 (실행 명령 + exit code + 핵심 출력 라인)을 인용해야 한다 - 증거 없이 통과 단정 금지.
 explore의 ntn은 hang/0바이트 실측이 있어(notion-sync.md) timeout. 백그라운드 금지.
 verify-pages는 ntn 크로스오염(notion-sync 4-0절)을 피해 직접 REST를 쓴다 - 환각 차단 게이트가
 오염 가능한 채널을 쓰면 거짓 통과한다.
 """
-import argparse, glob, json, os, re, subprocess, sys, time, urllib.error, urllib.request
+import argparse, glob, hashlib, json, os, re, subprocess, sys, time, urllib.error, urllib.request
 
 NOTION_VERSION = "2022-06-28"  # page/block read 호환되는 안정 API 버전
 CHECKED_CANDIDATE = re.compile(r"^\s*-\s*\[[xX]\]\s*(.+)")
 EVIDENCE = re.compile(r"근거\s*[:：]\s*(.*)")
 BEST_SOURCE = re.compile(r"^\s*(?:최선 후보|최선 선택|선택 후보)\s*[:：]\s*(.+\S)\s*$")
+NOTION_ID = re.compile(r"^(?:[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$", re.I)
 
 
 def run_ntn(args, workspace_id=None, timeout=90):
@@ -57,7 +58,7 @@ def notion_get(path, token, timeout=30):
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status, json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
-        return e.code, None  # 404 환각 / 401·403 미공유를 호출부가 구분
+        return e.code, None
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
         return 0, None
 
@@ -111,7 +112,7 @@ def cmd_explore(a):
     ws = a.workspace_id
     db_lines, local_lines = [], []
     n_db = n_local = 0
-    db_failed = truncated = False
+    db_failed = local_failed = truncated = False
 
     if a.datasource:
         cursor, got = None, []
@@ -122,17 +123,32 @@ def cmd_explore(a):
             rc, out, err = run_ntn(q, ws)
             if rc != 0:
                 db_lines.append(f"- (DB 조회 실패 rc={rc}: {err.strip()[:120]})")
-                db_failed = not got
+                db_failed = True
                 break
             try:
                 data = json.loads(out)
             except json.JSONDecodeError:
                 db_lines.append("- (DB 응답 JSON 파싱 실패 - `ntn datasources query` 직접 확인)")
-                db_failed = not got
+                db_failed = True
                 break
-            got += data.get("results", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-            nxt = data.get("next_cursor") if isinstance(data, dict) else None
-            if isinstance(data, dict) and data.get("has_more") and nxt:
+            if not isinstance(data, dict) or not isinstance(data.get("has_more"), bool):
+                db_lines.append("- (DB 응답 형식 오류 - results + has_more 객체가 필요)")
+                db_failed = True
+                break
+            results = data.get("results")
+            if (not isinstance(results, list)
+                    or any(not isinstance(page, dict) or not NOTION_ID.fullmatch(str(page.get("id", "")))
+                           for page in results)):
+                db_lines.append("- (DB 응답 형식 오류 - results 배열을 확인)")
+                db_failed = True
+                break
+            got += results
+            nxt = data.get("next_cursor")
+            if data.get("has_more"):
+                if not nxt:
+                    db_lines.append("- (DB 페이지네이션 cursor 누락 - 전수 탐색 불가)")
+                    db_failed = True
+                    break
                 cursor = nxt
                 continue
             break
@@ -161,6 +177,9 @@ def cmd_explore(a):
                 return 0.0
         try:
             p = subprocess.run(rg_cmd, capture_output=True, text=True, timeout=60)
+            if p.returncode not in (0, 1):
+                local_lines.append(f"- (로컬 rg 실패 rc={p.returncode}: {p.stderr.strip()[:120]})")
+                local_failed = True
             for f in sorted(set(filter(None, p.stdout.splitlines())), key=_mtime, reverse=True):  # 최신순(mtime)
                 mt = _mtime(f)
                 d = time.strftime("%Y-%m-%d", time.localtime(mt)) if mt else "날짜미상"
@@ -168,12 +187,14 @@ def cmd_explore(a):
                 n_local += 1
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
             local_lines.append(f"- (로컬 rg 실패: {e})")
+            local_failed = True
     if not local_lines:
         local_lines.append("- (로컬 후보 0 - --topic 토큰/--local-root 점검)")
 
-    # 강의자료 워크스페이스/조직 노션 전수: 워크스페이스별 `ntn api /search` 결과 JSON을 에이전트가 넘긴다.
+    # 프로젝트가 선언한 Notion 범위: 워크스페이스별 `ntn api /search` 결과 JSON을 에이전트가 넘긴다.
     # 게이트는 generic - 토큰/워크스페이스 태그는 스크립트에 박지 않고 authoring 3-0/AGENTS.md가 정본.
     notion_lines, n_notion = [], 0
+    notion_failed = False
     if a.notion_hits:
         for hf in a.notion_hits:
             try:
@@ -181,26 +202,45 @@ def cmd_explore(a):
                     data = json.load(fp)
             except (OSError, json.JSONDecodeError) as ex:
                 notion_lines.append(f"- ({hf} 읽기/파싱 실패: {ex} - `ntn api /search` 출력을 그 경로에 저장했는지 확인)")
+                notion_failed = True
                 continue
-            results = data.get("results", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+            if not isinstance(data, dict):
+                notion_lines.append(f"- ({hf} 형식 오류: raw search JSON 객체가 아님)")
+                notion_failed = True
+                continue
+            results = data.get("results")
+            if (not isinstance(results, list)
+                    or any(not isinstance(pg, dict) or pg.get("object") != "page"
+                           or not NOTION_ID.fullmatch(str(pg.get("id", ""))) for pg in results)):
+                notion_lines.append(f"- ({hf} 형식 오류: 유효한 page id를 가진 search results 배열이 아님)")
+                notion_failed = True
+                continue
+            if data.get("has_more") is not False:
+                notion_lines.append(f"- ({hf} 페이지네이션 미완: has_more=false인 완전한 search 결과가 필요)")
+                notion_failed = True
+                continue
             notion_lines.append(f"- **`{os.path.basename(hf)}` - {len(results)}건** (최신순)")
             for pg in sorted(results, key=_edited_ts, reverse=True):  # 최신순(최근 수정일 우선)
                 pid, title = pg.get("id", ""), _title_of(pg)
                 notion_lines.append(f"  - [ ] ({_date_label(_edited_ts(pg))}) {title} - id `{pid}` - `ntn pages get {pid}`  | 근거: ")
                 n_notion += 1
     elif a.no_notion:
-        notion_lines.append("- (--no-notion: 강의자료 워크스페이스/조직 노션 전수 의도적 제외. 응답에 그 이유를 사용자에게 명시할 것.)")
+        notion_lines.append("- (--no-notion: 프로젝트 Notion 검색을 의도적으로 제외. 응답에 그 이유를 사용자에게 명시할 것.)")
     else:
-        notion_lines.append("- (--notion-hits 미지정: 강의자료 워크스페이스/조직 노션 전수 미탐색 = 게이트 미완. 워크스페이스별 `ntn api /search` 결과를 넘겨라.)")
+        notion_lines.append("- (--notion-hits 미지정: 프로젝트 Notion 범위 미탐색 = 게이트 미완. 워크스페이스별 `ntn api /search` 결과를 넘겨라.)")
 
     total = n_db + n_local + n_notion
     problems = []
     if a.datasource and db_failed:
         problems.append("DB 조회 실패")
+    if local_failed:
+        problems.append("로컬 교안 검색 실패")
     if not a.datasource and not a.no_db:
         problems.append("DB 미탐색 - `--datasource <ds-id>`(AGENTS.md) 주거나, 의도적 로컬-only면 `--no-db` 명시")
     if not a.notion_hits and not a.no_notion:
-        problems.append("노션 전수 미탐색 - 강의자료 워크스페이스/조직 워크스페이스 각각 `ntn api /search` 후 `--notion-hits <file>...` 주거나, 의도적 제외면 `--no-notion` 명시")
+        problems.append("프로젝트 Notion 범위 미탐색 - `ntn api /search` 결과를 `--notion-hits <file>...`로 주거나, 의도적 제외면 `--no-notion` 명시")
+    if notion_failed:
+        problems.append("노션 검색 JSON 읽기/파싱/완전성 실패")
     mc = max(1, a.min_candidates)  # 0/음수로 게이트 우회 금지(후보 0 통과 방지)
     if total < mc:
         problems.append(f"후보 {total} < 최소 {mc}")
@@ -218,7 +258,7 @@ def cmd_explore(a):
         f"> 후보는 **최신순(최근 수정일 우선)**으로 정렬되고 각 줄 앞 `(YYYY-MM-DD)`가 수정일이다 - 낡은 자료보다 최근 검증 자료를 먼저 검토한다.\n"
         f"> 각 후보를 `ntn pages get`으로 실제로 떠서 비교한 것만 `[x]` + 근거 칸(떠온 핵심 1줄)을 채운다. 근거 빈 [x]는 미검토로 간주.\n\n"
         f"## 강의 모듈 DB\n" + "\n".join(db_lines) + "\n\n"
-        f"## 강의자료 워크스페이스/조직 노션 전수 검색\n" + "\n".join(notion_lines) + "\n\n"
+        f"## 프로젝트 Notion 검색\n" + "\n".join(notion_lines) + "\n\n"
         f"## 로컬 교안\n" + "\n".join(local_lines) + "\n"
     )
     try:
@@ -229,6 +269,9 @@ def cmd_explore(a):
         return 2
     print(f"산출물: {out_path}  상태={status}  (후보 {total}: DB {n_db}, 노션 {n_notion}, 로컬 {n_local})")
     if problems:
+        for diagnostic in db_lines + notion_lines + local_lines:
+            if diagnostic.startswith("- ("):
+                print(diagnostic, file=sys.stderr)
         print("실패: " + "; ".join(problems) + " -> 게이트 미통과, 제작/검수 진행 금지.", file=sys.stderr)
         return 1
     return 0
@@ -312,6 +355,20 @@ def cmd_gate_candidates(a):
     return 0
 
 
+def _page_state(status, body):
+    if status == 200 and body and body.get("id"):
+        return "REAL"
+    if status == 401:
+        return "UNAUTHORIZED(401 - token invalid)"
+    if status == 403:
+        return "FORBIDDEN(403 - permission/capability 부족)"
+    if status == 404:
+        return "MISSING-OR-UNSHARED(404 - 리소스 없음 또는 connection 미공유)"
+    if status == 0:
+        return "NET/TIMEOUT(직접 확인)"
+    return f"HTTP {status}"
+
+
 def cmd_verify_pages(a):
     token = os.environ.get("NOTION_API_KEY")
     if not token:
@@ -322,22 +379,13 @@ def cmd_verify_pages(a):
     print(f"{'page-id':38} 상태")
     for pid in a.page_ids:
         status, body = notion_get("/pages/" + pid, token)
-        if status == 200 and body and body.get("id"):
-            state = "REAL"
-        elif status == 404:
-            state = "NOTFOUND(404 - 환각 가능)"
-        elif status in (401, 403):
-            state = f"NO-ACCESS({status} - integration 미공유. 페이지에 연결 후 재시도)"
-        elif status == 0:
-            state = "NET/TIMEOUT(직접 확인)"
-        else:
-            state = f"HTTP {status}"
+        state = _page_state(status, body)
         if state != "REAL":
             bad += 1
         print(f"{pid:38} {state}")
     if bad:
-        print(f"\n실패: {bad}개 실존 미확인. 단정/반영 금지. 404(환각, 고객사 A 신종)와 "
-              f"401/403(미공유)을 구분해 정직하게 표기하고, 미공유면 사용자에게 공유를 요청한다.", file=sys.stderr)
+        print(f"\n실패: {bad}개 접근/실존 미확인. 단정/반영 금지. 401은 토큰을, 403은 permission/capability를 "
+              f"확인한다. 404는 리소스 없음과 미공유를 구분할 수 없으므로 공유 상태를 별도 확인한다.", file=sys.stderr)
         return 1
     print("\n통과: 전부 실존 확인(직접 REST 신뢰 채널).")
     return 0
@@ -365,12 +413,12 @@ def cmd_verify_media(a):
         print(f"  누락: {k}")
     if missing:
         print(f"\n실패: 원본 미디어 {len(missing)}개가 산출물에서 빠짐. "
-              f"'반영 완료' 단정 금지 - 이식/제작 누락 처방(#7, transplant).", file=sys.stderr)
+              f"'반영 완료' 단정 금지 - 이식/제작 누락 처방(transplant).", file=sys.stderr)
         return 1
     if a.require_new and not (prod - orig):
         print("\n실패: --require-new인데 이식 외 새 이미지가 0개(prod-orig=0) - 새 산출물/도메인엔 "
               "이식 외 이미지를 1개 이상 확보한다. 개념 이미지는 검색/이식으로, Codex 생성은 세상에 "
-              "실물 없는 이번 회차 산출물 결과 화면에만('왜 이미지 개선 안하냐' 처방, 100% 대응 추구 금지).", file=sys.stderr)
+              "실물 없는 이번 회차 산출물 결과 화면에만(100% 대응 추구 금지).", file=sys.stderr)
         return 1
     print("통과: 원본 미디어 ref 전부 산출물에 존재." + (f" 새 이미지 {len(prod - orig)}개." if a.require_new else ""))
     return 0
@@ -410,7 +458,7 @@ def _new_sec(head, ln):
 
 
 def _new_unit(head, ln, content):
-    # 신호 단위(# 또는 ## 마다 리셋) - 부모 #의 이미지 하나가 자식 ## 들을 가리지 않게(Codex #2)
+    # 신호 단위(# 또는 ## 마다 리셋) - 부모 #의 이미지 하나가 자식 ## 들을 가리지 않게
     return {"head": head, "start": ln, "content": content, "prose": 0, "sig": 0}
 
 
@@ -464,7 +512,7 @@ def _scan_draft(lines):
     def close_sec(s):
         if s["content"] and s["visual"] and not s["image"]:
             findings.append((s["start"], "HIGH", "needs-image",
-                f"섹션 '{s['head']}'(산출물/결과/화면류)에 이미지가 0개 - 이미지를 확보해 넣는다(개념은 검색/이식, 산출물 화면만 캡처/생성; '왜 이미지 개선 안하냐' 처방)"))
+                f"섹션 '{s['head']}'(산출물/결과 표시)에 이미지가 0개 - 이미지를 확보해 넣는다(개념은 검색/이식, 산출물 화면만 캡처/생성)"))
         if s["callouts"] > 3:
             findings.append((s["start"], "warn", "callout-overuse", f"섹션 '{s['head']}' 콜아웃 {s['callouts']}개(>3 남발)"))
 
@@ -478,7 +526,7 @@ def _scan_draft(lines):
                 len(prose_block) >= PROSE_DENSE_LINES or
                 sentences >= PROSE_DENSE_SENTENCES):
             findings.append((prose_start, "HIGH", "dense-prose",
-                f"긴 산문 블록({len(joined)}자/{len(prose_block)}줄) - 1줄 설명 + 나머지 항목을 불렛/표/프롬프트/체크리스트로 분리(문장을 더 압축해 빽빽하게 만드는 건 AI-terse 결함; 1-2줄 자연 산문은 허용)"))
+                f"긴 산문 블록({len(joined)}자/{len(prose_block)}줄) - 항목을 불렛/표/프롬프트/체크리스트로 분리하고 리드 문장은 첫 불렛으로 흡수하거나 삭제(리드 줄글+불렛 하이브리드 금지 - authoring 3-3 2형태 원칙; 문장을 더 압축해 빽빽하게 만드는 건 AI-terse 결함, 1-2줄 자연 산문은 허용)"))
         prose_start, prose_block = None, []
 
     def add_prose_line(line, text):
@@ -538,7 +586,7 @@ def _scan_draft(lines):
         elif "<callout" in s:
             close_prose_block()  # 콜아웃 경계, 산문이 콜아웃 본문과 병합되지 않게
             sec["callouts"] += 1
-        elif s and not re.match(r"[-*#>|!]|\d+\.|<", s):  # 이미지(!)·리스트·헤딩·표·콜아웃 줄은 산문 아님
+        elif s and not re.match(r"[-*#>|!]|\d+\.|<|\[\[", s):  # 이미지(!)·리스트·헤딩·표·콜아웃·[[bookmark:]] 줄은 산문 아님
             unit["prose"] += 1
             add_prose_line(i, s)
             if len(re.findall(r"[.!?。]+(?=\s|$)", s)) > 3:
@@ -581,6 +629,14 @@ def _read_lines(path):
         return f.read().split("\n")
 
 
+def _sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def cmd_review_draft(a):
     try:
         lines = _read_lines(a.draft)
@@ -600,15 +656,17 @@ def cmd_review_draft(a):
 
 
 def cmd_gate_review(a):
-    """검수 산출물 게이트(Phase 4 반영 전제): 검수 리포트 존재 + 교안 review-draft 고신호 0."""
+    """Notion 반영 전 후보·리포트 형식과 교안 기계 lint를 확인한다."""
     candidates = getattr(a, "candidates", None) or []
-    if candidates:
-        problems = _run_candidate_gate(candidates)
-        if problems:
-            for p in problems:
-                print(f"후보 검토 실패: {p}", file=sys.stderr)
-            print("검수 게이트 실패: --candidates 후보 검토 게이트 미통과. 기존 자료를 실제로 본 근거 없이 반영 금지.", file=sys.stderr)
-            return 1
+    if not candidates:
+        print("검수 게이트 실패: --candidates 필요. 후보 검토 산출물 없이 반영 금지.", file=sys.stderr)
+        return 1
+    problems = _run_candidate_gate(candidates)
+    if problems:
+        for p in problems:
+            print(f"후보 검토 실패: {p}", file=sys.stderr)
+        print("검수 게이트 실패: --candidates 후보 검토 게이트 미통과. 기존 자료를 실제로 본 근거 없이 반영 금지.", file=sys.stderr)
+        return 1
     try:
         with open(a.report, encoding="utf-8") as f:
             rep = f.read()
@@ -625,6 +683,35 @@ def cmd_gate_review(a):
         print(f"검수 리포트 {a.report} 형식 미달 - 라운드별 'before->after' 개선 델타 + 게이트 출력"
               "(review-draft/verify-media/페르소나 발견) 인용이 있어야 한다. 빈 '검수했습니다'는 불가.", file=sys.stderr)
         return 1
+    report_lines = [line.strip().lstrip("- ").strip() for line in rep.splitlines()]
+    draft_binding = "\n".join(line for line in report_lines
+                                if line.lower().startswith(("교안:", "draft:")))
+    candidate_binding = "\n".join(line for line in report_lines
+                                    if line.lower().startswith(("후보:", "candidates:")))
+    draft_name = os.path.basename(a.draft)
+    candidate_names = [os.path.basename(path) for path in candidates]
+    if draft_name not in draft_binding or not all(name in candidate_binding for name in candidate_names):
+        print("검수 리포트 대상 불일치 - `교안: <파일명>`과 `후보: <후보 파일명...>`으로 "
+              "현재 입력을 명시해야 한다. 다른 작업의 리포트 재사용 금지.", file=sys.stderr)
+        return 1
+    try:
+        draft_digest = _sha256_file(a.draft)
+        candidate_digests = [(os.path.basename(path), _sha256_file(path)) for path in candidates]
+    except (OSError, PermissionError) as e:
+        print(f"검수 입력 해시 계산 실패: {e}", file=sys.stderr)
+        return 2
+    draft_hash_binding = "\n".join(line for line in report_lines
+                                     if line.lower().startswith(("교안 sha256:", "draft sha256:")))
+    candidate_hash_binding = "\n".join(line for line in report_lines
+                                         if line.lower().startswith(("후보 sha256:", "candidates sha256:")))
+    if draft_digest not in draft_hash_binding or not all(
+            name in candidate_hash_binding and digest in candidate_hash_binding
+            for name, digest in candidate_digests):
+        print("검수 리포트 SHA256 binding 불일치 - 현재 입력으로 다음 값을 갱신하세요:", file=sys.stderr)
+        print(f"교안 SHA256: {draft_digest}", file=sys.stderr)
+        for name, digest in candidate_digests:
+            print(f"후보 SHA256: {name}={digest}", file=sys.stderr)
+        return 1
     try:
         lines = _read_lines(a.draft)
     except (FileNotFoundError, IsADirectoryError, UnicodeDecodeError, PermissionError) as e:
@@ -634,28 +721,45 @@ def cmd_gate_review(a):
     if n_high:
         print(f"검수 게이트 실패: 교안에 고신호 smell {n_high}개 남음(`review-draft {a.draft}`로 확인) - 개선 후 재실행. 반영 금지.", file=sys.stderr)
         return 1
-    print(f"검수 게이트 통과: 리포트 {a.report} 존재 + 교안 고신호 smell 0. Phase 4 반영 가능.")
+    format_scan = os.path.join(os.path.dirname(__file__), "format_scan.py")
+    fmt = subprocess.run([sys.executable, format_scan, a.draft], capture_output=True, text=True)
+    if fmt.stdout.strip():
+        print(fmt.stdout.strip())
+    if fmt.returncode:
+        if fmt.stderr.strip():
+            print(fmt.stderr.strip(), file=sys.stderr)
+        print("검수 게이트 실패: format_scan 위반 또는 입력 오류. 반영 금지.", file=sys.stderr)
+        return 2 if fmt.returncode == 2 else 1
+    print("검수 게이트 통과: 후보 검토 + 리포트 형식 + 교안 고신호 0 + format_scan 위반 0. "
+          "실제 개선 품질·미디어·page-id·round-trip은 전용 게이트 증거를 별도 확인한다.")
     return 0
 
 
 def cmd_status(a):
-    """워크스페이스 단계별 게이트 산출물 인벤토리 + 다음 필수 게이트. 단계 전환을 산문 추론 대신 기계 판정."""
+    """archives를 제외한 산출물 가시성 인벤토리. Phase 통과 판정은 하지 않는다."""
     ws = a.workspace
     if not os.path.isdir(ws):
         print(f"워크스페이스 디렉토리 아님: {ws}", file=sys.stderr)
         return 2
 
     def find(pat):
-        return sorted(glob.glob(os.path.join(ws, "**", pat), recursive=True))
+        paths = glob.glob(os.path.join(ws, "**", pat), recursive=True)
+        return sorted(p for p in paths if "archives" not in os.path.relpath(p, ws).split(os.sep))
 
     cand = find("curriculum-candidates-*.md")
     reviews = find("검수-*.md")
-    print(f"# Curriculum status: {ws}\n")
+    print(f"# Curriculum status (가시성 전용): {ws}")
+    print("파일 존재 인벤토리이며 Phase 통과 판정이 아니다. archives는 제외한다.\n")
 
-    print(f"[딥탐색(Phase 2/3)] explore 산출물 {len(cand)}개")
+    print(f"[딥탐색(Phase 3)] explore 산출물 {len(cand)}개")
     for c in cand:
-        m = re.search(r"게이트 상태: \*\*([^*]+)\*\*", open(c, encoding="utf-8").read(600))
-        print(f"  - {os.path.relpath(c, ws)}: {m.group(1).strip() if m else '?'}")
+        try:
+            with open(c, encoding="utf-8") as f:
+                m = re.search(r"게이트 상태: \*\*([^*]+)\*\*", f.read(600))
+            declared = m.group(1).strip() if m else "?"
+        except (OSError, UnicodeDecodeError) as e:
+            declared = f"읽기 실패: {e}"
+        print(f"  - {os.path.relpath(c, ws)}: 선언 상태={declared} (재검증 필요)")
     if not cand:
         print("  -> 없음. 제작/검수 전 `explore`로 후보 산출물 생성")
 
@@ -676,9 +780,9 @@ def cmd_status(a):
                 continue
             draft_high_total += n_high
             print(f"  - {os.path.basename(d)}: 고신호 {n_high}  "
-                  f"{'OK 반영 가능' if n_high == 0 else 'X 개선 필요(review-draft로 확인)'}")
+                  f"{'기계 lint 고신호 0(통과 판정 아님)' if n_high == 0 else 'X 개선 필요(review-draft로 확인)'}")
 
-    print("\n[다음 필수 게이트]")
+    print("\n[다음 실행할 게이트 - 실제 명령으로 재검증]")
     if a.draft and draft_high_total:
         print(f"  review-draft 개선 - 교안 고신호 {draft_high_total} 남음(0까지 고치고 재확인)")
     elif not cand and not reviews:
@@ -686,7 +790,7 @@ def cmd_status(a):
     elif not reviews:
         print("  검수 루프(review.md) -> 검수 리포트 + gate-review 통과 (없이 반영 금지)")
     else:
-        print("  gate-review --report <검수.md> <교안> 통과 확인 후 반영")
+        print("  gate-review --candidates <후보.md> --report <검수.md> <교안> 통과 확인 후 반영")
     return 0
 
 
@@ -696,16 +800,16 @@ def main():
 
     e = sub.add_parser("explore", help="딥 탐색 -> 후보 목록 산출물(후보 0/DB 미탐색이면 비0)")
     e.add_argument("--topic", required=True, help="주제/키워드(공백으로 여러 토큰 OR 검색)")
-    e.add_argument("--workspace-id", dest="workspace_id", help="대상 워크스페이스의 NOTION_WORKSPACE_ID")
+    e.add_argument("--workspace-id", dest="workspace_id", help="프로젝트 NOTION_WORKSPACE_ID")
     e.add_argument("--datasource", help="강의 모듈 data-source-id(프로젝트 AGENTS.md)")
     e.add_argument("--no-db", action="store_true", help="강의 모듈 DB 의도적 제외(로컬-only를 명시적 선택으로)")
     e.add_argument("--notion-hits", dest="notion_hits", nargs="*",
-                   help="워크스페이스별 `ntn api /search` 결과 JSON(반복) - 강의자료 워크스페이스/조직 워크스페이스 둘 다 권장(authoring 3-0)")
+                   help="프로젝트가 선언한 워크스페이스별 `ntn api /search` 결과 JSON")
     e.add_argument("--no-notion", dest="no_notion", action="store_true",
-                   help="강의자료 워크스페이스/조직 노션 전수 의도적 제외(명시적 선택으로)")
+                   help="프로젝트 Notion 검색 의도적 제외(명시적 선택으로)")
     e.add_argument("--local-root", action="append", help="로컬 교안 탐색 루트(반복 가능, 기본 .)")
     e.add_argument("--limit", type=int, default=1000, help="DB 페이지당(기본 1000, has_more면 cursor 루프)")
-    e.add_argument("--min-candidates", type=int, default=10, help="이 수 미만이면 게이트 미통과(기본 10 = 참고 자료 최신순 10개 이상). 니치 주제로 줄일 땐 응답에 사유 명시")
+    e.add_argument("--min-candidates", type=int, default=10, help="이 수 미만이면 게이트 미통과(기본 10, 프로젝트 범위에 따라 조정하고 사유 명시)")
     e.add_argument("--out", help="산출물 경로(기본 ./curriculum-candidates-<주제>.md)")
     e.set_defaults(func=cmd_explore)
 
@@ -728,13 +832,14 @@ def main():
     gc.add_argument("candidates", nargs="+", help="curriculum-candidates-*.md")
     gc.set_defaults(func=cmd_gate_candidates)
 
-    gr = sub.add_parser("gate-review", help="검수 산출물 게이트(후보 근거 + 리포트 존재 + 교안 고신호 0, Phase4 반영 전제)")
-    gr.add_argument("--candidates", nargs="+", help="curriculum-candidates-*.md(여러 파일 가능) - source evidence 게이트")
-    gr.add_argument("--report", required=True, help="검수 리포트 .md(라운드별 발견/개선/before->after)")
+    gr = sub.add_parser("gate-review", help="Notion 반영 전 후보·리포트 형식 + review-draft + format_scan 기계 게이트")
+    gr.add_argument("--candidates", nargs="+", required=True, help="curriculum-candidates-*.md(여러 파일 가능) - source evidence 게이트")
+    gr.add_argument("--report", required=True,
+                    help="검수 리포트 .md(현재 교안/후보 파일명+SHA256 binding, 라운드별 before->after)")
     gr.add_argument("draft", help="검사할 교안 .md")
     gr.set_defaults(func=cmd_gate_review)
 
-    st = sub.add_parser("status", help="워크스페이스 단계별 게이트 산출물 인벤토리 + 다음 필수 게이트")
+    st = sub.add_parser("status", help="archives 제외 산출물 가시성 인벤토리(Phase 통과 판정 아님)")
     st.add_argument("workspace", help="커리큘럼 워크스페이스 디렉토리")
     st.add_argument("--draft", action="append", help="교안 .md(반복 가능) - review-draft 고신호 수 표시")
     st.set_defaults(func=cmd_status)
