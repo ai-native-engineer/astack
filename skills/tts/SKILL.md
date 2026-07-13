@@ -8,6 +8,7 @@ description: "Local/offline text-to-speech and voice cloning with Qwen3-TTS/mlx-
 
 ## 기본 동작
 - **기본 엔진 = Qwen3-TTS**(mlx-audio, 로컬·오픈웨이트·완전 오프라인). 주 용도는 음성 복제.
+- **기본 클론 음성 = `aiden`**. `full`·`chunk`에서 `--voice`를 생략하면 사용하며, 다른 등록 음성은 `--voice <이름>`으로 고른다.
 - **드라이버**: `scripts/tts_clone.py` — `prep` → (`full` | `chunk`) → (`regen`). 외부 전송 없음.
 - **빠른 비복제 음성**(파이프라인 테스트·간단 안내): macOS `say -v Yuna -o out.aiff "한국어 문장"`. 클론이 필요 없을 때만.
 
@@ -33,7 +34,7 @@ description: "Local/offline text-to-speech and voice cloning with Qwen3-TTS/mlx-
 - `audit`는 원본 청크 꼬리 음량 기준의 보수적 신호다. 최종 실패 판정은 자동 전사(`apple-stt`)와 직접 청취로 문장 누락·고유명사 오류를 확인한다.
 
 ## 저장 위치 (둘을 분리)
-- **원본 목소리(레퍼런스)** = 재사용 자산 → 영구 보관함 `~/.local/share/tts/voices/<이름>/`(env `TTS_VOICE_DIR`로 변경). 한 번 `prep`하면 계속 재사용. 개인 음성이라 스킬 폴더·git엔 두지 않는다.
+- **원본 목소리(레퍼런스)** = 재사용 자산 → 스킬 내부 `voices/<이름>/ref.wav + ref.txt`. 기본 `aiden` 음성은 패키지에 포함하며, 다른 저장소가 필요할 때만 `TTS_VOICE_DIR` 또는 `--voice-dir`로 바꾼다.
 - **작업 폴더** = `--proj`(생략 시 `/tmp/tts-XXXX` 자동 생성, 휘발성). 청크·manifest·중간물이 여기 쌓인다.
 - **최종본 보관** = `--out <폴더|*.wav>`. 완성된 `output.wav`를 원하는 위치에 함께 복사. → `--proj`(작업)와 `--out`(보관)을 같이 쓴다.
 - **편집용 정규화본** = `--loudnorm-out <폴더|*.wav>`. 원본을 보존하면서 `loudnorm=I=-16:TP=-1.5:LRA=11`, 48kHz mono WAV로 한 번 더 렌더한다. CapCut/유튜브 나레이션에 넣을 파일은 보통 이 버전이 더 적합하다.
@@ -41,17 +42,17 @@ description: "Local/offline text-to-speech and voice cloning with Qwen3-TTS/mlx-
 ## 빠른 사용
 ```bash
 S=~/.agents/skills/shared/tts/scripts/tts_clone.py
-python3 "$S" prep  <영상/음성파일> --voice aiden [--ss 9.6 --dur 14]  # 목소리 1회 등록(보관함)
+python3 "$S" prep  <영상/음성파일> --voice aiden [--ss 9.6 --dur 14]  # 목소리 1회 등록(스킬 내부)
 python3 "$S" voices                                                   # 등록된 목소리 목록
 python3 "$S" preptext --text-file script.md --out script-tts.txt      # 한국어 발화/음차/청크 전처리
-python3 "$S" chunk --voice aiden --text-file script.txt --lang ko      # → /tmp/tts-XXXX/output.wav
-python3 "$S" chunk --voice aiden --text-file script.txt --lang ko --out ~/Desktop/intro.wav  # 보관 위치 지정
-python3 "$S" chunk --voice aiden --text-file script.txt --lang ko --out out/raw.wav --loudnorm-out out/edit.wav  # 원본+편집용
+python3 "$S" chunk --text-file script.txt --lang ko      # → /tmp/tts-XXXX/output.wav
+python3 "$S" chunk --text-file script.txt --lang ko --out ~/Desktop/intro.wav  # 보관 위치 지정
+python3 "$S" chunk --text-file script.txt --lang ko --out out/raw.wav --loudnorm-out out/edit.wav  # 원본+편집용
 python3 "$S" audit --proj /tmp/tts-XXXX                              # 끝음 잘림 의심 청크 찾기
 python3 "$S" regen --proj /tmp/tts-XXXX --seg 3 --duration-multiplier 1.08  # 끝음 여유 있게 재생성
 python3 "$S" regen --proj /tmp/tts-XXXX --seg 3 [--text "고친 문장"]   # 청크 3만 재생성
 python3 "$S" join  --proj /tmp/tts-XXXX --loudnorm-out ~/Desktop/edit.wav  # 기존 청크를 편집용으로 다시 출력
-python3 "$S" full  --voice aiden --text-file script.txt               # 한 방 생성
+python3 "$S" full  --text-file script.txt                              # 한 방 생성
 ```
 - 다른 엔진(예: VoxCPM2)은 `--model <repo>`로 교체. 기본값은 Qwen3-TTS Base.
 

@@ -3,8 +3,8 @@
 
 Two data stores, on purpose:
   - VOICE STORE (persistent): reusable reference voices live in
-    ~/.local/share/tts/voices/<name>/ (ref.wav + ref.txt). Override with
-    --voice-dir or env TTS_VOICE_DIR. Never put these in /tmp or git.
+    <skill>/voices/<name>/ (ref.wav + ref.txt), so packaged skills include
+    their voices. Override with --voice-dir or env TTS_VOICE_DIR.
   - PROJECT (ephemeral): generated audio + work files. Default is a fresh
     /tmp/tts-XXXX (pass --proj to pin a location). Use --out to also copy the
     finished output.wav to a directory or .wav path you want to keep.
@@ -16,9 +16,9 @@ Subcommands:
   voices List registered voices in the store.
   preptext (--text T | --text-file F) [--out F]
          Rewrite Korean script text into TTS-friendly spoken chunks.
-  full   --voice NAME (--text T | --text-file F) [--proj DIR] [--out DEST] [--loudnorm-out DEST] [--model M]
+  full   [--voice NAME] (--text T | --text-file F) [--proj DIR] [--out DEST] [--loudnorm-out DEST] [--model M]
          One-shot generation (whole text in a single pass).
-  chunk  --voice NAME --text-file F [--proj DIR] [--out DEST] [--loudnorm-out DEST] [--model M] [--gap 0.30]
+  chunk  [--voice NAME] --text-file F [--proj DIR] [--out DEST] [--loudnorm-out DEST] [--model M] [--gap 0.30]
          One sentence per line. Generate each separately, tail-fade+pad, concat.
          Writes manifest.json so single chunks can be re-rolled.
   regen  --proj DIR --seg N [--text "..."] [--out DEST] [--loudnorm-out DEST]
@@ -37,6 +37,8 @@ import argparse, json, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 
 DEFAULT_MODEL = "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
+DEFAULT_VOICE = "aiden"
+DEFAULT_VOICE_DIR = Path(__file__).resolve().parent.parent / "voices"
 APPLE_STT = str(Path("~/scripts/apple-stt").expanduser())
 # apple-stt uses locale tags; map mlx_audio --lang codes
 _LANG_LOCALE = {"ko": "ko-KR", "en": "en-US"}
@@ -93,7 +95,7 @@ def ffprobe_dur(p):
 
 def voice_store(args):
     d = (getattr(args, "voice_dir", None) or os.environ.get("TTS_VOICE_DIR")
-         or str(Path.home() / ".local/share/tts/voices"))
+         or str(DEFAULT_VOICE_DIR))
     return Path(d).expanduser()
 
 
@@ -577,7 +579,8 @@ def main():
 
     for name, fn in (("full", cmd_full), ("chunk", cmd_chunk)):
         p = sub.add_parser(name)
-        p.add_argument("--voice", required=True)
+        p.add_argument("--voice", default=DEFAULT_VOICE,
+                       help=f"registered reference voice (default: {DEFAULT_VOICE})")
         p.add_argument("--proj", help="work dir (default /tmp/tts-XXXX)")
         p.add_argument("--out", help="also save final to this dir or *.wav path")
         p.add_argument("--loudnorm-out", dest="loudnorm_out",

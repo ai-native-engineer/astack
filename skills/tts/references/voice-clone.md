@@ -27,7 +27,7 @@ uv tool install huggingface_hub                # 가중치 다운로드 (hf)
 - 전사는 `apple-stt`(stt 스킬의 `~/scripts/apple-stt`)를 쓴다.
 
 ## 저장 위치 (영구 vs 휘발)
-- **레퍼런스(원본 목소리)**: 영구 보관함 `~/.local/share/tts/voices/<name>/ref.wav + ref.txt`. env `TTS_VOICE_DIR` 또는 `--voice-dir`로 변경. 개인 음성이라 /tmp·git에 두지 않는다. `voices`로 목록 확인.
+- **레퍼런스(원본 목소리)**: 스킬 내부 `voices/<name>/ref.wav + ref.txt`. 패키지와 함께 배포하며, env `TTS_VOICE_DIR` 또는 `--voice-dir`로만 저장 위치를 바꾼다. `voices`로 목록 확인.
 - **프로젝트(작업 폴더)**: `--proj` 미지정 시 `tempfile.mkdtemp`로 `/tmp/tts-XXXX` 자동 생성. `manifest.json`이 레퍼런스 절대경로를 기록하므로, 보관함 voice가 있으면 /tmp 프로젝트가 날아가도 `prep` 없이 다시 생성 가능.
 - **최종본 보관**: `--out <폴더|*.wav>`로 완성된 `output.wav`를 원하는 위치에 복사(작업 폴더와 별개). full/chunk/regen/join 모두 지원. `--proj`와 `--out`을 함께 쓴다.
 - **편집용 정규화본 보관**: `--loudnorm-out <폴더|*.wav>`로 원본과 별개인 편집용 WAV를 만든다. 필터는 `loudnorm=I=-16:TP=-1.5:LRA=11`, 출력은 48kHz mono `pcm_s16le`. CapCut/유튜브 나레이션에 바로 넣을 때는 이 파일을 우선 사용하고, 원본 `output.wav`는 재처리용으로 남긴다.
@@ -126,7 +126,7 @@ python3 tts_clone.py chunk --voice aiden --text-file script.txt --lang ko \
 
 ## 산출물 레이아웃
 ```
-~/.local/share/tts/voices/<name>/ref.wav  ref.txt   # 영구 보관함
+<skill>/voices/<name>/ref.wav  ref.txt             # 패키지 포함 영구 보관함
 /tmp/tts-XXXX/manifest.json  output.wav             # 휘발 프로젝트
 /tmp/tts-XXXX/chunks/seg_NN_000.wav                 # 원본 청크
 /tmp/tts-XXXX/chunks/norm_NN.wav                    # 페이드+패딩 적용본(concat 대상)
