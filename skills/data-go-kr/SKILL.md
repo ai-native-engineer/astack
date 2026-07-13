@@ -1,6 +1,6 @@
 ---
 name: data-go-kr
-description: "Korean data.go.kr public API work-unit search, application guidance, direct API calls with user key, and recipe caching for long-tail public datasets. Use when user asks 공공데이터, 공공 API, data.go.kr, 나라장터, 국민연금 사업장, 사업자등록 상태조회, 건축물대장, or Korean government open API data. Do NOT use for Snowflake, Google Sheets, SimilarWeb, DART-only company research, generic web crawling, or non-Korean APIs."
+description: "Korean data.go.kr public API direct provider skill for 공공데이터포털/data.go.kr recipes, 나라장터 입찰공고정보서비스·낙찰정보서비스·계약정보서비스, 국민연금 사업장, 국세청 사업자등록 상태조회, 건축물대장, SERVICE_ACCESS_DENIED 활용신청 errors, and public-data portal API calls. Use when user asks data.go.kr, 공공데이터포털, 나라장터 낙찰/입찰/계약, or a known public-data portal recipe. For broader Korean official/public API routing use open-api. Do NOT use for DART, KIPRIS, NTIS, Snowflake, Google Sheets, SimilarWeb, generic web crawling, or non-Korean APIs."
 argument-hint: "[할 작업]"
 license: MIT
 ---
@@ -15,12 +15,12 @@ license: MIT
 
 ## 워크플로
 
-레시피 검색·저장의 정본 경로는 `~/.agents/skills/shared/data-go-kr/references/recipes/` (심볼릭 링크 말고 이 원본 기준).
+레시피 검색·저장의 기준 경로는 `~/.claude/skills/data-go-kr/references/recipes/`.
 
-1. **레시피 탐색** — 작업의 도메인 키워드(기관·데이터명)로 `rg -il "<키워드>" ~/.agents/skills/shared/data-go-kr/references/recipes/` 검색.
+1. **레시피 탐색** — 작업의 도메인 키워드(기관·데이터명)로 `rg -il "<키워드>" ~/.claude/skills/data-go-kr/references/recipes/` 검색.
 2. **레시피 있음** → 키 확인 후 레시피대로 호출. 인코딩·에러 처리는 `references/call-patterns.md`.
 3. **레시피 없음** → `references/search-and-apply.md` 절차로 API 검색 → 후보 선정 → 상세 페이지에서 스키마 추출 → 호출 시도.
-   - **미신청/미승인 에러**가 떨어지면 활용신청 딥링크를 사용자에게 전달하고 멈춘다 (절차·딥링크 형식은 search-and-apply.md §3).
+   - **미신청/미승인 에러**가 떨어지면 활용신청 딥링크를 사용자에게 전달하고 멈춘다 (절차·딥링크 형식은 search-and-apply.md 3절).
 4. **첫 호출 성공 시 레시피 저장** — 위 정본 경로에 `_TEMPLATE.md` 형식으로, 작업을 끝내기 전에 반드시. 다음 사용자가 곧 나다.
 
 ## 키 규칙 (불변)

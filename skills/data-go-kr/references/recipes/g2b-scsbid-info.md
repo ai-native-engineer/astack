@@ -1,7 +1,7 @@
 # 조달청_나라장터 낙찰정보서비스
 
 > publicDataPk: 15129397 · 상세: https://www.data.go.kr/data/15129397/openapi.do
-> checked: 2026-06-10 · 상태: **실호출 검증됨** (getScsbidListSttusServc, inqryDiv=1+YYYYMMDDHHMM+type=json으로 HTTP 200·resultCode 00 확인. 활용신청 승인 2026-06-10, 일일 1000건/오퍼레이션)
+> checked: 2026-06-28 · 상태: **실호출 검증됨** (getScsbidListSttusServc, inqryDiv=1+YYYYMMDDHHMM+type=json으로 HTTP 200·resultCode 00 확인. 활용신청 승인 2026-06-10, 일일 1000건/오퍼레이션)
 > 심층 문서: `docs/260610-g2b-scsbid-reference-1.1.md` (원본 .docx 동봉 — 전체 오퍼레이션 23종·응답 필드 정의·샘플 URL)
 
 ## 언제 쓰나
@@ -15,11 +15,18 @@
 - 개찰결과: `/getOpengResultListInfo{Thng|Cnstwk|Servc|Frgcpt}` (+ `Rebid` 재입찰, `Failing` 유찰, `*PreparPcDetail` 복수예비가격)
 - `*PPSSrch` 접미 변형: 검색조건 확장판 — 필요 시 상세 페이지에서 파라미터 비교
 
+## 키
+
+- env: `DATA_GO_KR_API_KEY`
+- query parameter: `serviceKey`
+- 주입 예: `agents-env run DATA_GO_KR_API_KEY -- <명령>`
+
 ## 호출 예시
 
 ```bash
-curl -sG "https://apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttusServc" \
-  --data-urlencode "serviceKey=$DATA_GO_KR_API_KEY" \
+agents-env run DATA_GO_KR_API_KEY -- curl -sG \
+  "https://apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttusServc" \
+  --data-urlencode "serviceKey={{DATA_GO_KR_API_KEY}}" \
   --data-urlencode "pageNo=1" --data-urlencode "numOfRows=999" \
   --data-urlencode "inqryDiv=1" \
   --data-urlencode "inqryBgnDt=202501010000" --data-urlencode "inqryEndDt=202506302359" \
@@ -48,6 +55,12 @@ curl -sG "https://apis.data.go.kr/1230000/as/ScsbidInfoService/getScsbidListSttu
 | dminsttNm | 수요기관명 (발주처) |
 | rlOpengDt / fnlSucsfDate | 실개찰일시 / 최종낙찰일자 |
 | prtcptCnum | 참가업체수 (경쟁 강도) |
+
+## 페이징
+
+- `pageNo`와 `numOfRows`를 사용한다.
+- `response.body.totalCount`로 전체 건수를 확인하고 `items`를 페이지별로 합친다.
+- 특정 회사 수주 이력은 사업자등록번호 조건이 없으므로 날짜 구간을 순회한 뒤 `bidwinnrBizno`로 후처리한다.
 
 ## 함정
 

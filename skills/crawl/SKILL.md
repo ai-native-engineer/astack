@@ -1,7 +1,7 @@
 ---
 argument-hint: "[url]"
 name: crawl
-description: 웹 페이지/문서 사이트를 무료·완전 로컬로 크롤링하여 마크다운으로 변환 — 자체 헤드리스 브라우저로 돌며 API 키·계정·크레딧·쿼터가 전혀 필요 없다(Tavily 같은 API 기반 크롤러와 달리). Use when user says "크롤링", "crawl", "웹페이지 읽어", "사이트 긁어", "문서 크롤링", needs to fetch web content as markdown, or wants free/offline/local crawling and saving pages to local files without any API. Also use when given a URL to read/analyze (blog posts, documentation, articles).
+description: "Free local web/documentation crawler that converts URLs and sites to markdown without API keys, accounts, credits, or quotas. Use when user gives a URL to read/save/analyze, asks 크롤링/crawl/웹페이지 읽어/사이트 긁어/문서 크롤링, or needs local markdown extraction from pages/docs. Do NOT use for broad web search/ranking, paid API research, local files, Google Workspace/Notion data, or Korean public-data APIs."
 ---
 
 # Crawl

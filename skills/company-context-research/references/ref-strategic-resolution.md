@@ -15,18 +15,18 @@
 이 모드에서는 일반적인 회사 소개가 우선이 아닙니다. 아래 6대 질문에 우선 답변해야 합니다:
 1. 지금 **딜(Deal) 단계**가 어디인가?
 2. 내부 **챔피언(Champion / Buying Center)**이 누구인가?
-3. **다음 미팅/다음 액션**이 무엇인가?
+3. **다음 미팅에서 확인할 질문**이 무엇인가?
 4. **참가자별 실무 니즈**가 어떻게 나뉘는가?
 5. **리스크 및 블로커(Red Flags)**가 무엇인가?
 6. 공개 웹 정보가 위 1~5를 어떻게 뒷받침하거나 기여할 수 있는가?
 
-### 📄 `05-company-brief.md` 상단 레이아웃 순서
-1. 현재 딜 상태
-2. 내부 챔피언 / buying center
-3. 참가자별 니즈
-4. 다음 액션 / next meeting questions
-5. 공개 웹 / 보도 / 재무 보강
-6. 일반적인 회사 소개 및 정보 (Generic corporate context)
+### `data/company-profile.json.summary` 우선 입력 순서
+1. `deal_status`: 현재 딜 상태
+2. `champion_buying_center`: 내부 챔피언 / buying center
+3. `participant_needs`: 참가자별 니즈
+4. `open_questions`: 다음 미팅에서 확인할 질문
+5. `buying_signals`: 공개 웹 / 보도 / 재무 보강
+6. `what_they_do`: 일반적인 회사 소개 및 정보
 
 ### 🏢 모회사 우선 규칙 (Parent-company rule)
 글로벌/그룹 모회사 정보는 아래 경우에만 전면에 배치하고, 그 외에는 Supporting note로 내립니다:
@@ -38,7 +38,7 @@
 
 ## 2. Entity Resolution (분절된 법인 표면 매핑)
 
-브랜드 기업, 수입 유통사, 한국 법인, 모회사 구조에서는 홈페이지 1개 가정이 깨집니다. 이 경우 먼저 **Surface Map**을 구성합니다.
+브랜드 기업, 수입 유통사, 한국 법인, 모회사 구조에서는 홈페이지 1개 가정이 깨집니다. 이 경우 먼저 `data/company-profile.json.surface_map`을 구성합니다.
 
 ### 🌐 Surface Map 구성 요소
 * **legal entity**: 공식 법인명 및 등록 정보

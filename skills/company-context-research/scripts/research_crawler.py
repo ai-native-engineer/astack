@@ -385,20 +385,6 @@ def write_tables(root: Path, manifest_rows, attachment_rows, link_inventory_rows
 
     return len(deduped_rows), len(scored_keep_rows)
 
-# --- Feature A: Finance Chart Visualizer ---
-def generate_finance_charts(market_data_path: Path):
-    # Placeholder. Engagement-specific hardcoded financials were removed for public release.
-    # Reimplement generically (parse figures from the market-data file) before use.
-    print("Finance visualization not implemented in this build.")
-    return
-
-# --- Feature B: Export Risk Scanner ---
-def scan_export_risk(market_data_path: Path, brief_path: Path):
-    # Placeholder. Engagement-specific export-risk template was removed for public release.
-    # Reimplement generically before use.
-    print("Export risk scan not implemented in this build.")
-    return
-
 # --- Core Modes Execution ---
 def crawl_mode(seeds, keywords, max_pages, max_hops, out_root, download=False, download_limit=20):
     pages_dir = out_root / "pages"
@@ -469,7 +455,13 @@ def crawl_mode(seeds, keywords, max_pages, max_hops, out_root, download=False, d
     print(f"Crawl completed. pages: {len(manifest_rows)}, inventory: {inv}, keep_list: {keep}")
     
     if download:
-        download_attachments(out_root / "attachment-candidates.tsv", out_root / "attachments", limit=download_limit)
+        attachment_dir = out_root.parent / "attachments" if out_root.name.startswith("recursive-crawl") else out_root / "attachments"
+        download_attachments(
+            out_root / "attachment-candidates.tsv",
+            attachment_dir,
+            limit=download_limit,
+            report_path=out_root / "download-report.tsv",
+        )
 
 def rebuild_mode(out_root, keywords):
     pages_dir = out_root / "pages"
@@ -580,122 +572,10 @@ def second_pass_mode(shortlist_path: Path, out_root: Path, categories, max_hosts
         if mirror_dir:
             mirror_mode(host_dir / "shortlist.tsv", Path(mirror_dir))
 
-# --- Feature C: Report Merger & Workspace Cleaner ---
-def merge_report_mode(workspace: Path):
-    print(f"Starting merge-report mode for workspace: {workspace}")
-    
-    # Ordered markdown files for unified business narrative
-    ordered_files = [
-        ("00-target.md", "## 1. Target Profile"),
-        ("00-surface-map.md", "## 2. Surface Map"),
-        ("05-company-brief.md", "## 3. Executive Brief & Deal Context"),
-        ("03-market-data.md", "## 4. Market & Financial Data"),
-        ("01-public-web.md", "## 5. Public Web Insights"),
-        ("02-public-press.md", "## 6. Press & Public Timeline"),
-        ("04-internal-context.md", "## 7. Internal Context & Stakeholders")
-    ]
-    
-    merged_lines = []
-    # Title
-    corp_name = workspace.name.split("-")[-1].replace("_", " ").title()
-    merged_lines.append(f"# Company Research Master Brief - {corp_name}")
-    merged_lines.append("")
-    merged_lines.append("## Table of Contents")
-    for _, title in ordered_files:
-        anchor = title.lower().replace(".", "").replace(" ", "-").replace("&", "").replace("(", "").replace(")", "")
-        merged_lines.append(f"- [{title[3:]}](#{anchor})")
-    merged_lines.append("")
-    merged_lines.append("---")
-    merged_lines.append("")
-    
-    found_any = False
-    for filename, title in ordered_files:
-        filepath = workspace / filename
-        if not filepath.exists():
-            print(f"Warning: {filename} not found in workspace. Skipping section.")
-            continue
-        found_any = True
-        merged_lines.append(title)
-        merged_lines.append("")
-        
-        # Read content and adjust headers
-        content = filepath.read_text(encoding="utf-8")
-        adjusted_lines = []
-        for line in content.splitlines():
-            # Skip the main title of each sub-file
-            if line.startswith("# ") and not line.startswith("## "):
-                continue
-            # Demote headers to fit hierarchy
-            if line.startswith("###### "):
-                line = "###### " + line[7:]
-            elif line.startswith("##### "):
-                line = "###### " + line[6:]
-            elif line.startswith("#### "):
-                line = "##### " + line[5:]
-            elif line.startswith("### "):
-                line = "#### " + line[4:]
-            elif line.startswith("## "):
-                line = "### " + line[3:]
-            adjusted_lines.append(line)
-            
-        merged_lines.extend(adjusted_lines)
-        merged_lines.append("")
-        merged_lines.append("---")
-        merged_lines.append("")
-        
-    if not found_any:
-        print("Error: No markdown files found to merge.")
-        return
-        
-    if merged_lines and merged_lines[-2] == "---":
-        merged_lines = merged_lines[:-3]
-        
-    output_brief_path = workspace / "company-research-brief.md"
-    output_brief_path.write_text("\n".join(merged_lines) + "\n", encoding="utf-8")
-    print(f"Master brief generated successfully at: {output_brief_path}")
-    
-    # Delete original sub-files safely
-    for filename, _ in ordered_files:
-        filepath = workspace / filename
-        filepath.unlink(missing_ok=True)
-        print(f"Deleted sub-file: {filename}")
-        
-    # Rename/move directories into .research-cache hidden directory
-    cache_dir = workspace / ".research-cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    
-    import shutil
-    # Move recursive-crawl
-    crawl_dir = workspace / "recursive-crawl"
-    if crawl_dir.exists():
-        target_crawl = cache_dir / "recursive-crawl"
-        if target_crawl.exists():
-            shutil.rmtree(target_crawl)
-        shutil.move(str(crawl_dir), str(cache_dir))
-        print("Moved 'recursive-crawl' to hidden cache '.research-cache/recursive-crawl'")
-        
-    # Move press
-    press_dir = workspace / "press"
-    if press_dir.exists():
-        target_press = cache_dir / "press"
-        if target_press.exists():
-            shutil.rmtree(target_press)
-        shutil.move(str(press_dir), str(cache_dir))
-        print("Moved 'press' to hidden cache '.research-cache/press'")
-        
-    # Move public-mirror
-    mirror_dir = workspace / "public-mirror"
-    if mirror_dir.exists():
-        target_mirror = cache_dir / "public-mirror"
-        if target_mirror.exists():
-            shutil.rmtree(target_mirror)
-        shutil.move(str(mirror_dir), str(cache_dir))
-        print("Moved 'public-mirror' to hidden cache '.research-cache/public-mirror'")
-
 # --- Main CLI ---
 def main():
     ap = argparse.ArgumentParser(description="Unified Research Crawler CLI")
-    ap.add_argument("--mode", required=True, choices=["crawl", "rebuild", "prune", "mirror", "second-pass", "visualize", "scan-risk", "merge-report"])
+    ap.add_argument("--mode", required=True, choices=["crawl", "rebuild", "prune", "mirror", "second-pass"])
     ap.add_argument("seeds_or_dir", nargs="*", help="Seed URLs or directory paths depending on the mode")
     ap.add_argument("--keyword", action="append", default=[], help="Keywords for matching hosts")
     ap.add_argument("--max-pages", type=int, default=40)
@@ -705,10 +585,6 @@ def main():
     ap.add_argument("--download-limit", type=int, default=20)
     ap.add_argument("--limit", type=int, default=20, help="Limit for mirror or download modes")
     ap.add_argument("--category", action="append", default=["brand-related"], help="Categories for second-pass")
-    
-    # Paths for analysis helper
-    ap.add_argument("--market-data-path", help="Path to 03-market-data.md for visualization/scanning")
-    ap.add_argument("--brief-path", help="Path to 05-company-brief.md for risk warning injection")
     args = ap.parse_args()
 
     if args.mode == "crawl":
@@ -750,18 +626,5 @@ def main():
             sys.exit(1)
         second_pass_mode(Path(args.seeds_or_dir[0]), Path(args.out), args.category, max_hosts=3, max_seeds_per_host=3, max_pages=15, max_hops=1, attachments_dir=args.out if args.download else None, download_limit=args.download_limit)
         
-    elif args.mode == "visualize":
-        path = Path(args.market_data_path) if args.market_data_path else Path("./03-market-data.md")
-        generate_finance_charts(path)
-        
-    elif args.mode == "scan-risk":
-        m_path = Path(args.market_data_path) if args.market_data_path else Path("./03-market-data.md")
-        b_path = Path(args.brief_path) if args.brief_path else Path("./05-company-brief.md")
-        scan_export_risk(m_path, b_path)
-        
-    elif args.mode == "merge-report":
-        workspace_dir = Path(args.out) if args.out else Path(".")
-        merge_report_mode(workspace_dir)
-
 if __name__ == "__main__":
     main()

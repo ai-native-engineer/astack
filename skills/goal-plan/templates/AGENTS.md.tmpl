@@ -1,0 +1,69 @@
+# Goal Plan Instructions
+
+Long-running agent work that continues until a verifiable condition holds.
+Start the loop with `/goal @AGENTS.md`.
+
+## Goal
+
+{{GOAL}}
+
+## Proof
+
+TBD: the exact command or check that proves the Goal (propose it from the repo, then confirm). Make it deterministic, repeatable, and self-contained -- include service startup, readiness/wait, check, cleanup, required env, test exit code, build status, count, or artifact path. Do not use a "looks good" judgment, because on an unattended run the agent is the only verifier.
+
+## Acceptance Criteria
+
+TBD: 2-5 checkable items when the goal spans multiple systems, vague improvements, or several deliverables. If the goal has one narrow proof condition, say "Covered by Proof." For recommendation, audit, research, or synthesis goals, include one semantic review item that checks relevance, rationale, exclusions/gaps, and non-generic evidence.
+
+## Context
+
+TBD: background, repo layout, and the docs/decisions to read before working. Repo-local context is the system of record; if it is not reachable from here, it does not exist for this goal.
+
+## Scope
+
+TBD: what this goal includes.
+
+## Out of Scope
+
+TBD: what is explicitly excluded or deferred.
+
+## Constraints
+
+TBD: what must not change, required tools, paths git may touch, and -- for unattended running -- which irreversible actions (deleting files, network calls, sending or publishing, payments) are pre-approved versus must pause for the user. For destructive actions use `git revert`, never `git reset --hard` or force-push, and delete files only inside a staged commit.
+
+## Input Stability
+
+TBD: for mutable sources such as session logs, queues, feeds, calendars, live APIs, or changing folders, define one of: snapshot path, `as_of` cutoff, or explicit "current at proof time" caveat. Do not call a proof deterministic if rerunning it can silently analyze a different input set.
+
+## Target Change Tracking
+
+TBD: where target edits are committed. If target edits are in scope and the target is not a git repo, this goal must either get user approval to `git init` the target, commit per-step patch/snapshot artifacts in this goal repo, or stay read-only. Do not leave target code changes as the only uncommitted record unless the user explicitly chose that risk.
+
+## Bounds
+
+TBD: turn or time limit for unattended running (e.g. "stop after 30 turns", "8 hours", or "none" with supervision). If one step blows its time budget, record it as a failure and move on.
+
+## How Progress Is Tracked
+
+- `{{PROGRESS_FILE}}` is the plan and progress table; the task breakdown lives in its rows. Edit it ONLY through the helper so rows never break on tab matching:
+  `python3 {{GOAL_LOG}} <add|start|done|block|drop|set|show> ...` (flags: `<cmd> --help`).
+- This plan lives in this goal workspace; in worktree mode the workspace is on its own goal branch, and in dedicated-repo mode the repo itself is the ledger. Each loop step ends in a commit, so the commit history is the durable record. `goal_log.py done` stamps the current `HEAD` as the row checkpoint; the commit you make immediately after records the row update. The checkpoint plus git history is your resume point: on resume, recover state with `pwd`, `goal_log.py show`, `git log`, then re-run the Proof.
+- Long runs can lose conversational context. What lets the loop survive is externalized state: `{{PROGRESS_FILE}}` and git hold the plan and checkpoints, and the Proof output stays in the transcript, so you resume cleanly with `goal_log.py show` + `git log`.
+
+## Loop Protocol
+
+Run as an autonomous loop until the Goal holds.
+
+1. `goal_log.py show` to see where you are.
+2. Take the next row (or `goal_log.py add --task ...`), then `goal_log.py start <id>`. Pick the row most likely to advance the Goal or unblock the rest, not just the next in line.
+3. Do the work within Scope and Constraints, then run the Proof.
+4. `goal_log.py done <id> --decision keep|discard|crash --artifact "<proof>"` (keep if it advanced the goal; discard if it did not but did no harm; crash if it caused a regression). Be skeptical of your own success -- if the Proof passed quietly, rerun it before marking done. Every done row needs artifact or notes evidence; for discard/crash, put WHY it failed and what to try instead in notes so a later session does not repeat the dead end. Use `goal_log.py drop <id> --notes "<reason>"` only for rows that are no longer needed.
+5. Commit the changed files plus `{{PROGRESS_FILE}}`: `git add <files> {{PROGRESS_FILE}} && git commit -m "<keep|discard>: <what you did>"`. If target code changes live outside this repo, also commit the target repo or commit patch/snapshot artifacts here, according to Target Change Tracking.
+6. Surface the Proof in your reply as evidence, not a claim: paste the actual command output (pass/fail, line numbers, exact errors), then name the checkpoint, what you verified this step, what remains, and whether you are blocked. The Proof must verify every Acceptance Criteria item. The `/goal` evaluator reads the conversation, not the files.
+7. To undo a change that made things worse, revert with git, sparingly. Do not `git reset` away failed attempts you have already committed -- the commit log is the full record, including discards.
+
+Do not ask "should I continue?" once the loop starts. Stop only when the Goal holds, when you hit a Bound, or when blocked by missing access, destructive risk, or an explicit user choice -- when blocked, report what specific input or access would unblock you. Budget or turn exhaustion is not completion.
+
+## Completion
+
+Complete only when the Goal holds and is shown with the Proof output in the conversation or logs, and required rows in `{{PROGRESS_FILE}}` are `done` or intentionally `dropped`.

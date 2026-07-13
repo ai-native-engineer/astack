@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Company Context</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --panel: #fff;
+      --ink: #20232d;
+      --muted: #727b8c;
+      --line: #e1e5ea;
+      --nav: #181c2b;
+      --brand: #10cdae;
+      --brand-dark: #078d78;
+      --brand-soft: #e8fbf7;
+      --blue: #6d86ff;
+      --yellow: #f5b93f;
+      --red: #f45b69;
+      --shadow: 0 14px 34px rgba(22, 28, 45, .06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.55;
+      letter-spacing: 0;
+    }
+    button { font: inherit; cursor: pointer; }
+    .shell { min-height: 100vh; }
+    .top {
+      background: var(--nav);
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+    .top-inner, main {
+      width: min(1160px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+    .top-inner {
+      min-height: 92px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #fff;
+      object-fit: contain;
+      padding: 6px;
+      flex: 0 0 auto;
+    }
+    h1 { margin: 0; font-size: 24px; line-height: 1.2; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; color: #b8c0d3; }
+    .meta span { white-space: nowrap; }
+    .status-pill {
+      margin-left: auto;
+      border: 1px solid rgba(16,205,174,.75);
+      color: var(--brand);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .tabs-wrap {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 8px 24px rgba(22,28,45,.04);
+    }
+    .tabs {
+      width: min(1160px, calc(100vw - 32px));
+      margin: 0 auto;
+      display: flex;
+      gap: 26px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      height: 58px;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: #303542;
+      font-weight: 850;
+      padding: 0;
+      white-space: nowrap;
+    }
+    .tab[aria-selected="true"] {
+      color: var(--brand-dark);
+      border-bottom-color: var(--brand);
+    }
+    .tab .mini {
+      margin-left: 4px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #6d86ff;
+      color: #fff;
+      font-size: 11px;
+    }
+    main { padding: 34px 0 70px; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 170px;
+      gap: 22px;
+      align-items: start;
+    }
+    .rail { position: sticky; top: 88px; display: grid; gap: 12px; }
+    .rail-card, .card, .metric, .chart {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+    }
+    .rail-card { padding: 14px; }
+    .rail-card h3 { margin: 0 0 10px; font-size: 13px; }
+    .rail-card button {
+      display: block;
+      width: 100%;
+      border: 0;
+      border-left: 3px solid transparent;
+      background: transparent;
+      text-align: left;
+      padding: 7px 0 7px 8px;
+      color: #596274;
+      font-size: 13px;
+    }
+    .rail-card button[aria-current="true"] {
+      color: var(--brand-dark);
+      border-left-color: var(--brand);
+      font-weight: 900;
+    }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .section-head h2 { margin: 0; font-size: 24px; line-height: 1.2; }
+    .section-head h2::before { content: "✦"; color: var(--brand); margin-right: 7px; }
+    .updated { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 500; }
+    .card { padding: 24px; margin-bottom: 18px; }
+    .card h3, .chart h3 { margin: 0 0 8px; font-size: 16px; }
+    .muted { color: var(--muted); }
+    .label { color: #8b93a2; font-weight: 800; margin-bottom: 6px; }
+    .intro { font-size: 16px; line-height: 1.72; }
+    .divider { border-top: 1px solid var(--line); margin: 22px 0; }
+    .info-grid, .metric-grid, .grid-2, .grid-3 {
+      display: grid;
+      gap: 12px;
+    }
+    .info-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 18px; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .info-value { font-weight: 900; font-size: 16px; word-break: keep-all; }
+    .text-link { color: var(--brand-dark); text-decoration: none; border-bottom: 1px solid rgba(7, 141, 120, .35); }
+    .metric { padding: 16px; min-height: 96px; }
+    .metric strong { display: block; margin-top: 4px; font-size: 26px; line-height: 1.1; }
+    .mini-card {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      padding: 16px;
+    }
+    .mini-card h3 { margin: 0 0 7px; }
+    .chart { padding: 18px; overflow: visible; min-height: 400px; }
+    .chart-frame { width: 100%; height: 320px; margin-top: 10px; }
+    .chart .recharts-legend-wrapper { white-space: normal !important; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; color: #667085; font-size: 13px; margin-top: 8px; }
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 5px;
+      background: var(--swatch);
+    }
+    .timeline { border-top: 1px solid var(--line); }
+    .row {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr) auto;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+      align-items: start;
+    }
+    .row-date { color: var(--brand-dark); font-weight: 900; font-size: 13px; }
+    .row-title { font-weight: 900; margin-bottom: 3px; }
+    .chip, .source-btn, .badge {
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .chip { padding: 6px 10px; background: #f2f4f7; color: #475467; }
+    .source-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #667085;
+      padding: 4px 9px;
+      text-decoration: none;
+    }
+    .badge { padding: 3px 8px; background: var(--brand-soft); color: var(--brand-dark); }
+    .badge.blue { background: #eef2ff; color: #5166d6; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .word-cloud {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: linear-gradient(180deg, #fff, #fbfcfd);
+      min-height: 300px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .word-cloud svg { display: block; width: 100%; height: auto; }
+    .table-tools {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 12px 0;
+      flex-wrap: wrap;
+    }
+    .table-search {
+      width: min(320px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 12px;
+      background: #fff;
+    }
+    .table-wrap { width: 100%; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 820px; table-layout: fixed; }
+    th, td { border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+    th {
+      background: #fbfcfd;
+      color: #475467;
+      font-weight: 900;
+      user-select: none;
+    }
+    th button {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      color: inherit;
+      font-weight: inherit;
+      text-align: left;
+    }
+    .sort-button {
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .sort-button:disabled { cursor: default; }
+    .sort-mark {
+      min-width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: #eef2f6;
+      color: #667085;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .sort-button[data-sorted="asc"] .sort-mark,
+    .sort-button[data-sorted="desc"] .sort-mark {
+      background: var(--brand-soft);
+      color: var(--brand-dark);
+    }
+    .pager {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      color: #667085;
+    }
+    .pager button {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 6px;
+      padding: 6px 10px;
+    }
+    .pager button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+    .empty-cell { color: var(--muted); text-align: center; padding: 28px 10px; }
+    @media (max-width: 980px) {
+      .status-pill, .rail { display: none; }
+      .layout { grid-template-columns: 1fr; }
+      .info-grid, .metric-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .section-head { flex-direction: column; }
+    }
+    @media (max-width: 640px) {
+      .top-inner, main, .tabs { width: min(100vw - 20px, 1160px); }
+      .top-inner { min-height: 78px; }
+      h1 { font-size: 21px; }
+      .tab { height: 48px; }
+      .card { padding: 18px; }
+      .row { grid-template-columns: 1fr; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1";
+    import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
+    import htm from "https://esm.sh/htm@3.1.1";
+    import { Bar, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "https://esm.sh/recharts@2.15.3?deps=react@18.3.1,react-dom@18.3.1";
+    import d3Cloud from "https://esm.sh/d3-cloud@1.2.7";
+    import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "https://esm.sh/@tanstack/react-table@8.21.3?deps=react@18.3.1,react-dom@18.3.1";
+
+    const html = htm.bind(React.createElement);
+    const tabs = [
+      ["overview", "기업개요"],
+      ["growth", "종합성장분석"],
+      ["traffic_consumer", "방문자/소비자"],
+      ["research_ip", "연구/특허"],
+      ["funding", "투자유치"],
+      ["organization_finance", "조직/재무"],
+      ["news", "기업뉴스"]
+    ];
+
+    const arr = (v) => Array.isArray(v) ? v : [];
+    const hasValue = (v) => v !== undefined && v !== null && String(v).trim() !== "";
+    const toNumber = (v) => {
+      if (!hasValue(v)) return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const signedValue = (row, resultKey, incomeKey, lossKey) => {
+      if (hasValue(row[resultKey])) return toNumber(row[resultKey]);
+      if (hasValue(row[incomeKey])) return toNumber(row[incomeKey]);
+      const loss = toNumber(row[lossKey]);
+      return loss === null ? null : (loss < 0 ? loss : -loss);
+    };
+    const eok = (krw) => Number.isFinite(krw) ? `${(krw / 100000000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억` : "-";
+    const num = (v) => toNumber(v);
+    const ym = (v) => String(v || "").replace(/^(\d{4})(\d{2})$/, "$1-$2");
+    const externalHref = (value) => {
+      const text = String(value || "").trim();
+      if (!text) return "";
+      if (/^https?:\/\//i.test(text)) return text;
+      return /^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(text) ? `https://${text}` : "";
+    };
+    const loadJson = async (path) => {
+      const res = await fetch(path, { cache: "no-store" });
+      if (!res.ok) throw new Error(`${path} ${res.status}`);
+      return res.json();
+    };
+    function SectionHead({ title, updated }) {
+      return html`<div className="section-head">
+        <div><h2>${title}</h2>${updated && html`<span className="updated">업데이트 ${updated}</span>`}</div>
+      </div>`;
+    }
+
+    function Metrics({ items }) {
+      return html`<div className="metric-grid">${items.map((m) => html`<div className="metric" key=${m.label}>
+        <div className="label">${m.label}</div>
+        <strong>${m.value}</strong>
+        ${m.note && html`<div className="muted">${m.note}</div>`}
+      </div>`)}</div>`;
+    }
+
+    function resolveSource(item, manifest) {
+      if (!item) return null;
+      const manifestHit = manifest.find((row) => row.saved_path && row.saved_path === item.source_path);
+      const url = item.url || (manifestHit?.url_or_path?.startsWith("http") ? manifestHit.url_or_path : "");
+      return {
+        title: item.title || manifestHit?.title || "출처",
+        note: item.note || manifestHit?.note || "",
+        type: manifestHit?.source_type || "",
+        url
+      };
+    }
+
+    function SourceButton({ item, manifest }) {
+      const source = resolveSource(item, manifest);
+      if (!source) return null;
+      if (source.url) {
+        return html`<a className="source-btn" href=${source.url} target="_blank" rel="noreferrer" title=${source.title}>원문</a>`;
+      }
+      return html`<span className="source-btn" title=${source.title}>${source.type ? source.type.toUpperCase() : "데이터"}</span>`;
+    }
+
+    function LinkValue({ value }) {
+      const href = externalHref(value);
+      return href ? html`<a className="text-link" href=${href} target="_blank" rel="noreferrer">${value}</a>` : value;
+    }
+
+    const joinText = (items, fallback = "-") => {
+      const text = arr(items).map((item) => typeof item === "string" ? item : item?.title || item?.value || item?.summary).filter(Boolean).join(", ");
+      return text || fallback;
+    };
+
+    function Timeline({ items, manifest }) {
+      const rows = arr(items);
+      if (!rows.length) return html`<p className="muted">데이터 없음</p>`;
+      return html`<div className="timeline">${rows.map((item, i) => html`<div className="row" key=${i}>
+        <div className="row-date">${item.date || "-"}</div>
+        <div><div className="row-title">${item.title || item.label || item.name || "Item"}</div><div className="muted">${item.summary || item.value || item.note || ""}</div></div>
+        <${SourceButton} item=${item} manifest=${manifest} />
+      </div>`)}</div>`;
+    }
+
+    const defaultSortingFor = (columns) => {
+      const ids = columns.map((column) => column.id || column.accessorKey).filter(Boolean);
+      const id = ["date", "period", "year"].find((candidate) => ids.includes(candidate));
+      return id ? [{ id, desc: true }] : [];
+    };
+
+    function DataTable({ data, columns, searchPlaceholder = "표 안에서 검색", pageSize = 10 }) {
+      const [globalFilter, setGlobalFilter] = useState("");
+      const columnKey = columns.map((column) => column.id || column.accessorKey || column.header).join("|");
+      const [sorting, setSorting] = useState(() => defaultSortingFor(columns));
+      useEffect(() => {
+        setSorting(defaultSortingFor(columns));
+      }, [columnKey]);
+      const columnWidths = useMemo(() => {
+        const weights = columns.map((column) => {
+          const id = column.id || column.accessorKey;
+          const header = typeof column.header === "string" ? column.header.length : 6;
+          const longest = Math.max(header, ...data.map((row) => String(row[id] ?? "").length));
+          return Math.min(Math.max(longest, 8), id === "summary" ? 44 : 26);
+        });
+        const total = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+        return weights.map((weight) => `${((weight / total) * 100).toFixed(2)}%`);
+      }, [data, columnKey]);
+      const table = useReactTable({
+        data,
+        columns,
+        state: { globalFilter, sorting },
+        onGlobalFilterChange: setGlobalFilter,
+        onSortingChange: setSorting,
+        globalFilterFn: "includesString",
+        getCoreRowModel: getCoreRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
+        initialState: { pagination: { pageSize } }
+      });
+      return html`<div>
+        <div className="table-tools">
+          <input className="table-search" name="table-search" value=${globalFilter ?? ""} placeholder=${searchPlaceholder} onInput=${(event) => setGlobalFilter(event.currentTarget.value)} />
+          <span className="muted">${table.getFilteredRowModel().rows.length.toLocaleString("ko-KR")}건</span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <colgroup>${columnWidths.map((width, index) => html`<col key=${index} style=${{ width }} />`)}</colgroup>
+            <thead>${table.getHeaderGroups().map((group) => html`<tr key=${group.id}>
+              ${group.headers.map((header) => {
+                const sorted = header.column.getIsSorted();
+                const canSort = header.column.getCanSort();
+                const sortLabel = sorted === "asc" ? "오름차순" : sorted === "desc" ? "내림차순" : "정렬";
+                return html`<th key=${header.id} aria-sort=${sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : "none"}>
+                  <button className="sort-button" type="button" onClick=${header.column.getToggleSortingHandler()} disabled=${!canSort} data-sorted=${sorted || "none"} title=${canSort ? `${sortLabel} 전환` : ""}>
+                    <span>${flexRender(header.column.columnDef.header, header.getContext())}</span>${canSort && html`<span className="sort-mark">${sorted === "asc" ? "↑" : sorted === "desc" ? "↓" : "↕"}</span>`}
+                  </button>
+                </th>`;
+              })}
+            </tr>`)}</thead>
+            <tbody>${table.getRowModel().rows.length
+              ? table.getRowModel().rows.map((row) => html`<tr key=${row.id}>
+                ${row.getVisibleCells().map((cell) => html`<td key=${cell.id}>${flexRender(cell.column.columnDef.cell, cell.getContext())}</td>`)}
+              </tr>`)
+              : html`<tr><td className="empty-cell" colSpan=${columns.length}>데이터 없음</td></tr>`}</tbody>
+          </table>
+        </div>
+        <div className="pager">
+          <button type="button" onClick=${() => table.previousPage()} disabled=${!table.getCanPreviousPage()}>이전</button>
+          <span>${table.getState().pagination.pageIndex + 1} / ${table.getPageCount() || 1}</span>
+          <button type="button" onClick=${() => table.nextPage()} disabled=${!table.getCanNextPage()}>다음</button>
+        </div>
+      </div>`;
+    }
+
+    function RecordsTable({ items, manifest, pageSize = 10 }) {
+      const data = arr(items).map((item) => ({
+        ...item,
+        date: item.date || "-",
+        title: item.title || item.label || item.name || "Item",
+        summary: item.summary || item.value || item.note || ""
+      }));
+      const columns = [
+        { accessorKey: "date", header: "일자", cell: (info) => info.getValue() },
+        { accessorKey: "title", header: "항목", cell: (info) => html`<strong>${info.getValue()}</strong>` },
+        { accessorKey: "summary", header: "내용", cell: (info) => html`<span className="muted">${info.getValue()}</span>` },
+        { id: "source", header: "출처", enableSorting: false, cell: ({ row }) => html`<${SourceButton} item=${row.original} manifest=${manifest} />` }
+      ];
+      return html`<${DataTable} data=${data} columns=${columns} pageSize=${pageSize} />`;
+    }
+
+    function Chart({ title, subtitle, rows, series, signed = false }) {
+      if (!rows.length) return null;
+      const data = rows.map((row) => Object.fromEntries([
+        ["year", row.year],
+        ...series.map((s) => [s.key, Number(row[s.key]) / 100000000])
+      ]));
+      const axisDomain = signed ? ["dataMin", "dataMax"] : [0, "dataMax"];
+      return html`<div className="chart">
+        <h3>${title}</h3>
+        <p className="muted">${subtitle}</p>
+        <div className="chart-frame">
+          <${ResponsiveContainer} width="100%" height="100%">
+          <${ComposedChart} data=${data} margin=${{ top: 16, right: 24, bottom: 24, left: 8 }}>
+              <${CartesianGrid} stroke="#edf0f4" vertical=${false} />
+              <${XAxis} dataKey="year" tickLine=${false} axisLine=${{ stroke: "#d0d5dd" }} minTickGap=${14} />
+              <${YAxis} domain=${axisDomain} tickFormatter=${(v) => `${Number(v).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억`} tickLine=${false} axisLine=${false} width=${58} />
+              <${Tooltip} formatter=${(v, name) => [`${Number(v).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억`, name]} labelFormatter=${(v) => `${v}년`} />
+              <${Legend} />
+              ${signed && html`<${ReferenceLine} y=${0} stroke="#a7b0c0" />`}
+              ${series.map((s) => html`<${Bar} key=${s.key} dataKey=${s.key} name=${s.label} fill=${s.color} radius=${[5, 5, 0, 0]} maxBarSize=${34} />`)}
+            </${ComposedChart}>
+          </${ResponsiveContainer}>
+        </div>
+      </div>`;
+    }
+
+    function TrendChart({ title, subtitle, rows, xKey, series, valueFormatter = (v) => v }) {
+      const data = arr(rows).map((row) => ({
+        ...row,
+        ...Object.fromEntries(series.map((s) => [s.key, num(row[s.key])]))
+      })).filter((row) => series.some((s) => Number.isFinite(row[s.key])));
+      if (!data.length) return null;
+      return html`<div className="chart">
+        <h3>${title}</h3>
+        <p className="muted">${subtitle}</p>
+        <div className="chart-frame">
+          <${ResponsiveContainer} width="100%" height="100%">
+          <${ComposedChart} data=${data} margin=${{ top: 16, right: 24, bottom: 24, left: 8 }}>
+              <${CartesianGrid} stroke="#edf0f4" vertical=${false} />
+              <${XAxis} dataKey=${xKey} tickLine=${false} axisLine=${{ stroke: "#d0d5dd" }} minTickGap=${24} interval="preserveStartEnd" />
+              <${YAxis} tickFormatter=${valueFormatter} tickLine=${false} axisLine=${false} width=${58} />
+              <${Tooltip} formatter=${(v, name) => [valueFormatter(v), name]} />
+              <${Legend} />
+              ${series.map((s) => s.type === "bar"
+                ? html`<${Bar} key=${s.key} dataKey=${s.key} name=${s.label} fill=${s.color} radius=${[5, 5, 0, 0]} maxBarSize=${28} />`
+                : html`<${Line} key=${s.key} type="monotone" dataKey=${s.key} name=${s.label} stroke=${s.color} strokeWidth=${2.5} dot=${{ r: 3 }} />`
+              )}
+            </${ComposedChart}>
+          </${ResponsiveContainer}>
+        </div>
+      </div>`;
+    }
+
+    function WordCloud({ words }) {
+      const [placed, setPlaced] = useState([]);
+      useEffect(() => {
+        const normalized = arr(words).filter(Boolean).slice(0, 48).map((item, index) => ({
+          text: typeof item === "string" ? item : item.text,
+          size: Math.min(38, typeof item === "string" ? 22 + Math.max(0, 9 - index) * 2 : item.size)
+        })).filter((item) => item.text);
+        if (!normalized.length) {
+          setPlaced([]);
+          return;
+        }
+        const layout = d3Cloud()
+          .size([640, 300])
+          .words(normalized)
+          .padding(4)
+          .rotate((_, index) => index % 5 === 0 ? -18 : 0)
+          .font("-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif")
+          .fontWeight("800")
+          .fontSize((d) => d.size)
+          .on("end", setPlaced);
+        layout.start();
+        return () => layout.stop();
+      }, [words]);
+      const colors = ["#10cdae", "#6d86ff", "#f5b93f", "#f45b69", "#525f7f"];
+      return html`<div className="word-cloud">
+        ${placed.length ? html`<svg viewBox="-320 -150 640 300" role="img" aria-label="기술 키워드 워드클라우드">
+          ${placed.map((word, index) => html`<text key=${`${word.text}-${index}`} textAnchor="middle" transform=${`translate(${word.x},${word.y}) rotate(${word.rotate})`} style=${{ fontSize: `${word.size}px`, fill: colors[index % colors.length], fontWeight: 850 }}>${word.text}</text>`)}
+        </svg>` : html`<p className="muted">워드클라우드 데이터 없음</p>`}
+      </div>`;
+    }
+
+    function buildKeywordCloud(profile, research) {
+      const weights = new Map();
+      const add = (word, weight = 24) => {
+        const text = String(word || "").trim();
+        if (!text || text.length > 18) return;
+        weights.set(text, Math.max(weights.get(text) || 0, weight));
+      };
+      const addTokens = (text, weight = 22) => {
+        String(text || "").split(/[^\p{L}\p{N}]+/u).filter((word) => word.length >= 2 && word.length <= 14).slice(0, 5).forEach((word) => add(word, weight));
+      };
+      arr(research.keywords).forEach((word, index) => add(word, 34 - index * 2));
+      arr(research.projects).forEach((project, index) => addTokens(project.title, 30 - index * 2));
+      arr(research.patents).forEach((patent, index) => addTokens(patent.title, 28 - Math.min(index, 8)));
+      arr(research.trademarks).slice(0, 24).forEach((trademark, index) => addTokens(trademark.title, 22 - Math.min(index, 7)));
+      return [...weights.entries()].map(([text, size]) => ({ text, size: Math.max(15, size) }));
+    }
+
+    function Rail({ items }) {
+      const itemKey = items.map((item) => item.id).join("|");
+      const [activeId, setActiveId] = useState(items[0]?.id || "");
+      const [visibleItems, setVisibleItems] = useState(items);
+      useEffect(() => {
+        const visible = items.filter((item) => document.getElementById(item.id));
+        const next = visible.length ? visible : items.slice(0, 1);
+        setVisibleItems(next);
+        setActiveId(next[0]?.id || "");
+      }, [itemKey]);
+      useEffect(() => {
+        const updateActive = () => {
+          let next = visibleItems[0]?.id || "";
+          for (const item of visibleItems) {
+            const el = document.getElementById(item.id);
+            if (el && el.getBoundingClientRect().top <= 128) next = item.id;
+          }
+          setActiveId((current) => current === next ? current : next);
+        };
+        updateActive();
+        window.addEventListener("scroll", updateActive, { passive: true });
+        window.addEventListener("resize", updateActive);
+        return () => {
+          window.removeEventListener("scroll", updateActive);
+          window.removeEventListener("resize", updateActive);
+        };
+      }, [visibleItems]);
+      return html`<aside className="rail"><div className="rail-card"><h3>항목 바로가기</h3>${visibleItems.map((item) => html`<button key=${item.id} aria-current=${activeId === item.id ? "true" : "false"} onClick=${() => {
+        setActiveId(item.id);
+        document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth" });
+      }}>${item.label}</button>`)}</div></aside>`;
+    }
+
+    function Overview({ profile, rows, manifest }) {
+      const summary = profile.summary || {};
+      const target = profile.target || {};
+      const latest = rows.at(-1) || {};
+      const overviewMetrics = arr(profile.sections?.overview?.metrics);
+      const facts = arr(profile.sections?.overview?.facts);
+      const fundingRounds = arr(profile.sections?.funding?.rounds);
+      const metric = (pattern) => overviewMetrics.find((m) => pattern.test(m.label || "")) || {};
+      const fact = (pattern) => facts.find((item) => pattern.test(`${item.title || ""} ${item.value || ""}`)) || {};
+      const established = metric(/설립|establish/i).value || target.established_at || "-";
+      const businessStatus = metric(/사업자|운영|상태/).value || target.identifiers?.business_status?.b_stt || "-";
+      const address = fact(/주소|address/i).value || target.address || "-";
+      const fundingMetric = metric(/누적.*투자|투자액/);
+      const cumulativeFunding = fundingMetric.value || fundingRounds.find((item) => /누적|total/i.test(`${item.title || ""} ${item.summary || ""}`))?.value || "-";
+      const businessCards = [
+        { title: "타겟/고객", body: joinText(summary.participant_needs, fact(/타겟|고객|시장/).value || "-") },
+        { title: "문제정의", body: joinText(summary.risks_red_flags || summary.open_questions, "-") },
+        { title: "솔루션", body: summary.what_they_do || profile.sections?.overview?.notes || "-" },
+        { title: "차별성/키워드", body: joinText(summary.language_they_use || summary.buying_signals, "-") }
+      ];
+      return html`<div>
+        <${SectionHead} title="AI 기본정보 및 요약 데이터" updated=${profile.generated_at} />
+        <div className="card" id="basic">
+          <div className="label">기업소개</div>
+          <p className="intro">${summary.one_screen || summary.what_they_do || "-"}</p>
+          <div className="divider" />
+          <div className="label">기업 대표 키워드</div>
+          <p className="intro">${joinText(arr(summary.language_they_use).slice(0, 7))}</p>
+          <div className="divider" />
+          <div className="info-grid">
+            <div><div className="label">설립일자</div><div className="info-value">${established}</div></div>
+            <div><div className="label">상장여부</div><div className="info-value">${target.listed_status || "-"}</div></div>
+            <div><div className="label">운영여부</div><div className="info-value">${businessStatus}</div></div>
+            <div><div className="label">홈페이지</div><div className="info-value"><${LinkValue} value=${target.primary_domain} /></div></div>
+            <div><div className="label">주소</div><div className="info-value">${address}</div></div>
+          </div>
+        </div>
+        <${Metrics} items=${[
+          { label: "고용인원", value: metric(/국민연금|고용|가입자/).value || "-", note: metric(/국민연금|고용|가입자/).note || "국민연금 사업장" },
+          { label: "사업자 상태", value: businessStatus, note: metric(/사업자|운영|상태/).note || "국세청" },
+          { label: "매출액", value: latest.revenue_krw ? eok(latest.revenue_krw) : "-", note: `${latest.year || ""} DART` },
+          { label: "누적투자유치금액", value: cumulativeFunding, note: fundingMetric.note || "공개 투자/공식 표면" }
+        ]} />
+        <div className="card" id="business">
+          <h3>사업개요</h3>
+          <div className="grid-2">
+            ${businessCards.map((card) => html`<div className="mini-card" key=${card.title}><h3>${card.title}</h3><p className="muted">${card.body}</p></div>`)}
+          </div>
+        </div>
+        <div className="card" id="sources">
+          <h3>출처</h3>
+          <div className="grid-2">${arr(profile.sources).map((s) => html`<div className="mini-card" key=${s.title}><h3>${s.title}</h3><p className="muted">${s.note}</p><${SourceButton} item=${s} manifest=${manifest} /></div>`)}</div>
+        </div>
+      </div>`;
+    }
+
+    function Growth({ growth, rows, procurementRows, manifest }) {
+      const latest = rows.at(-1) || {};
+      const prev = rows.at(-2) || {};
+      const yoy = prev.revenue_krw && latest.revenue_krw ? `${(((latest.revenue_krw - prev.revenue_krw) / prev.revenue_krw) * 100).toFixed(1)}%` : "-";
+      const procurement = arr(growth.procurement_contracts).length ? arr(growth.procurement_contracts) : arr(procurementRows);
+      return html`<div>
+        <${SectionHead} title="종합성장분석" />
+        <${Metrics} items=${[
+          { label: "최근 영업수익", value: eok(latest.revenue_krw), note: latest.year ? `${latest.year}년 기준` : "-" },
+          { label: "매출 YoY", value: yoy, note: "전년 대비" },
+          { label: "최근 영업손익", value: eok(latest.operating_result_krw), note: "흑자 양수, 적자 음수" },
+          { label: "최근 자본총계", value: eok(latest.equity_krw), note: "자본 리스크" }
+        ]} />
+        <div className="grid-2" id="charts">
+          <${Chart} title="매출과 손익" subtitle="DART 감사보고서 추출값. 손익은 흑자 양수, 적자 음수" rows=${rows} signed=${true} series=${[
+            { key: "revenue_krw", label: "영업수익", color: "#10cdae" },
+            { key: "operating_result_krw", label: "영업손익", color: "#f5b93f" },
+            { key: "net_result_krw", label: "당기순손익", color: "#f45b69" }
+          ]} />
+          <${Chart} title="자산/부채/자본" subtitle="2025년 자본총계 음수 전환" rows=${rows} signed=${true} series=${[
+            { key: "assets_krw", label: "자산", color: "#6d86ff" },
+            { key: "liabilities_krw", label: "부채", color: "#8a94a6" },
+            { key: "equity_krw", label: "자본", color: "#10cdae" }
+          ]} />
+        </div>
+        <div className="card" id="growth-events"><h3>성장 이벤트</h3><${RecordsTable} items=${growth.timeline} manifest=${manifest} pageSize=${10} /></div>
+        ${procurement.length ? html`<div className="card" id="procurement"><h3>조달/계약 검색</h3><${RecordsTable} items=${procurement} manifest=${manifest} pageSize=${10} /></div>` : null}
+      </div>`;
+    }
+
+    function Traffic({ section, searchRows, manifest }) {
+      const trends = arr(section.search_trends).length ? arr(section.search_trends) : arr(searchRows);
+      const groups = [...new Set(trends.map((r) => r.group).filter(Boolean))];
+      const periods = [...new Set(trends.map((r) => r.period).filter(Boolean))].sort();
+      const trendRows = periods.map((period) => {
+        const row = { period };
+        trends.filter((r) => r.period === period).forEach((r) => { row[r.group] = r.ratio; });
+        return row;
+      });
+      const colors = ["#10cdae", "#6d86ff", "#f5b93f", "#f45b69"];
+      return html`<div>
+        <${SectionHead} title="방문자/소비자" />
+        ${arr(section.metrics).length ? html`<${Metrics} items=${section.metrics.map((m) => ({ label: m.label, value: m.value, note: m.note }))} />` : null}
+        <div className="grid-2" id="search-trends">
+          <${TrendChart} title="검색 관심도" subtitle="Naver DataLab 월별 비율, 실제 방문자 수 아님" rows=${trendRows} xKey="period" valueFormatter=${(v) => `${Number(v).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}`} series=${groups.map((group, index) => ({ key: group, label: group, color: colors[index % colors.length] }))} />
+          <div className="card">
+            <h3>소비자/시장 세그먼트</h3>
+            <${RecordsTable} items=${section.segments} manifest=${manifest} pageSize=${10} />
+          </div>
+        </div>
+        ${section.analysis && html`<div className="card"><h3>분석</h3><p className="intro">${section.analysis}</p></div>`}
+      </div>`;
+    }
+
+    function SimpleSection({ title, section, keys, manifest }) {
+      const tableLabels = {
+        rounds: "투자유치 라운드",
+        official_signals: "공식 보조 신호",
+        support_programs: "지원사업/공공지원"
+      };
+      return html`<div>
+        <${SectionHead} title=${title} />
+        ${arr(section.metrics).length ? html`<${Metrics} items=${section.metrics.map((m) => ({ label: m.label, value: m.value, note: m.note }))} />` : null}
+        ${keys.map((key) => section[key]?.length ? html`<div className="card" id=${key} key=${key}><h3>${tableLabels[key] || key.replaceAll("_", " ")}</h3><${RecordsTable} items=${section[key]} manifest=${manifest} pageSize=${10} /></div>` : null)}
+        ${section.keywords?.length && html`<div className="card"><h3>기술키워드</h3><div className="chips">${section.keywords.map((w) => html`<span className="chip" key=${w}>${w}</span>`)}</div></div>`}
+        ${section.analysis && html`<div className="card" id="analysis"><h3>분석</h3><p className="intro">${section.analysis}</p></div>`}
+      </div>`;
+    }
+
+    function Research({ profile, section, manifest }) {
+      const words = buildKeywordCloud(profile, section);
+      const projects = arr(section.projects);
+      const patents = arr(section.patents);
+      const trademarks = arr(section.trademarks);
+      const cloudNote = patents.length || trademarks.length
+        ? `KIPRIS 원장 ${patents.length}건 특허/실용신안, ${trademarks.length}건 상표의 상표명 키워드를 반영했습니다.`
+        : "수집된 공식 제품/R&D 키워드를 기반으로 구성했습니다. 특허 원장 데이터는 아직 연결되지 않았습니다.";
+      return html`<div>
+        <${SectionHead} title="연구/특허" />
+        ${arr(section.metrics).length ? html`<${Metrics} items=${section.metrics.map((m) => ({ label: m.label, value: m.value, note: m.note }))} />` : null}
+        <div className=${projects.length ? "grid-2" : ""}>
+          ${projects.length ? html`<div className="card" id="rnd-projects">
+            <h3>R&D 프로젝트</h3>
+            <${RecordsTable} items=${projects} manifest=${manifest} pageSize=${10} />
+          </div>` : null}
+          <div className="card" id="ip-cloud">
+            <h3>상표 키워드 워드클라우드</h3>
+            <p className="muted">${cloudNote}</p>
+            <div className="divider" />
+            <${WordCloud} words=${words} />
+          </div>
+        </div>
+        ${patents.length ? html`<div className="card" id="patent-table">
+          <h3>KIPRIS 특허/실용신안</h3>
+          <${RecordsTable} items=${patents} manifest=${manifest} pageSize=${20} />
+        </div>` : null}
+        ${trademarks.length ? html`<div className="card" id="trademark-table">
+          <h3>KIPRIS 상표</h3>
+          <${RecordsTable} items=${trademarks} manifest=${manifest} pageSize=${20} />
+        </div>` : null}
+        <div className="card">
+          <h3>키워드 원장</h3>
+          <div className="chips">${words.map((word) => html`<span className="chip" key=${word.text}>${word.text}</span>`)}</div>
+          ${section.analysis && html`<div><div className="divider" /><p className="intro">${section.analysis}</p></div>`}
+        </div>
+      </div>`;
+    }
+
+    function News({ section, pressRows, manifest }) {
+      const externalRows = arr(pressRows)
+        .filter((row) => ["naver", "gnews-ko", "gnews-en"].includes(row.source) && row.title && row.url)
+        .map((row) => ({
+          ...row,
+          source_label: row.source === "naver" ? "Naver News" : row.source === "gnews-ko" ? "Google RSS KR" : "Google RSS EN"
+        }));
+      const columns = [
+        { accessorKey: "date", header: "일자", cell: (info) => info.getValue() || "-" },
+        { accessorKey: "source_label", header: "수집원", cell: (info) => info.getValue() },
+        { accessorKey: "outlet", header: "매체", cell: (info) => info.getValue() || "-" },
+        { accessorKey: "title", header: "제목", cell: (info) => html`<strong>${info.getValue()}</strong>` },
+        { accessorKey: "queries", header: "쿼리", cell: (info) => html`<span className="muted">${info.getValue()}</span>` },
+        { id: "link", header: "원문", enableSorting: false, cell: ({ row }) => html`<${SourceButton} item=${row.original} manifest=${manifest} />` }
+      ];
+      return html`<div>
+        <${SectionHead} title="기업뉴스" />
+        <div className="card" id="official-news">
+          <h3>공식 뉴스룸</h3>
+          <${RecordsTable} items=${section.items} manifest=${manifest} pageSize=${10} />
+        </div>
+        <div className="card" id="external-news">
+          <h3>Naver News / Google News RSS 원장</h3>
+          <p className="muted">Naver News API와 Google News RSS에서 수집한 외부 보도 후보입니다. 원문 링크 기준으로 확인합니다.</p>
+          <${DataTable} data=${externalRows} columns=${columns} pageSize=${20} searchPlaceholder="기사 제목, 매체, 쿼리 검색" />
+        </div>
+        ${section.analysis && html`<div className="card" id="analysis"><h3>분석</h3><p className="intro">${section.analysis}</p></div>`}
+      </div>`;
+    }
+
+    function Finance({ section, rows, employeeSource, manifest }) {
+      const employeeInput = arr(section.employee_trends).length ? arr(section.employee_trends) : arr(employeeSource);
+      const employeeRows = employeeInput.map((row) => ({
+        period: ym(row.dataCrtYm),
+        jnngpCnt: row.jnngpCnt,
+        nwAcqzrCnt: row.nwAcqzrCnt,
+        lssJnngpCnt: row.lssJnngpCnt,
+        crrmmNtcAmt: row.crrmmNtcAmt
+      }));
+      const employeeColumns = [
+        { accessorKey: "period", header: "월", cell: (info) => info.getValue() },
+        { accessorKey: "jnngpCnt", header: "가입자수", cell: (info) => Number(info.getValue()).toLocaleString("ko-KR") },
+        { accessorKey: "nwAcqzrCnt", header: "취득", cell: (info) => Number(info.getValue()).toLocaleString("ko-KR") },
+        { accessorKey: "lssJnngpCnt", header: "상실", cell: (info) => Number(info.getValue()).toLocaleString("ko-KR") },
+        { accessorKey: "crrmmNtcAmt", header: "고지금액", cell: (info) => eok(Number(info.getValue())) }
+      ];
+      const columns = [
+        { accessorKey: "year", header: "연도", cell: (info) => info.getValue() },
+        { accessorKey: "revenue_krw", header: "영업수익", cell: (info) => eok(info.getValue()) },
+        { accessorKey: "operating_result_krw", header: "영업손익", cell: (info) => eok(info.getValue()) },
+        { accessorKey: "net_result_krw", header: "순손익", cell: (info) => eok(info.getValue()) },
+        { accessorKey: "assets_krw", header: "자산", cell: (info) => eok(info.getValue()) },
+        { accessorKey: "liabilities_krw", header: "부채", cell: (info) => eok(info.getValue()) },
+        { accessorKey: "equity_krw", header: "자본", cell: (info) => eok(info.getValue()) }
+      ];
+      return html`<div>
+        <${SectionHead} title="조직/재무" />
+        <div className="grid-2" id="employee-trends">
+          <${TrendChart} title="국민연금 고용 추이" subtitle="가입자수와 월별 취득/상실자수" rows=${employeeRows} xKey="period" valueFormatter=${(v) => Number(v).toLocaleString("ko-KR")} series=${[
+            { key: "jnngpCnt", label: "가입자수", color: "#10cdae" },
+            { key: "nwAcqzrCnt", label: "취득", color: "#6d86ff", type: "bar" },
+            { key: "lssJnngpCnt", label: "상실", color: "#f45b69", type: "bar" }
+          ]} />
+          <div className="card">
+            <h3>국민연금 월별 원장</h3>
+            <${DataTable} data=${employeeRows} columns=${employeeColumns} pageSize=${10} searchPlaceholder="월/인원 검색" />
+          </div>
+        </div>
+        <div className="card"><h3>조직분석</h3><${RecordsTable} items=${section.headcount} manifest=${manifest} pageSize=${10} /></div>
+        <div className="grid-2">
+          <${Chart} title="손익" subtitle="흑자 양수, 적자 음수" rows=${rows} signed=${true} series=${[
+            { key: "revenue_krw", label: "매출액", color: "#10cdae" },
+            { key: "operating_result_krw", label: "영업손익", color: "#f5b93f" },
+            { key: "net_result_krw", label: "순손익", color: "#f45b69" }
+          ]} />
+          <${Chart} title="재무" subtitle="자산, 부채, 자본총계" rows=${rows} signed=${true} series=${[
+            { key: "assets_krw", label: "자산", color: "#10cdae" },
+            { key: "liabilities_krw", label: "부채", color: "#6d86ff" },
+            { key: "equity_krw", label: "자본", color: "#f5b93f" }
+          ]} />
+        </div>
+        <div className="card">
+          <h3>DART 재무 요약</h3>
+          <${DataTable} data=${rows} columns=${columns} pageSize=${10} searchPlaceholder="연도나 금액 검색" />
+        </div>
+      </div>`;
+    }
+
+    function App() {
+      const [data, setData] = useState(null);
+      const [active, setActive] = useState("overview");
+      useEffect(() => {
+        loadJson("./data/viewer-data.json").then((viewer) => {
+          const profile = viewer.profile || {};
+          document.title = `${profile.target.name} | Company Context`;
+          setData(viewer);
+        }).catch((error) => {
+          const message = location.protocol === "file:"
+            ? "로컬 파일로 직접 열면 브라우저가 data/viewer-data.json 로드를 막습니다. 로컬 정적 서버 URL로 열어주세요."
+            : error.message;
+          setData({ error: { message } });
+        });
+      }, []);
+      useEffect(() => {
+        window.scrollTo({ top: 0, left: 0 });
+      }, [active]);
+      const rows = useMemo(() => (data?.financials || []).map((r) => ({
+        ...r,
+        assets_krw: toNumber(r.assets_krw),
+        liabilities_krw: toNumber(r.liabilities_krw),
+        equity_krw: toNumber(r.equity_krw),
+        revenue_krw: toNumber(r.revenue_krw),
+        operating_income_krw: toNumber(r.operating_income_krw),
+        operating_loss_krw: toNumber(r.operating_loss_krw),
+        operating_result_krw: signedValue(r, "operating_result_krw", "operating_income_krw", "operating_loss_krw"),
+        net_income_krw: toNumber(r.net_income_krw),
+        net_loss_krw: toNumber(r.net_loss_krw),
+        net_result_krw: signedValue(r, "net_result_krw", "net_income_krw", "net_loss_krw")
+      })).filter((r) => r.year), [data]);
+      if (!data) return html`<main><div className="card">Loading</div></main>`;
+      if (data.error) return html`<main><div className="card">데이터 로드 실패: ${data.error.message}</div></main>`;
+      const { profile, status } = data;
+      const logoSrc = profile.target.logo_path || profile.target.logo_url || "";
+      const s = profile.sections || {};
+      const manifest = data.manifest || [];
+      const fundingSection = {
+        ...(s.funding || {}),
+        support_programs: arr(s.funding?.support_programs).length ? s.funding.support_programs : arr(data.supportProgramRows)
+      };
+      const railItems = {
+        overview: [{ id: "basic", label: "기본정보" }, { id: "business", label: "사업개요" }, { id: "sources", label: "출처" }],
+        growth: [{ id: "charts", label: "차트" }, { id: "growth-events", label: "성장 이벤트" }, { id: "procurement", label: "조달/계약" }],
+        traffic_consumer: [{ id: "search-trends", label: "검색 관심도" }],
+        research_ip: [{ id: "rnd-projects", label: "R&D" }, { id: "ip-cloud", label: "키워드" }, { id: "patent-table", label: "특허" }, { id: "trademark-table", label: "상표" }],
+        funding: [{ id: "rounds", label: "투자유치" }, { id: "official_signals", label: "공식 보조 신호" }, { id: "support_programs", label: "지원사업" }, { id: "analysis", label: "분석" }],
+        organization_finance: [{ id: "employee-trends", label: "고용 추이" }, { id: "root-panel", label: "조직/재무" }],
+        news: [{ id: "official-news", label: "공식 뉴스룸" }, { id: "external-news", label: "외부 뉴스" }, { id: "analysis", label: "분석" }]
+      }[active] || [{ id: "root-panel", label: "섹션" }];
+      const body = {
+        overview: html`<${Overview} profile=${profile} rows=${rows} manifest=${manifest} />`,
+        growth: html`<${Growth} growth=${s.growth || {}} rows=${rows} procurementRows=${data.procurementRows || []} manifest=${manifest} />`,
+        traffic_consumer: html`<${Traffic} section=${s.traffic_consumer || {}} searchRows=${data.searchTrends || []} manifest=${manifest} />`,
+        research_ip: html`<${Research} profile=${profile} section=${s.research_ip || {}} manifest=${manifest} />`,
+        funding: html`<${SimpleSection} title="투자유치" section=${fundingSection} keys=${["rounds", "official_signals", "support_programs"]} manifest=${manifest} />`,
+        organization_finance: html`<${Finance} section=${s.organization_finance || {}} rows=${rows} employeeSource=${data.employeeTrends || []} manifest=${manifest} />`,
+        news: html`<${News} section=${s.news || {}} pressRows=${data.pressRows || []} manifest=${manifest} />`
+      }[active];
+      const done = arr(status.steps).filter((x) => x.status === "done").length;
+      const partial = arr(status.steps).filter((x) => x.status === "partial").length;
+      const statusText = partial ? `${done}/${arr(status.steps).length} 완료 · ${partial} 부분` : `${done}/${arr(status.steps).length} 완료`;
+      return html`<div className="shell">
+        <header className="top"><div className="top-inner">
+          ${logoSrc ? html`<img className="logo" src=${logoSrc} alt=${`${profile.target.name} 로고`} />` : null}
+          <div><h1>${profile.target.name}</h1><div className="meta"><span><${LinkValue} value=${profile.target.primary_domain} /></span><span>${profile.target.country}</span><span>${profile.target.listed_status}</span><span>updated ${profile.generated_at}</span></div></div>
+          <div className="status-pill">${statusText}</div>
+        </div></header>
+        <nav className="tabs-wrap"><div className="tabs">${tabs.map(([id, label]) => html`<button className="tab" key=${id} aria-selected=${active === id} onClick=${() => setActive(id)}>${label}</button>`)}</div></nav>
+        <main><div className="layout"><section id="root-panel">${body}</section><${Rail} items=${railItems} /></div></main>
+      </div>`;
+    }
+
+    createRoot(document.getElementById("root")).render(html`<${App} />`);
+  </script>
+</body>
+</html>

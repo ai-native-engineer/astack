@@ -1,7 +1,8 @@
 # 조달청_나라장터 입찰공고정보서비스 (용역)
 
 > publicDataPk: 15129394 · 상세: https://www.data.go.kr/data/15129394/openapi.do
-> checked: 2026-06-16 · 상태: **실호출 검증됨** (getBidPblancListInfoServcPPSSrch, 건설사업관리 키워드 검색 138건 HTTP 200 확인)
+> checked: 2026-06-28 · 상태: **실호출 검증됨** (getBidPblancListInfoServcPPSSrch, AI 키워드 검색 HTTP 200·resultCode 00·554건 확인)
+> 심층 문서: `docs/260628-g2b-bid-public-info-reference-1.2.md` (입찰공고정보서비스 전체 오퍼레이션·필드 정의)
 > 활용기간: 2026-06-10 ~ 2028-06-10 · 일일 1000건/오퍼레이션
 
 ## 언제 쓰나
@@ -16,6 +17,12 @@
 - 용역 기초금액: `/getBidPblancListInfoServcBsisAmount`
 
 > ⚠️ `/ad/` 경로 필수. 기존에 시도한 `/1230000/BidPublicInfoService`(ad 없음)는 500 반환.
+
+## 키
+
+- env: `DATA_GO_KR_API_KEY`
+- query parameter: `serviceKey`
+- 주입 예: `agents-env run DATA_GO_KR_API_KEY -- <명령>`
 
 ## 호출 예시 (키워드 검색)
 
@@ -57,9 +64,16 @@ agents-env run DATA_GO_KR_API_KEY -- curl -sG \
 | cntrctMthdNm | 계약방법명 |
 | dminsttNm | 수요기관명 |
 
+## 페이징
+
+- `pageNo`와 `numOfRows`는 필수다.
+- `response.body.totalCount`로 전체 건수를 확인하고 `items`를 페이지별로 합친다.
+- JSON `items`는 배열 또는 단건 객체로 올 수 있으므로 파서에서 둘 다 배열로 정규화한다.
+
 ## 함정
 
 - **`/ad/` 경로 누락 시 500** — 낙찰정보서비스(`/as/`)와 다른 경로. 혼동 주의.
 - JSON `items`는 바로 배열 (`response.body.items[]`). 단건이면 dict로 옴 → `isinstance` 분기 필요.
 - 공고문 **전문(본문 텍스트)**은 이 API로 못 가져옴. 상세 내용은 나라장터 웹(g2b.go.kr) 직접 접근 필요.
 - 낙찰정보서비스 레시피: `g2b-scsbid-info.md`
+- 입찰공고정보서비스 전체 레시피: `g2b-bid-public-info.md`

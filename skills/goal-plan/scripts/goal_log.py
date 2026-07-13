@@ -8,15 +8,20 @@ for flags, or `selftest` to verify the tool itself.
 from __future__ import annotations
 
 import argparse
+import io
 import subprocess
 import sys
 import tempfile
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 COLUMNS = ["id", "status", "decision", "task", "done_when",
            "checkpoint", "artifact", "next", "notes"]
 STATUSES = {"todo", "doing", "done", "blocked", "dropped"}
 DECISIONS = {"n/a", "keep", "discard", "crash"}
+OPEN_STATUSES = {"todo", "doing", "blocked"}
+DONE_DECISIONS = {"keep", "discard", "crash"}
+DROP_DECISIONS = {"discard", "crash"}
 EDITABLE = [c for c in COLUMNS if c != "id"]
 
 
@@ -71,6 +76,32 @@ def find_row(rows, rid):
     return next((r for r in rows if r.get("id") == str(rid)), None)
 
 
+def _has_evidence(*values: str) -> bool:
+    return any(_clean(v) not in {"", "-"} for v in values)
+
+
+def _validate_row(row) -> int:
+    status = row.get("status", "")
+    decision = row.get("decision", "")
+    if status in OPEN_STATUSES and decision != "n/a":
+        print("error: open rows need decision n/a", file=sys.stderr)
+        return 2
+    if status == "done":
+        if decision not in DONE_DECISIONS:
+            print(f"error: done decision must be one of {sorted(DONE_DECISIONS)}", file=sys.stderr)
+            return 2
+        if not _has_evidence(row.get("artifact", ""), row.get("notes", "")):
+            print("error: done rows need proof in artifact or notes", file=sys.stderr)
+            return 2
+    if status == "dropped" and decision not in DROP_DECISIONS:
+        print(f"error: dropped decision must be one of {sorted(DROP_DECISIONS)}", file=sys.stderr)
+        return 2
+    if status == "dropped" and not _has_evidence(row.get("notes", "")):
+        print("error: dropped rows need a reason in notes", file=sys.stderr)
+        return 2
+    return 0
+
+
 def _update(args, **fields):
     path = Path(args.file)
     header, rows = read_rows(path)
@@ -82,6 +113,9 @@ def _update(args, **fields):
     for k, v in fields.items():
         if v is not None:
             r[k] = _clean(v)
+    invalid = _validate_row(r)
+    if invalid:
+        return invalid
     write_rows(path, header, rows)
     return 0
 
@@ -105,10 +139,10 @@ def cmd_start(args):
 
 def cmd_done(args):
     dec = args.decision or "keep"
-    if dec not in DECISIONS:
-        print(f"error: decision must be one of {sorted(DECISIONS)}", file=sys.stderr)
+    if dec not in DONE_DECISIONS:
+        print(f"error: decision must be one of {sorted(DONE_DECISIONS)}", file=sys.stderr)
         return 2
-    if not _clean(args.artifact) and not _clean(args.notes):
+    if not _has_evidence(args.artifact, args.notes):
         print("error: done rows need proof in --artifact or --notes", file=sys.stderr)
         return 2
     return _update(args, status="done", decision=dec,
@@ -121,8 +155,11 @@ def cmd_block(args):
 
 def cmd_drop(args):
     dec = args.decision or "discard"
-    if dec not in DECISIONS:
-        print(f"error: decision must be one of {sorted(DECISIONS)}", file=sys.stderr)
+    if dec not in DROP_DECISIONS:
+        print(f"error: decision must be one of {sorted(DROP_DECISIONS)}", file=sys.stderr)
+        return 2
+    if not _has_evidence(args.notes):
+        print("error: dropped rows need a reason in --notes", file=sys.stderr)
         return 2
     return _update(args, status="dropped", decision=dec, notes=args.notes)
 
@@ -133,6 +170,10 @@ def cmd_set(args):
         return 2
     if args.col == "status" and args.value not in STATUSES:
         print(f"error: status must be one of {sorted(STATUSES)}", file=sys.stderr)
+        return 2
+    if args.col == "status" and args.value in {"done", "dropped"}:
+        cmd = "done" if args.value == "done" else "drop"
+        print(f"error: use `{cmd}` instead of setting status={args.value}", file=sys.stderr)
         return 2
     if args.col == "decision" and args.value not in DECISIONS:
         print(f"error: decision must be one of {sorted(DECISIONS)}", file=sys.stderr)
@@ -162,33 +203,58 @@ def cmd_show(args):
 
 def cmd_selftest(args):
     from argparse import Namespace
+
+    def expect(code, func, ns):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            rc = func(ns)
+        assert rc == code, (func.__name__, rc, stdout.getvalue(), stderr.getvalue())
+
     with tempfile.TemporaryDirectory() as d:
         f = str(Path(d) / "progress.tsv")
-        assert cmd_add(Namespace(file=f, task="first\twith tab",
-                                 done_when="x", next="n", notes="")) == 0
-        assert cmd_add(Namespace(file=f, task="second",
-                                 done_when="", next="", notes="")) == 0
+        expect(0, cmd_add, Namespace(file=f, task="first\twith tab",
+                                     done_when="x", next="n", notes=""))
+        expect(0, cmd_add, Namespace(file=f, task="second",
+                                     done_when="", next="", notes=""))
         _, rows = read_rows(Path(f))
         assert [r["id"] for r in rows] == ["1", "2"], rows
         assert "\t" not in rows[0]["task"] and "with tab" in rows[0]["task"]
-        assert cmd_start(Namespace(file=f, id="1")) == 0
+        expect(0, cmd_start, Namespace(file=f, id="1"))
         _, rows = read_rows(Path(f))
         assert find_row(rows, "1")["status"] == "doing"
-        assert cmd_done(Namespace(file=f, id="1", decision="keep",
-                                  artifact="proof", notes=None)) == 0
+        expect(0, cmd_done, Namespace(file=f, id="1", decision="keep",
+                                      artifact="proof", notes=None))
         _, rows = read_rows(Path(f))
         r = find_row(rows, "1")
         assert r["status"] == "done" and r["decision"] == "keep" and r["artifact"] == "proof"
-        assert cmd_done(Namespace(file=f, id="99", decision="keep",
-                                  artifact="proof", notes=None)) == 2  # unknown id
-        assert cmd_done(Namespace(file=f, id="2", decision="bogus",
-                                  artifact="proof", notes=None)) == 2   # bad enum
-        assert cmd_done(Namespace(file=f, id="2", decision="keep",
-                                  artifact=None, notes=None)) == 2      # missing proof
-        assert cmd_set(Namespace(file=f, id="2", col="status", value="blocked")) == 0
+        expect(2, cmd_done, Namespace(file=f, id="99", decision="keep",
+                                      artifact="proof", notes=None))  # unknown id
+        expect(2, cmd_done, Namespace(file=f, id="2", decision="bogus",
+                                      artifact="proof", notes=None))   # bad enum
+        expect(2, cmd_done, Namespace(file=f, id="2", decision="n/a",
+                                      artifact="proof", notes=None))   # open-only decision
+        expect(2, cmd_done, Namespace(file=f, id="2", decision="keep",
+                                      artifact=None, notes=None))      # missing proof
+        expect(2, cmd_done, Namespace(file=f, id="2", decision="keep",
+                                      artifact="-", notes=None))       # placeholder proof
+        expect(2, cmd_drop, Namespace(file=f, id="2", decision="n/a",
+                                      notes=None))                     # open-only decision
+        expect(2, cmd_drop, Namespace(file=f, id="2", decision="keep",
+                                      notes=None))                     # done-only decision
+        expect(2, cmd_drop, Namespace(file=f, id="2", decision="discard",
+                                      notes=None))                     # missing drop reason
+        expect(2, cmd_set, Namespace(file=f, id="2", col="status", value="done"))
+        expect(2, cmd_set, Namespace(file=f, id="2", col="decision", value="keep"))
+        expect(2, cmd_set, Namespace(file=f, id="1", col="artifact", value="-"))
+        expect(2, cmd_set, Namespace(file=f, id="1", col="decision", value="n/a"))
+        expect(2, cmd_set, Namespace(file=f, id="1", col="status", value="blocked"))
+        expect(2, cmd_block, Namespace(file=f, id="1", notes="reopen"))
+        expect(0, cmd_drop, Namespace(file=f, id="2", decision="discard",
+                                      notes="not needed"))
         _, rows = read_rows(Path(f))
-        assert find_row(rows, "2")["status"] == "blocked"
-        assert cmd_set(Namespace(file=f, id="2", col="status", value="nope")) == 2
+        assert find_row(rows, "2")["status"] == "dropped"
+        expect(2, cmd_set, Namespace(file=f, id="2", col="status", value="nope"))
     print("selftest OK")
     return 0
 
@@ -226,7 +292,7 @@ def main(argv=None):
     dr = sub.add_parser("drop", parents=[parent], help="mark row dropped")
     dr.add_argument("id")
     dr.add_argument("--decision", default=None, help="discard|crash (default discard)")
-    dr.add_argument("--notes", default=None)
+    dr.add_argument("--notes", default=None, help="reason for dropping; required")
     dr.set_defaults(func=cmd_drop)
 
     st = sub.add_parser("set", parents=[parent], help="set any field on a row")

@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
-"""Create a minimal GOAL.md + progress.tsv goal plan, optionally in a git worktree."""
+"""Create a minimal AGENTS.md + progress.tsv goal plan.
+
+Plans can live in a target repo worktree or in a dedicated repo under
+~/.agents/goals.
+"""
 
 from __future__ import annotations
 
 import argparse
+import re
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
-from textwrap import dedent
 
 
 DEFAULT_GOAL = "TBD: one measurable end state for this goal"
+DEFAULT_DEDICATED_ROOT = Path("~/.agents/goals")
+SKILL_ROOT = Path(__file__).resolve().parent.parent
+AGENTS_TEMPLATE = SKILL_ROOT / "templates" / "AGENTS.md.tmpl"
+GOAL_START = "<!-- goal-plan:start -->"
+GOAL_END = "<!-- goal-plan:end -->"
 
 
 def now_iso() -> str:
@@ -33,80 +43,62 @@ def repo_root(path: Path) -> Path | None:
         return None
 
 
-def add_worktree(root: Path, tag: str) -> Path:
-    """Create (or reuse) a goal/<tag> worktree under <root>/.claude/worktrees."""
-    wt = root / ".claude" / "worktrees" / f"goal-{tag}"
-    if wt.exists():
-        return wt
+def slugify(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug or "goal"
+
+
+def timestamped_goal_path(root: Path, name: str) -> Path:
+    stamp = datetime.now().strftime("%y%m%d-%H%M%S")
+    return root.expanduser().resolve() / f"{stamp}-{slugify(name)}"
+
+
+def add_worktree(root: Path, tag: str, worktree_root: Path) -> Path:
+    """Create a timestamped external goal/<tag> worktree."""
+    wt = timestamped_goal_path(worktree_root, tag)
     wt.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "-C", str(root), "worktree", "add", "-b", f"goal/{tag}", str(wt)],
                    check=True, capture_output=True, text=True)
     return wt
 
 
-def goal_md(goal: str, progress_file: str, goal_log: str) -> str:
+def goal_instructions(goal: str, progress_file: str, goal_log: str) -> str:
     clean_goal = tsv_cell(goal).strip() or DEFAULT_GOAL
-    return dedent(
-        f"""\
-        # Goal Plan Instructions
+    try:
+        template = AGENTS_TEMPLATE.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"missing goal template: {AGENTS_TEMPLATE}") from exc
+    missing = [
+        marker for marker in ["{{GOAL}}", "{{PROGRESS_FILE}}", "{{GOAL_LOG}}"]
+        if marker not in template
+    ]
+    if missing:
+        raise ValueError(f"goal template missing placeholders: {', '.join(missing)}")
 
-        Long-running agent work that continues until a verifiable condition holds.
-        Start the loop with `/goal @GOAL.md`.
-
-        ## Goal
-
-        {clean_goal}
-
-        ## Proof
-
-        TBD: the exact command or check that proves the Goal (propose it from the repo, then confirm). Make it deterministic and repeatable -- test exit code, build status, count, artifact exists -- not a "looks good" judgment, because on an unattended run the agent is the only verifier.
-
-        ## Context
-
-        TBD: background, repo layout, and the docs/decisions to read before working. Repo-local context is the system of record; if it is not reachable from here, it does not exist for this goal.
-
-        ## Scope
-
-        TBD: what this goal includes.
-
-        ## Out of Scope
-
-        TBD: what is explicitly excluded or deferred.
-
-        ## Constraints
-
-        TBD: what must not change, required tools, paths git may touch, and -- for unattended running -- which irreversible actions (deleting files, network calls, sending or publishing, payments) are pre-approved versus must pause for the user. For destructive actions use `git revert`, never `git reset --hard` or force-push, and delete files only inside a staged commit.
-
-        ## Bounds
-
-        TBD: turn or time limit for unattended running (e.g. "stop after 30 turns", "8 hours", or "none" with supervision). If one step blows its time budget, record it as a failure and move on.
-
-        ## How Progress Is Tracked
-
-        - `{progress_file}` is the plan and progress table; the task breakdown lives in its rows. Edit it ONLY through the helper so rows never break on tab matching:
-          `python3 {goal_log} <add|start|done|block|drop|set|show> ...` (flags: `<cmd> --help`).
-        - This plan lives on its own `goal/<tag>` branch (a worktree, or a dedicated goal repo). Each loop step ends in a commit, so the commit history is the durable record. `goal_log.py done` stamps the current `HEAD` as the row checkpoint; the commit you make immediately after records the row update. The checkpoint plus git history is your resume point: on resume, recover state with `pwd`, `goal_log.py show`, `git log`, then re-run the Proof.
-        - On a long run, watch the context window and compact old turns when it fills, keeping the Proof output and `{progress_file}` intact (in Claude Code, `/context` to check and `/compact` to summarize); repeated compaction lets the loop run for many more hours.
-
-        ## Loop Protocol
-
-        Run as an autonomous loop until the Goal holds.
-
-        1. `goal_log.py show` to see where you are.
-        2. Take the next row (or `goal_log.py add --task ...`), then `goal_log.py start <id>`. Pick the row most likely to advance the Goal or unblock the rest, not just the next in line.
-        3. Do the work within Scope and Constraints, then run the Proof.
-        4. `goal_log.py done <id> --decision keep|discard|crash --artifact "<proof>"` (keep if it advanced the goal; discard if it did not but did no harm; crash if it caused a regression). Be skeptical of your own success -- if the Proof passed quietly, rerun it before marking done. Every done row needs artifact or notes evidence; for discard/crash, put WHY it failed and what to try instead in notes so a later session does not repeat the dead end.
-        5. Commit the changed files plus `{progress_file}`: `git add <files> {progress_file} && git commit -m "<keep|discard>: <what you did>"`.
-        6. Surface the Proof in your reply as evidence, not a claim: paste the actual command output (pass/fail, line numbers, exact errors), then name the checkpoint, what you verified this step, what remains, and whether you are blocked. The `/goal` evaluator reads the conversation, not the files.
-        7. To undo a change that made things worse, revert with git, sparingly. Do not `git reset` away failed attempts you have already committed -- the commit log is the full record, including discards.
-
-        Do not ask "should I continue?" once the loop starts. Stop only when the Goal holds, when you hit a Bound, or when blocked by missing access, destructive risk, or an explicit user choice -- when blocked, report what specific input or access would unblock you. Budget or turn exhaustion is not completion.
-
-        ## Completion
-
-        Complete only when the Goal holds and is shown with the Proof output in the conversation or logs, and required rows in `{progress_file}` are `done` or intentionally `dropped`.
-        """
+    return (
+        template
+        .replace("{{GOAL}}", clean_goal)
+        .replace("{{PROGRESS_FILE}}", progress_file)
+        .replace("{{GOAL_LOG}}", goal_log)
     )
+
+
+def goal_block(goal: str, progress_file: str, goal_log: str) -> str:
+    body = goal_instructions(goal, progress_file, goal_log).strip()
+    return f"{GOAL_START}\n{body}\n{GOAL_END}\n"
+
+
+def merge_agents(existing: str, block: str) -> str:
+    has_start = GOAL_START in existing
+    has_end = GOAL_END in existing
+    if has_start != has_end:
+        raise ValueError("AGENTS.md has partial goal-plan markers")
+    if has_start:
+        before, rest = existing.split(GOAL_START, 1)
+        _, after = rest.split(GOAL_END, 1)
+        return f"{before.rstrip()}\n\n{block.rstrip()}\n\n{after.lstrip()}".rstrip() + "\n"
+    prefix = existing.rstrip()
+    return f"{prefix}\n\n{block}" if prefix else block
 
 
 def progress_tsv(goal: str) -> str:
@@ -134,15 +126,61 @@ def write_file(path: Path, content: str, force: bool) -> str:
     return f"wrote {path}"
 
 
+def backup_existing(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    backup = path.with_name(path.name + ".bak")
+    shutil.copy2(path, backup)
+    return f"backed up {path} to {backup}"
+
+
+def write_agents(path: Path, block: str) -> list[str]:
+    messages = []
+    backup = backup_existing(path)
+    if backup:
+        messages.append(backup)
+    existing = path.read_text(encoding="utf-8") if path.exists() else ""
+    path.write_text(merge_agents(existing, block), encoding="utf-8")
+    messages.append(f"wrote {path}")
+    return messages
+
+
+def write_claude(path: Path) -> list[str]:
+    messages = []
+    content = "@AGENTS.md\n"
+    if path.exists() and path.read_text(encoding="utf-8") == content:
+        return [f"kept existing {path}"]
+    backup = backup_existing(path)
+    if backup:
+        messages.append(backup)
+    path.write_text(content, encoding="utf-8")
+    messages.append(f"wrote {path}")
+    return messages
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", nargs="?", default=".", help="Target repo (worktree mode) or workspace directory")
     parser.add_argument("--goal", default=DEFAULT_GOAL, help="Measurable completion condition")
     parser.add_argument("--worktree", metavar="TAG", default=None,
-                        help="Create the plan in a new goal/<TAG> git worktree under <repo>/.claude/worktrees")
+                        help="Create the plan in a timestamped external goal/<TAG> git worktree")
+    parser.add_argument("--worktree-root", default=str(DEFAULT_DEDICATED_ROOT),
+                        help="Root for --worktree worktrees (default: ~/.agents/goals)")
+    parser.add_argument("--dedicated", metavar="NAME", default=None,
+                        help="Create a dedicated goal repo at ~/.agents/goals/YYMMDD-HHMMSS-<NAME>")
+    parser.add_argument("--dedicated-root", default=str(DEFAULT_DEDICATED_ROOT),
+                        help="Root for --dedicated repos (default: ~/.agents/goals)")
     parser.add_argument("--progress-file", default="progress.tsv", help="Progress TSV file name")
     parser.add_argument("--force", action="store_true", help="Overwrite existing files")
     args = parser.parse_args(argv)
+
+    if args.worktree and args.dedicated:
+        print("error: choose either --worktree or --dedicated, not both", file=sys.stderr)
+        return 2
+    if args.dedicated and args.path != ".":
+        print("error: --dedicated creates its own path; use --dedicated-root to change the root",
+              file=sys.stderr)
+        return 2
 
     target = Path(args.path).expanduser().resolve()
     if target.exists() and not target.is_dir():
@@ -157,24 +195,50 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
             return 2
         try:
-            target = add_worktree(root, args.worktree)
+            target = add_worktree(root, args.worktree, Path(args.worktree_root))
         except subprocess.CalledProcessError as exc:
             detail = (exc.stderr or "").strip() or f"exit {exc.returncode}"
             print(f"error: git worktree add failed: {detail} "
                   f"(branch goal/{args.worktree} or its worktree may already exist)", file=sys.stderr)
             return 2
 
+    if args.dedicated:
+        target = timestamped_goal_path(Path(args.dedicated_root), args.dedicated)
+
     target.mkdir(parents=True, exist_ok=True)
+    if args.dedicated and not (target / ".git").exists():
+        try:
+            subprocess.run(["git", "-C", str(target), "init"],
+                           check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as exc:
+            detail = (exc.stderr or "").strip() or f"exit {exc.returncode}"
+            print(f"error: git init failed: {detail}", file=sys.stderr)
+            return 2
+
     progress_file = args.progress_file
     goal_log = str(Path(__file__).resolve().parent / "goal_log.py")
 
-    messages = [
-        write_file(target / "GOAL.md", goal_md(args.goal, progress_file, goal_log), args.force),
-        write_file(target / progress_file, progress_tsv(args.goal), args.force),
-    ]
+    messages = []
+    try:
+        messages.extend(write_agents(target / "AGENTS.md",
+                                     goal_block(args.goal, progress_file, goal_log)))
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    messages.extend(write_claude(target / "CLAUDE.md"))
+    messages.append(write_file(target / progress_file, progress_tsv(args.goal), args.force))
     if args.worktree:
-        messages.append(f"worktree ready at {target} (branch goal/{args.worktree}); "
-                        f"start the loop there with `/goal @GOAL.md`")
+        messages.append(f"worktree ready at {target} (branch goal/{args.worktree})")
+    if args.dedicated:
+        messages.append(f"dedicated goal repo ready at {target}")
+    if not args.worktree and not args.dedicated:
+        messages.append(f"goal workspace ready at {target}")
+    messages.extend([
+        "next: fill every TBD, add initial progress rows, commit the plan, then stop",
+        "handoff overview: summarize goal, acceptance criteria, proof, progress rows, workspace, branch, and plan commit",
+        f"run: !cd {target}",
+        "run: /goal @AGENTS.md",
+    ])
     print("\n".join(messages))
     return 0
 

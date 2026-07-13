@@ -2,7 +2,7 @@
 """외부 보도 수집: 네이버 뉴스 검색 API + Google News RSS 검색 → press-inventory.tsv
 
 사용:
-  python3 search_press.py "쿼리1" ["쿼리2" ...] --out <dir> [옵션]
+  python3 research_press_tuner.py "쿼리1" ["쿼리2" ...] --out <dir> [옵션]
 
 네이버는 NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 환경변수가 필요하다 (agents-env run으로 주입).
 Google News RSS는 키가 필요 없다. 기사 링크는 인코딩돼 있어 batchexecute 방식으로
@@ -88,7 +88,7 @@ def search_naver_direct_curl(query, start=1, display=100):
 
 def search_tavily_news(query):
     print(f"  -> Falling back to Tavily News Search for {query!r}...", file=sys.stderr)
-    cmd = ["tvly", "search", query, "--topic", "news", "--limit", "30", "--format", "json"]
+    cmd = ["tvly", "search", query, "--topic", "news", "--max-results", "20", "--json"]
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, check=True)
         data = json.loads(res.stdout)

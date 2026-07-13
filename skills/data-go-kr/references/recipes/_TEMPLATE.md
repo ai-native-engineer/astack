@@ -14,11 +14,17 @@
 - host: `<apis.data.go.kr/... 또는 api.odcloud.kr/...>`
 - 주요 오퍼레이션: `<경로>` — <용도 1줄> (여러 개면 표로)
 
+## 키
+
+- env: `DATA_GO_KR_API_KEY`
+- query parameter: `serviceKey`
+- 주입 예: `agents-env run DATA_GO_KR_API_KEY -- <명령>`
+
 ## 호출 예시
 
 ```bash
-curl -sG "https://<host>/<operation>" \
-  --data-urlencode "serviceKey=$DATA_GO_KR_API_KEY" \
+agents-env run DATA_GO_KR_API_KEY -- curl -sG "https://<host>/<operation>" \
+  --data-urlencode "serviceKey={{DATA_GO_KR_API_KEY}}" \
   --data-urlencode "<필수파라미터>=<값>" \
   --data-urlencode "type=json"
 ```
@@ -32,6 +38,11 @@ curl -sG "https://<host>/<operation>" \
 
 | 필드 | 의미 |
 |---|---|
+
+## 페이징
+
+- `<pageNo/page>`와 `<numOfRows/perPage>` 계열 파라미터를 쓴다.
+- 응답의 전체 건수 필드(`totalCount`, `matchCount` 등)를 기준으로 다음 페이지 여부를 판단한다.
 
 ## 함정
 

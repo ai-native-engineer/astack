@@ -48,7 +48,7 @@ curl -sG "https://apis.data.go.kr/<host path>/<operation>" \
 
 | returnReasonCode | 의미 | 행동 |
 |---|---|---|
-| 20 (SERVICE_ACCESS_DENIED) | **활용신청 안 됨** | 활용신청 딥링크 전달 (search-and-apply.md §3) |
+| 20 (SERVICE_ACCESS_DENIED) | **활용신청 안 됨** | 활용신청 딥링크 전달 (search-and-apply.md 3절) |
 | 30 (SERVICE_KEY_IS_NOT_REGISTERED) | 키 오류 (오타·이중 인코딩·미동기화) | 인코딩 확인 → 신청 직후면 최대 1시간 대기 |
 | 22 (LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS) | 일일 쿼터 초과 | 운영계정 전환 또는 내일 재시도 안내 |
 | 31 (DEADLINE_HAS_EXPIRED) | 활용기간 만료 | 연장신청 딥링크 전달 |
