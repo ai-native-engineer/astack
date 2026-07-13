@@ -24,10 +24,10 @@ uv tool install huggingface_hub                # 가중치 다운로드 (hf)
 # ffmpeg: brew install ffmpeg
 ```
 - 가중치는 첫 실행 시 repo id로 자동 다운로드된다. 미리 받으려면: `hf download mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16`.
-- 전사는 `apple-stt`(stt 스킬의 `~/scripts/apple-stt`)를 쓴다.
+- 레퍼런스 전사는 `--ref-text`/`--ref-text-file`로 직접 주거나, PATH 또는 `~/scripts/apple-stt`의 `apple-stt`를 쓴다.
 
 ## 저장 위치 (영구 vs 휘발)
-- **레퍼런스(원본 목소리)**: 스킬 내부 `voices/<name>/ref.wav + ref.txt`. 패키지와 함께 배포하며, env `TTS_VOICE_DIR` 또는 `--voice-dir`로만 저장 위치를 바꾼다. `voices`로 목록 확인.
+- **레퍼런스(원본 목소리)**: `prep --voice <name>`은 스킬 내부 `voices/<name>/ref.wav + ref.txt`에 계속 쌓는다. 패키지와 함께 공개될 수 있으므로 재배포 권한이 있는 음성만 넣는다. env `TTS_VOICE_DIR` 또는 `--voice-dir`로 저장 위치를 바꿀 수 있다.
 - **프로젝트(작업 폴더)**: `--proj` 미지정 시 `tempfile.mkdtemp`로 `/tmp/tts-XXXX` 자동 생성. `manifest.json`이 레퍼런스 절대경로를 기록하므로, 보관함 voice가 있으면 /tmp 프로젝트가 날아가도 `prep` 없이 다시 생성 가능.
 - **최종본 보관**: `--out <폴더|*.wav>`로 완성된 `output.wav`를 원하는 위치에 복사(작업 폴더와 별개). full/chunk/regen/join 모두 지원. `--proj`와 `--out`을 함께 쓴다.
 - **편집용 정규화본 보관**: `--loudnorm-out <폴더|*.wav>`로 원본과 별개인 편집용 WAV를 만든다. 필터는 `loudnorm=I=-16:TP=-1.5:LRA=11`, 출력은 48kHz mono `pcm_s16le`. CapCut/유튜브 나레이션에 바로 넣을 때는 이 파일을 우선 사용하고, 원본 `output.wav`는 재처리용으로 남긴다.
@@ -35,7 +35,8 @@ uv tool install huggingface_hub                # 가중치 다운로드 (hf)
 ## 1) 레퍼런스 준비 (prep)
 좋은 클론은 레퍼런스가 9할. 조건: **단일 화자, 클린(무음악·저잡음), 자연 발화 10~30초**.
 - 배경음악 깔린 구간 금지 — 클론에 음악이 섞인다. `ffmpeg ... silencedetect=noise=-30dB:d=0.4`로 무음이 거의 없으면 음악 베드이므로 다른 구간을 쓴다.
-- `prep`이 클립 추출(loudnorm·24k·mono) + `apple-stt` 전사로 보관함에 `ref.wav`/`ref.txt`를 만든다. **ref_text(전사)를 같이 줘야 클론 품질이 오른다.**
+- `prep`이 클립을 loudnorm·24kHz·mono로 정리하고 `ref.wav`/`ref.txt`를 만든다. **ref_text(전사)를 같이 줘야 클론 품질이 오른다.**
+- 전사문이 있으면 `prep <file> --voice <name> --ref-text-file transcript.txt`를 쓴다. 전사문을 생략하면 `apple-stt`를 자동 탐색하고, 없으면 필요한 옵션을 알려주고 멈춘다.
 - 미디어에서 특정 구간만: `prep <file> --voice <name> --ss <시작초> --dur <길이>`. 이미 깨끗한 wav면 `--ss/--dur` 생략.
 
 ## 2) 생성 — full vs chunk

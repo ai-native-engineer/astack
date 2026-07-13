@@ -10,15 +10,15 @@ Two data stores, on purpose:
     finished output.wav to a directory or .wav path you want to keep.
 
 Subcommands:
-  prep   <media|wav> --voice NAME [--ss S --dur D --lang ko]
-         Extract a clean reference clip (loudnorm, 24k mono) + transcribe with
-         apple-stt -> <store>/NAME/ref.wav, ref.txt
+  prep   <media|wav> --voice NAME [--ref-text T | --ref-text-file F]
+         Extract a clean reference clip (loudnorm, 24k mono) and store it under
+         <skill>/voices/NAME/. Uses apple-stt when reference text is omitted.
   voices List registered voices in the store.
   preptext (--text T | --text-file F) [--out F]
          Rewrite Korean script text into TTS-friendly spoken chunks.
   full   [--voice NAME] (--text T | --text-file F) [--proj DIR] [--out DEST] [--loudnorm-out DEST] [--model M]
          One-shot generation (whole text in a single pass).
-  chunk  [--voice NAME] --text-file F [--proj DIR] [--out DEST] [--loudnorm-out DEST] [--model M] [--gap 0.30]
+  chunk  [--voice NAME] (--text T | --text-file F) [--proj DIR] [--out DEST] [--loudnorm-out DEST] [--model M] [--gap 0.30]
          One sentence per line. Generate each separately, tail-fade+pad, concat.
          Writes manifest.json so single chunks can be re-rolled.
   regen  --proj DIR --seg N [--text "..."] [--out DEST] [--loudnorm-out DEST]
@@ -30,7 +30,7 @@ Subcommands:
 
 DEST = a directory (writes output.wav inside) or an explicit *.wav path.
 LOUDNORM DEST = a directory (writes output-loudnorm.wav inside) or an explicit *.wav path.
-Runtime: mlx-audio (`mlx_audio.tts.generate`). Transcription: `apple-stt` (~/scripts/apple-stt).
+Runtime: mlx-audio (`mlx_audio.tts.generate`). Optional transcription: `apple-stt` on PATH or ~/scripts/apple-stt.
 mlx_audio resolved from PATH. Weights auto-download to the HF cache by repo id.
 """
 import argparse, json, os, re, shutil, subprocess, sys, tempfile
@@ -39,7 +39,6 @@ from pathlib import Path
 DEFAULT_MODEL = "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
 DEFAULT_VOICE = "aiden"
 DEFAULT_VOICE_DIR = Path(__file__).resolve().parent.parent / "voices"
-APPLE_STT = str(Path("~/scripts/apple-stt").expanduser())
 # apple-stt uses locale tags; map mlx_audio --lang codes
 _LANG_LOCALE = {"ko": "ko-KR", "en": "en-US"}
 # tail fade-out (~60ms) + leading declick + trailing silence; keeps chunk ends clean
@@ -97,6 +96,12 @@ def voice_store(args):
     d = (getattr(args, "voice_dir", None) or os.environ.get("TTS_VOICE_DIR")
          or str(DEFAULT_VOICE_DIR))
     return Path(d).expanduser()
+
+
+def find_apple_stt():
+    found = shutil.which("apple-stt")
+    local = Path("~/scripts/apple-stt").expanduser()
+    return found or (str(local) if local.is_file() and os.access(local, os.X_OK) else None)
 
 
 def resolve_proj(args):
@@ -197,10 +202,13 @@ def _deliver_loudnorm(src, out):
 
 
 def _read_text(args):
-    if getattr(args, "text", None):
+    if getattr(args, "text", None) is not None:
         return args.text
     if getattr(args, "text_file", None):
-        return Path(args.text_file).read_text(encoding="utf-8")
+        try:
+            return Path(args.text_file).read_text(encoding="utf-8")
+        except OSError as exc:
+            sys.exit(f"[tts] cannot read text file '{args.text_file}': {exc}")
     sys.exit("[tts] need --text or --text-file")
 
 
@@ -380,6 +388,22 @@ def cmd_preptext(args):
         print(f"[tts] WARN: {warning}", file=sys.stderr)
 
 def cmd_prep(args):
+    apple_stt = None
+    if args.ref_text is not None:
+        one = " ".join(args.ref_text.split())
+    elif args.ref_text_file:
+        try:
+            one = " ".join(Path(args.ref_text_file).read_text(encoding="utf-8").split())
+        except OSError as exc:
+            sys.exit(f"[tts] cannot read reference text '{args.ref_text_file}': {exc}")
+    else:
+        apple_stt = find_apple_stt()
+        if not apple_stt:
+            sys.exit("[tts] apple-stt not found; pass --ref-text or --ref-text-file")
+        one = None
+    if one == "":
+        sys.exit("[tts] reference text is empty")
+
     dest = voice_store(args) / args.voice
     dest.mkdir(parents=True, exist_ok=True)
     ref = dest / "ref.wav"
@@ -392,11 +416,14 @@ def cmd_prep(args):
         cmd += ["-t", str(args.dur)]
     cmd += ["-af", af, "-ac", "1", "-c:a", "pcm_s16le", str(ref)]
     run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    locale = _LANG_LOCALE.get(args.lang, args.lang)
-    run([APPLE_STT, str(ref), "-o", str(dest / "ref.txt"), "-l", locale, "-q"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     txt = dest / "ref.txt"
-    one = " ".join(txt.read_text(encoding="utf-8").split())
+    if apple_stt:
+        locale = _LANG_LOCALE.get(args.lang, args.lang)
+        run([apple_stt, str(ref), "-o", str(txt), "-l", locale, "-q"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        one = " ".join(txt.read_text(encoding="utf-8").split())
+    if not one:
+        sys.exit("[tts] reference text is empty")
     txt.write_text(one + "\n", encoding="utf-8")
     print(f"[tts] voice '{args.voice}' stored: {dest} ({ffprobe_dur(ref):.1f}s)")
     print(f"[tts] ref_text: {one}")
@@ -548,6 +575,12 @@ def add_generation_tuning_args(parser):
                         help="sampling repetition penalty")
 
 
+def add_text_args(parser):
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--text")
+    group.add_argument("--text-file", dest="text_file")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -557,16 +590,16 @@ def main():
     p = sub.add_parser("prep"); p.add_argument("media")
     p.add_argument("--voice", required=True); p.add_argument("--ss", type=float)
     p.add_argument("--dur", type=float); p.add_argument("--lang", default="ko")
+    ref_text = p.add_mutually_exclusive_group()
+    ref_text.add_argument("--ref-text")
+    ref_text.add_argument("--ref-text-file")
     p.set_defaults(func=cmd_prep)
 
     p = sub.add_parser("voices"); p.set_defaults(func=cmd_voices)
 
     p = sub.add_parser("preptext")
-    p.add_argument("--text")
-    p.add_argument("--text-file", dest="text_file")
+    add_text_args(p)
     p.add_argument("--out", help="write spoken TTS script to this file")
-    p.add_argument("--profile", default="korean-youtube",
-                   help="currently informational; default korean-youtube")
     p.add_argument("--min-chars", type=int, default=18,
                    help="merge very short segments with the next segment")
     p.add_argument("--max-chars", type=int, default=190,
@@ -585,7 +618,7 @@ def main():
         p.add_argument("--out", help="also save final to this dir or *.wav path")
         p.add_argument("--loudnorm-out", dest="loudnorm_out",
                        help="also render edit-ready loudnorm copy to this dir or *.wav path")
-        p.add_argument("--text"); p.add_argument("--text-file", dest="text_file")
+        add_text_args(p)
         p.add_argument("--model", default=DEFAULT_MODEL)
         p.add_argument("--gap", type=float, default=0.30)
         p.add_argument("--lang", default="ko")
