@@ -10,7 +10,7 @@ gh repo create OWNER/REPO --public --clone   # 공개여야 Pages 무료
 
 ## 2) 쇼 구성 파일
 repo 루트에 다음을 둔다(`templates/show.json` 복사·수정):
-- `show.json` — 제목·작성자·**email**(Spotify 인증코드 수신 주소)·`link`/`image`(아래 Pages URL)·category.
+- `show.json` — 제목·작성자·**email**(Spotify 인증코드 수신 주소)·`link`/`image`(아래 Pages URL)·category. RSS에 공개되므로 전용 공개 이메일을 쓴다.
 - `episodes.json` — `[]` (빈 배열로 시작).
 - `cover.jpg` — **정사각 1400~3000px**, JPG/PNG. (Spotify/Apple 필수)
 - `.nojekyll` — 빈 파일. GitHub Pages가 Jekyll 처리 없이 파일을 그대로 서빙하게 한다.
@@ -27,9 +27,11 @@ gh api -X POST repos/OWNER/REPO/pages -f 'source[branch]=main' -f 'source[path]=
 ## 4) 1화 발행
 ```bash
 scripts/publish.sh --repo <repo경로> --audio ep1.mp3 \
+  --title "1화 제목" --desc "에피소드 설명/쇼노트" --dry-run
+scripts/publish.sh --repo <repo경로> --audio ep1.mp3 \
   --title "1화 제목" --desc "에피소드 설명/쇼노트"
 ```
-오디오를 릴리스에 올리고, `episodes.json`·`feed.xml`을 갱신해 push한다.
+첫 명령으로 입력과 피드를 검증하고, 두 번째 명령이 오디오를 릴리스에 올린 뒤 `episodes.json`·`feed.xml`을 갱신해 push한다.
 
 ## 5) Spotify 등록 (1회, 사람이)
 Spotify for Podcasters(=Spotify for Creators) 로그인 -> **기존 팟캐스트 추가** -> 호스팅 위치 **"다른 곳(Somewhere else)"** -> **피드 URL 붙여넣기** -> `show.json`의 email로 온 **인증코드** 입력 -> 제출. 몇 분~수 시간 내 게시.

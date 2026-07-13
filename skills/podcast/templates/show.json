@@ -7,6 +7,8 @@
   "link": "https://OWNER.github.io/REPO/",
   "image": "https://OWNER.github.io/REPO/cover.jpg",
   "language": "ko",
+  "audience": "비개발자",
+  "target_minutes": 8,
   "category": "Technology",
   "subcategory": "Tech News",
   "explicit": false,

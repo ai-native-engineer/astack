@@ -14,6 +14,8 @@
 - `SKILL.md` — 파이프라인, 결정, 검증.
 - `references/script-conversion.md` — 듣기용 대본 변환 규칙.
 - `references/shownotes-convention.md` — 에피소드 설명(쇼노트) 컨벤션.
+- `references/publishing.md` — dry-run, 발행, 실패 복구, 공개 검증.
 - `references/publish-setup.md` — 새 쇼 최초 1회 셋업(repo, Pages, Spotify).
 - `scripts/publish.sh`, `scripts/gen_feed.py` — 발행과 RSS 피드 생성.
+- `tests/test_podcast.py` — RSS 정렬/쇼노트와 publish dry-run 회귀 테스트.
 - `templates/show.json` — 쇼 설정 템플릿.
