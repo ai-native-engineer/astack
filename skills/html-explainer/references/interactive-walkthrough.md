@@ -26,10 +26,17 @@
 
 - **in-browser Babel 경고는 정상이다.** `verify.sh` 콘솔에 "precompile your scripts for production"이 `[warn]`으로 뜨는 건 에러가 아니다 — 무시한다.
 - **`verify.sh`의 render-check JSON은 `mermaid/echarts/iconify`가 전부 false/0으로 나온다** — 이 타입은 그 스택을 안 쓰니 정상이다. 통과 판정은 **콘솔 에러 0 + 스크린샷 육안**으로 한다(겹침·잘림·첫 스텝 렌더).
-- **키보드 핸들러는 `INPUT`/`TEXTAREA`를 건너뛴다.** 안 그러면 입력 중 스페이스/화살표가 스텝을 넘긴다(템플릿에 `입력 보호` 배선됨). 한글 IME는 `e.nativeEvent.isComposing`도 확인해 조합 중 Enter 오작동을 막는다.
+- **키보드 핸들러는 `INPUT`/`TEXTAREA`를 건너뛴다.** 안 그러면 입력 중 스페이스/화살표가 스텝을 넘긴다(템플릿에 `입력 보호` 배선됨). Enter 전송은 [dev-frontend의 IME-safe 검증 계약](../../dev-frontend/SKILL.md#ime-safe-enter-submit)을 따른다.
 - **스텝 전환 애니메이션은 `key={step}`으로 본문을 remount**해서 낸다(템플릿 배선). 이게 빠지면 fadeUp이 안 돈다.
 - 팔레트(`:root` CSS 변수)는 토픽에 맞게 바꾼다. 기본은 따뜻한 에디토리얼 톤이라 대시보드·핀테크엔 어울리지 않는다 — 그럴 땐 변수만 교체한다.
 
 ## 공통 철칙
 
 다크/라이트(matchMedia), 긴 한국어 라벨 `<br/>`, CDN 메이저 버전 고정, "애니메이션은 정보 운반만"은 두 타입 공통이라 `SKILL.md` 철칙을 따른다(여기서 반복하지 않는다).
+
+## 완성 예시
+
+- [claude-code-context-timeline.html](../examples/claude-code-context-timeline.html) — Claude Code 세션 시작부터 파일 읽기·서브에이전트·압축까지, 컨텍스트의 생애주기를 시간순으로 보여주는 게이트형 타임라인.
+- [chat-context-composition-lab.html](../examples/chat-context-composition-lab.html) — 사용자가 채팅을 이어가며 시스템·사용자·AI 메시지가 다음 요청의 컨텍스트로 누적되는 구성을 직접 확인하는 실험실.
+
+둘 다 완성 예시다. 새 파일은 복사하지 말고 `assets/interactive-template.html`에서 시작한다.
