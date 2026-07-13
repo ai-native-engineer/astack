@@ -1,7 +1,7 @@
 ---
 argument-hint: "[기간/주제 또는 publish]"
 name: podcast
-description: "팟캐스트 에피소드를 처음부터 끝까지 제작·발행하는 오케스트레이터 — 뉴스 정리(또는 임의 대본)부터 구어체 대본 변환, AI 음성 생성, 공개 RSS 발행까지 한 번에 체인. 사용자가 '팟캐스트 만들어', '팟캐스트 제작', '에피소드 만들어줘', '뉴스 팟캐스트', '대본부터 발행까지', 'AI 팟캐스트 자동화'라고 하면 사용. 단계별 스킬(ai-news-recap·tts)을 호출만 하고 중복하지 않는다. 발행(GitHub Releases+RSS, Spotify/Apple 배포)은 이 스킬이 직접 한다. '팟캐스트 발행', '스포티파이에 올려', '애플 팟캐스트', 'RSS 피드', '에피소드 배포'면 제작 없이 발행만도 가능. (음성만: tts 스킬, 뉴스 정리만: ai-news-recap 스킬.)"
+description: "Podcast episode production and publishing orchestrator from script/news recap to spoken script, TTS audio, GitHub Releases/RSS feed, and Spotify/Apple distribution. Use when user asks 팟캐스트 만들어, 에피소드 제작, 뉴스 팟캐스트, 대본부터 발행, RSS feed, Spotify/Apple podcast publish, or podcast automation. Do NOT use for TTS-only voice generation, AI news recap text only, YouTube production, or generic audio editing."
 ---
 
 # Podcast — 제작·발행 오케스트레이터

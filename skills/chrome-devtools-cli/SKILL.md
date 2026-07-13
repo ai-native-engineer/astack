@@ -1,7 +1,7 @@
 ---
 argument-hint: "[subcommand]"
 name: chrome-devtools-cli
-description: chrome-devtools CLI(chrome-devtools-mcp 패키지의 standalone CLI 모드)로 헤드리스 Chrome을 제어 — 페이지 이동, 클릭/입력, 스크린샷, 콘솔/네트워크 검사, JS 평가, Lighthouse 감사, 성능 트레이스(Core Web Vitals LCP/INP/CLS), 힙 스냅샷. Use when user says 'chrome-devtools', '브라우저 자동화', '헤드리스 브라우저', '스크린샷 찍어', 'Lighthouse', '성능 감사', '페이지 성능', 'Core Web Vitals', '콘솔 로그 확인', '네트워크 요청 확인', '웹페이지 클릭/입력 자동화', 'CDP', or needs CDP-level browser control from the terminal. chrome-devtools는 MCP 서버가 아니라 이 전역 CLI로 쓴다(MCP 재등록 금지).
+description: chrome-devtools CLI(chrome-devtools-mcp 패키지의 standalone CLI 모드)로 헤드리스 Chrome을 제어 — 페이지 이동, 클릭/입력, 스크린샷, 콘솔/네트워크 검사, JS 평가, Lighthouse 감사, 성능 트레이스(Core Web Vitals LCP/INP/CLS), 힙 스냅샷. Use when user says 'chrome-devtools', '브라우저 자동화', '헤드리스 브라우저', '스크린샷 찍어', 'Lighthouse', '성능 감사', '페이지 성능', 'Core Web Vitals', '콘솔 로그 확인', '네트워크 요청 확인', '웹페이지 클릭/입력 자동화', 'CDP', or needs CDP-level browser control from the terminal. chrome-devtools는 MCP 서버가 아니라 이 전역 CLI로 쓴다(MCP 재등록 금지). Do NOT use for 단순 URL/사이트의 마크다운 변환(crawl), React/Next E2E 테스트 코드 작성, or 브라우저 제어가 불필요한 일반 웹 리서치.
 ---
 
 # chrome-devtools CLI

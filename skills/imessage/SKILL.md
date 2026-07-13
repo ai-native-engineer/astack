@@ -1,12 +1,7 @@
 ---
 argument-hint: "[search|read|recent|send] [contact] [message]"
 name: imessage
-description: >-
-  macOS iMessage/SMS/RCS를 다루는 MCP-free 스킬. 읽기·검색은 ~/Library/Messages/chat.db를
-  readonly SQLite로 직접 조회하고, 전송만 osascript로 Messages.app을 조종한다. 백그라운드 프로세스나
-  MCP 서버 없이 필요할 때만 호출하는 on-demand CLI. "아이메시지", "iMessage", "메시지 읽어",
-  "문자 검색", "누구랑 대화 찾아줘", "최근 메시지", "문자 보내", "iMessage send", "chat.db"
-  등에 사용. (카카오톡은 kakaotalk 스킬, 음성메모/통화녹음은 voice-memos 스킬을 쓴다.)
+description: "macOS iMessage/SMS/RCS read/search/send automation without MCP, using readonly chat.db for lookup and Messages.app for sending. Use when user asks 아이메시지, iMessage, 문자 검색, 메시지 읽어, 최근 메시지, 누구랑 대화 찾아줘, 문자 보내, iMessage send, or chat.db. Do NOT use for KakaoTalk, Slack, Gmail/Google Chat, voice memos/call recordings, or generic message writing without iMessage execution."
 allowed-tools: Bash
 ---
 
