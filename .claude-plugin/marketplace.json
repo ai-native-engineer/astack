@@ -1,5 +1,6 @@
 {
   "name": "astack",
+  "description": "Curated Claude Code skills for research, media, productivity, and local workflows.",
   "owner": { "name": "Aiden Ahn", "url": "https://github.com/seungwonme" },
   "plugins": [
     {
