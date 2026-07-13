@@ -1,6 +1,21 @@
 # Voice clone — 상세 (Qwen3-TTS / mlx-audio)
 
-레이어 구분: 실행 프로그램(`mlx-audio`, `mlx_whisper`) = uv tool / 모델 가중치 = HF 캐시(`~/.cache/huggingface`). `hf`는 가중치 다운로드 도구지 프로그램 설치 도구가 아니다.
+레이어 구분: 실행 프로그램(`mlx-audio`) = uv tool / 전사 = `apple-stt`(`~/scripts/apple-stt`, stt 스킬) / 모델 가중치 = HF 캐시(`~/.cache/huggingface`). `hf`는 가중치 다운로드 도구지 프로그램 설치 도구가 아니다.
+
+## 목차
+
+- 셋업 (최초 1회)
+- 저장 위치 (영구 vs 휘발)
+- 1) 레퍼런스 준비 (prep)
+- 2) 생성 — full vs chunk
+- 3) 부분 재생성 (regen)
+- 최종 음량 정규화 (편집용)
+- 끝음 잘림 (실측 함정)
+- 생성 후 검증
+- concat 함정
+- 튜닝 (mlx_audio.tts.generate 플래그)
+- 모드(음성 종류) & 대안 엔진
+- 산출물 레이아웃
 
 ## 셋업 (최초 1회)
 ```bash
@@ -9,7 +24,7 @@ uv tool install huggingface_hub                # 가중치 다운로드 (hf)
 # ffmpeg: brew install ffmpeg
 ```
 - 가중치는 첫 실행 시 repo id로 자동 다운로드된다. 미리 받으려면: `hf download mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16`.
-- 전사용 whisper(`mlx-community/whisper-large-v3-turbo`)는 stt 스킬과 캐시 공유.
+- 전사는 `apple-stt`(stt 스킬의 `~/scripts/apple-stt`)를 쓴다.
 
 ## 저장 위치 (영구 vs 휘발)
 - **레퍼런스(원본 목소리)**: 영구 보관함 `~/.local/share/tts/voices/<name>/ref.wav + ref.txt`. env `TTS_VOICE_DIR` 또는 `--voice-dir`로 변경. 개인 음성이라 /tmp·git에 두지 않는다. `voices`로 목록 확인.
@@ -20,7 +35,7 @@ uv tool install huggingface_hub                # 가중치 다운로드 (hf)
 ## 1) 레퍼런스 준비 (prep)
 좋은 클론은 레퍼런스가 9할. 조건: **단일 화자, 클린(무음악·저잡음), 자연 발화 10~30초**.
 - 배경음악 깔린 구간 금지 — 클론에 음악이 섞인다. `ffmpeg ... silencedetect=noise=-30dB:d=0.4`로 무음이 거의 없으면 음악 베드이므로 다른 구간을 쓴다.
-- `prep`이 클립 추출(loudnorm·24k·mono) + `mlx_whisper` 전사로 보관함에 `ref.wav`/`ref.txt`를 만든다. **ref_text(전사)를 같이 줘야 클론 품질이 오른다.**
+- `prep`이 클립 추출(loudnorm·24k·mono) + `apple-stt` 전사로 보관함에 `ref.wav`/`ref.txt`를 만든다. **ref_text(전사)를 같이 줘야 클론 품질이 오른다.**
 - 미디어에서 특정 구간만: `prep <file> --voice <name> --ss <시작초> --dur <길이>`. 이미 깨끗한 wav면 `--ss/--dur` 생략.
 
 ## 2) 생성 — full vs chunk
@@ -38,9 +53,9 @@ TTS에는 화면용 표기보다 **귀로 들었을 때 자연스러운 발화�
 - `OS` → `오에스`
 - `PDF` → `피디에프`
 - `CTA` → `씨티에이` 또는 문맥상 `콜투액션`
-- `URL`, `MCP`, 제품 코드, 쿠폰 코드처럼 그대로 읽으면 어색한 표기는 한국어 발화로 바꾼다. 예: `NOVA` → `코드 노바`.
+- `URL`, `MCP`, 제품 코드, 쿠폰 코드처럼 그대로 읽으면 어색한 표기는 한국어 발화로 바꾼다. 예: `GRANTER` → `코드 그랜터`.
 - 숫자는 기계적으로 모두 한글화하지 않는다. 발음이 불안정하거나 영상에서 중요한 숫자만 발화 기준으로 고친다. 예: `44일` → `사십사 일`, `73억` → `칠십삼억`.
-- 고유명사는 붙여 쓰면 TTS·ASR이 흔들릴 수 있다. 발음이 중요한 이름은 발화용 띄어쓰기를 둔다. 예: `코드스쿨` → `코드 스쿨`.
+- 고유명사는 붙여 쓰면 TTS·ASR이 흔들릴 수 있다. 발음이 중요한 이름은 발화용 띄어쓰기를 둔다. 예: `대모산개발단` → `대모산 개발단`.
 
 줄바꿈/청크 기준:
 - 한 줄이 곧 한 청크다. 빈 줄은 무시된다.
@@ -70,7 +85,7 @@ python3 tts_clone.py join  --proj DIR --loudnorm-out edit.wav # 편집용 loudno
 TTS 원본은 문장별 음량이 조금 작거나 편차가 있을 수 있다. 긴 나레이션을 영상 편집에 넣을 때는 원본과 편집용 파일을 둘 다 남긴다.
 
 ```bash
-python3 tts_clone.py chunk --voice myvoice --text-file script.txt --lang ko \
+python3 tts_clone.py chunk --voice aiden --text-file script.txt --lang ko \
   --out out/raw.wav \
   --loudnorm-out out/edit.wav
 ```
@@ -91,8 +106,7 @@ python3 tts_clone.py chunk --voice myvoice --text-file script.txt --lang ko \
 
 ## 생성 후 검증
 - 한국어 생성 로그에서 `Language: ko`가 찍히는지 확인한다. `tts_clone.py --lang ko`는 내부에서 `mlx_audio.tts.generate --lang_code ko`로 전달되어야 한다.
-- 긴 결과물이나 외부 공유용 음성은 `mlx_whisper <final.wav> --language ko`로 자동 전사를 뽑아 대본과 대조한다.
-- `mlx_whisper`는 기본적으로 현재 폴더에 같은 이름의 `.txt`를 만들 수 있으므로, 임시 전사 파일은 산출물 폴더로 옮기거나 검증 후 정리한다.
+- 긴 결과물이나 외부 공유용 음성은 `apple-stt output.wav -o verify.txt`로 자동 전사를 뽑아 대본과 대조한다.
 
 ## concat 함정
 `ffmpeg -f concat` demuxer는 입력 포맷(코덱·SR·채널·sample_fmt)이 다르면 **첫 파일 뒤에서 조용히 멈춘다**(무음 파일 불일치로 N개 중 1개만 합쳐지는 사고). → 드라이버는 모든 세그먼트를 동일 포맷(24kHz/mono/`pcm_s16le`)으로 정규화한 뒤 concat한다. 직접 셸로 짤 때도 동일 포맷을 보장할 것. (zsh에서 `LINES=(...)` 배열 할당은 특수변수 충돌로 실패 — 다른 이름을 쓴다.)

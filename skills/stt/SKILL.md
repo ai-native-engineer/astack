@@ -13,14 +13,14 @@ description: "Local speech-to-text transcription and optional speaker diarizatio
 - 전체: `apple-stt 녹음.m4a` — `-t`(타임스탬프) · `--srt` · `--json` · `--save` · `-l en-US`
 - 구간: 먼저 잘라서 전사 — `ffmpeg -ss <시작초> -to <끝초> -i in.m4a -c copy clip.m4a` → `apple-stt clip.m4a`
   - 긴 녹음에 회의 외 이동·잡음이 섞이면 그 구간은 전사·화자분리가 다 깨지니 회의 구간만 잘라 처리.
-- 바이너리 `apple-stt`(PATH에 둔다). 직접 빌드: `swiftc -O -parse-as-library -target arm64-apple-macos26.0 apple-stt.swift -o apple-stt`. **macOS 26+ 전용**.
+- 바이너리 `~/scripts/apple-stt` (소스/빌드 `~/Dev/1-project/stt/`: `swiftc -O -parse-as-library -target arm64-apple-macos26.0 apple-stt.swift -o apple-stt`). **macOS 26+ 전용**.
 - 음성 메모 원본: `~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/*.m4a`
 
 ## 화자 분리 (누가 언제 말했나)
 
 `apple-stt`는 전사만 한다 — 화자 라벨은 별도 단계. **기본은 로컬 argmax.** 모드별 입자 트레이드오프·구간 트림·whispermlx 셋업·클라우드 상세는 `references/diarization.md`.
 
-- **기본(로컬)**: `~/.claude/skills/stt/scripts/stt_diarize.sh <오디오> <apple|argmax|both> [start초 end초]` (diarize/transcribe 스크립트는 스킬 내부 `scripts/` 경로, `apple-stt`는 PATH의 별도 바이너리)
+- **기본(로컬)**: `~/.claude/skills/stt/scripts/stt_diarize.sh <오디오> <apple|argmax|both> [start초 end초]` (diarize/transcribe 스크립트는 스킬 내부 경로 — `apple-stt`만 `~/scripts/`의 별도 빌드 바이너리다. `scripts/`만 적어 `~/scripts/`로 오해하면 `exit 127`)
   - `apple` = apple-stt 텍스트 + argmax 화자(가벼움, 화자 경계 굵음)
   - `argmax` = argmax 텍스트 + 단어단위 정밀 화자(632MB 모델)
   - `both` = 둘 다(정확도 최고·토큰 최다)

@@ -12,7 +12,7 @@ Two data stores, on purpose:
 Subcommands:
   prep   <media|wav> --voice NAME [--ss S --dur D --lang ko]
          Extract a clean reference clip (loudnorm, 24k mono) + transcribe with
-         mlx_whisper -> <store>/NAME/ref.wav, ref.txt
+         apple-stt -> <store>/NAME/ref.wav, ref.txt
   voices List registered voices in the store.
   preptext (--text T | --text-file F) [--out F]
          Rewrite Korean script text into TTS-friendly spoken chunks.
@@ -30,14 +30,16 @@ Subcommands:
 
 DEST = a directory (writes output.wav inside) or an explicit *.wav path.
 LOUDNORM DEST = a directory (writes output-loudnorm.wav inside) or an explicit *.wav path.
-Runtime: mlx-audio (`mlx_audio.tts.generate`). Transcription: `mlx_whisper`.
-Both resolved from PATH. Weights auto-download to the HF cache by repo id.
+Runtime: mlx-audio (`mlx_audio.tts.generate`). Transcription: `apple-stt` (~/scripts/apple-stt).
+mlx_audio resolved from PATH. Weights auto-download to the HF cache by repo id.
 """
 import argparse, json, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 
 DEFAULT_MODEL = "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
-WHISPER_MODEL = "mlx-community/whisper-large-v3-turbo"
+APPLE_STT = str(Path("~/scripts/apple-stt").expanduser())
+# apple-stt uses locale tags; map mlx_audio --lang codes
+_LANG_LOCALE = {"ko": "ko-KR", "en": "en-US"}
 # tail fade-out (~60ms) + leading declick + trailing silence; keeps chunk ends clean
 NORM_AF = "afade=t=in:d=0.02,areverse,afade=t=in:d=0.06,areverse,apad=pad_dur={gap},aresample=24000"
 EDIT_LOUDNORM_AF = "loudnorm=I=-16:TP=-1.5:LRA=11"
@@ -50,6 +52,7 @@ PHONETIC_RULES = [
     (re.compile(r"(?<![A-Za-z0-9])CapCut(?![A-Za-z0-9])", re.I), "캡컷"),
     (re.compile(r"(?<![A-Za-z0-9])YouTube(?![A-Za-z0-9])", re.I), "유튜브"),
     (re.compile(r"(?<![A-Za-z0-9])Remotion(?![A-Za-z0-9])", re.I), "리모션"),
+    (re.compile(r"(?<![A-Za-z0-9])GRANTER(?![A-Za-z0-9])", re.I), "그랜터"),
     (re.compile(r"(?<![A-Za-z0-9])HTML(?![A-Za-z0-9])", re.I), "에이치티엠엘"),
     (re.compile(r"(?<![A-Za-z0-9])API(?![A-Za-z0-9])", re.I), "에이피아이"),
     (re.compile(r"(?<![A-Za-z0-9])MCP(?![A-Za-z0-9])", re.I), "엠씨피"),
@@ -387,9 +390,8 @@ def cmd_prep(args):
         cmd += ["-t", str(args.dur)]
     cmd += ["-af", af, "-ac", "1", "-c:a", "pcm_s16le", str(ref)]
     run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    run(["mlx_whisper", str(ref), "--model", WHISPER_MODEL, "--language", args.lang,
-         "--condition-on-previous-text", "False", "--output-format", "txt",
-         "--output-dir", str(dest)],
+    locale = _LANG_LOCALE.get(args.lang, args.lang)
+    run([APPLE_STT, str(ref), "-o", str(dest / "ref.txt"), "-l", locale, "-q"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     txt = dest / "ref.txt"
     one = " ".join(txt.read_text(encoding="utf-8").split())

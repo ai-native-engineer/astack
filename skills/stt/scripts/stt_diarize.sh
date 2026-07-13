@@ -8,14 +8,14 @@
 #   [start end] : 구간만 처리(초). 이동·잡음 구간 제외해 화자 과검출 방지. 예) 0 752
 #
 # env:
-#   ARGMAX_CLI  argmax-cli 경로 (기본: PATH의 argmax-cli)
+#   ARGMAX_CLI  argmax-cli 경로 (기본 ~/Dev/argmax-oss-swift/.build/release/argmax-cli)
 #   STT_OUT     출력 루트 (기본 ./stt)
 #   STT_LANG    전사 언어 코드 (기본 ko)
 # 출력: <STT_OUT>/YYMMDD-HHMM/{transcript.md, diarized.md}
 set -euo pipefail
 
 AUDIO="$1"; MODE="${2:-apple}"; START="${3:-}"; END="${4:-}"
-CLI="${ARGMAX_CLI:-argmax-cli}"
+CLI="${ARGMAX_CLI:-$HOME/Dev/argmax-oss-swift/.build/release/argmax-cli}"
 LANG_CODE="${STT_LANG:-ko}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 OUT="${STT_OUT:-$PWD/stt}/$(date +%y%m%d-%H%M)"

@@ -10,7 +10,7 @@
 ## 구조
 - `SKILL.md` — 라우팅·모드·빠른 사용(항상 로드).
 - `references/voice-clone.md` — 셋업·레퍼런스 준비·함정·튜닝·대안 엔진(작업 시 로드).
-- `scripts/tts_clone.py` — stdlib 전용 드라이버. `preptext`로 한국어 발화용 텍스트를 만들고, mlx_audio/mlx_whisper/ffmpeg를 PATH로 호출(절대경로 하드코딩 없음). 모델은 `--model`로 교체 가능(범용).
+- `scripts/tts_clone.py` — stdlib 전용 드라이버. `preptext`로 한국어 발화용 텍스트를 만들고, mlx_audio/ffmpeg를 PATH로, apple-stt를 `~/scripts/apple-stt`로 호출(전사). 모델은 `--model`로 교체 가능(범용).
 
 ## 분리 이력
 `stt` 스킬에 있던 빈약한 TTS 섹션(`say -v Yuna`, STT 왕복 테스트용)을 이 스킬로 이관. `stt`는 STT 전용으로 좁히고 TTS 라우팅 키워드 제거 → 두 스킬 라우팅 중복 방지.
