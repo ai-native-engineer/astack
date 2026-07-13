@@ -57,6 +57,13 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 - Early cut (`v0.1.0`). Some `voice-memos` docs reference `~/.claude/skills/voice-memos/...` paths that assume a symlinked install; running purely as a plugin may need path tweaks for the helper scripts.
 - More skills will be added after this MVP.
 
+## Test
+
+```bash
+python3 tests/test_repository.py
+claude plugin validate .
+```
+
 ## License
 
 MIT © Seungwon An (Aiden) — see [LICENSE](LICENSE).
