@@ -16,7 +16,7 @@ range_start: 2026-04-14
 range_end: 2026-06-08
 anchor: "1780904238.829539"
 items: 23
-scope: "general, team-updates"
+scope: "pj-내부-그랜터, pj-외부-그랜터"
 ---
 
 # <프로젝트> — <소스> 맥락 아카이브
@@ -71,10 +71,10 @@ anchor를 못 구하는 소스는 빈 문자열로 두고, 머지 시 기존 본
 
 ```bash
 # 전체 소스 현황 표
-python3 ~/.claude/skills/project-context-gather/scripts/context_status.py 01-context/company
+python3 ~/.agents/skills/shared/project-collect/scripts/context_status.py 01-context/company
 
 # 특정 소스의 anchor만 (재수집 증분 검색에 그대로 사용)
-python3 ~/.claude/skills/project-context-gather/scripts/context_status.py 01-context/company --source slack
+python3 ~/.agents/skills/shared/project-collect/scripts/context_status.py 01-context/company --source slack
 ```
 
 기존(frontmatter 없는) 아카이브는 스크립트가 파일명·본문 헤더에서 best-effort로 파싱해 `*`로 표시한다. 다음 머지 때 위 frontmatter를 얹으면 정식 관리로 전환된다.

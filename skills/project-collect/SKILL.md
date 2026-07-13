@@ -1,12 +1,13 @@
 ---
-argument-hint: "[topic]"
-name: project-context-gather
-description: "Project context gathering across personal/collaboration tools into per-source archives under the current project's context folder with attachments preserved. Use when user asks 맥락 가져와줘, 프로젝트 맥락 수집, 관련한 모든 맥락, context 수집, gather context, or project-context-gather. Do NOT use for external web/YouTube research, company public research, daily brief, or direct source-specific actions without archiving."
+name: project-collect
+description: "Collects project context from Slack, Notion, Google Workspace, Obsidian, voice notes, recordings, and local sources into per-source archives under the current project's context folder with attachments preserved. Use when user asks 프로젝트 맥락 모아줘, 맥락 가져와줘, context 수집, 자료 모아줘, collect project context, or project-collect. Do NOT use for project cleanup, stale-file review, AGENTS.md maintenance, external web/YouTube research, company public research, daily brief, or source-specific actions without archiving."
 ---
 
-# Project Context Gather
+# Project Collect
 
 주제(키워드)를 받아 등록된 도구들을 검색하고, **관련 맥락을 소스당 1개 통합 아카이브로 정리**해 `01-context/company/`에 저장한다. 원본 파일은 그대로 보존한다. 외부 웹/유튜브 리서치는 하지 않는다.
+
+> **이름 기준**: 신규 호출과 문서에서는 `project-collect`를 쓴다.
 
 > **출력 위치(하위호환)**: 신규 프로젝트는 `01-context/company/`. 기존 `context/`만 있는 레거시 프로젝트는 그대로 `context/`에 머지한다 — `01-context/company/`가 있으면 그걸, 없고 `context/`가 있으면 그걸 쓴다(`scripts/context_status.py`도 같은 순서로 해소). 신규 생성 시에만 `01-context/company/`.
 
