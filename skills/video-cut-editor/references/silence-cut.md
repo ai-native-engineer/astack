@@ -9,15 +9,17 @@
 3. 샘플 재생이 자연스러우면 전체 파일을 새 출력 파일로 만든다.
 4. 출력 후 `ffprobe` 구조 비교와 `ffmpeg -v error -f null -` 디코딩 검사를 확인한다.
 
+마커 제거도 함께 필요하면 3번의 전체 무음 렌더를 최종본으로 쓰지 않는다. 먼저 `marker-cut-plan.reviewed.json`으로 마커 삭제 구간을 확정하고, `scripts/build_mixed_cut_plan.py`로 남는 구간의 무음만 원본 타임라인 좌표에 합친 plan을 만들어 한 번만 렌더한다.
+
 ## 실행
 
 ```bash
-python3 ~/.agents/skills/shared/ffmpeg/scripts/video_silence_cut.py in.mp4 --dry-run
-python3 ~/.agents/skills/shared/ffmpeg/scripts/video_silence_cut.py in.mp4 out.sample.mp4 --test-duration 60
-python3 ~/.agents/skills/shared/ffmpeg/scripts/video_silence_cut.py in.mp4 out.silencecut.mp4
+python3 ~/.agents/skills/shared/video-cut-editor/scripts/video_silence_cut.py in.mp4 --dry-run
+python3 ~/.agents/skills/shared/video-cut-editor/scripts/video_silence_cut.py in.mp4 out.sample.mp4 --test-duration 60
+python3 ~/.agents/skills/shared/video-cut-editor/scripts/video_silence_cut.py in.mp4 out.silencecut.mp4
 ```
 
-기본값은 `-35dB`, `0.8초 이상 무음`, `0.15초 padding`이다. 강의/스크린 녹화에서 말 앞뒤 숨을 조금 남기는 출발점이다.
+기본값은 `-35dB`, `0.8초 이상 무음`, `0.15초 padding`이다. 말 앞뒤가 잘리면 padding을 먼저 늘린다.
 
 ## 원본 형식 보존의 의미
 

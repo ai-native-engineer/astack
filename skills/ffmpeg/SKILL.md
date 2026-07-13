@@ -1,6 +1,6 @@
 ---
 name: ffmpeg
-description: "Local ffmpeg/ffprobe media operations for cutting, joining, silence removal with padding, cut-marker effect-sound timestamp detection, preserving source stream format when possible, compressing, converting, extracting tracks, resizing, FPS, rotating, GIFs, subtitles, thumbnails, audio normalization, HDR-to-SDR, and HEIC conversion. Use when user asks 영상 잘라/합쳐/무음 제거/무음 컷/컷 마커/편집점 효과음/압축/변환, MP4/MOV/webm, 오디오 추출, mp3, GIF, 자막 입혀, 프레임/썸네일, ffmpeg, ffprobe, HDR 제거, or HEIC 변환. Do NOT use for speech-to-text, text-to-speech, CapCut draft editing, YouTube strategy, or image generation."
+description: "Standalone local ffmpeg/ffprobe media utility for command-level media operations: explicit time-range cutting/joining, compressing, converting, extracting tracks, resizing, FPS, rotating, GIFs, subtitles, thumbnails, audio normalization, HDR-to-SDR, HEIC conversion, and advanced ffmpeg encoding/filter questions. Use for ffmpeg, ffprobe, 코덱, 인코딩, 필터, 압축/변환, MP4/MOV/webm, 오디오 추출, mp3, GIF, 자막, 프레임/썸네일, HDR 제거, or HEIC 변환. Do NOT use for 무음 제거, 무음 컷, content-aware cut editing, marker-based retake cleanup, 컷 마커/편집점 효과음 workflow, speech/VAD review cut plans, speech-to-text, text-to-speech, CapCut draft editing, YouTube strategy, or image generation."
 ---
 
 # ffmpeg
@@ -30,13 +30,6 @@ ffmpeg 작업은 두 모드뿐이다. 어느 쪽인지부터 정한다.
 | 작업 | 읽을 것 |
 |---|---|
 | 자르기·합치기·압축·추출·포맷변환·해상도/fps·회전·GIF·자막·썸네일/프레임·배속·볼륨/정규화 | `references/recipes.md` |
-| 무음 제거·무음 컷·silencedetect·padding·원본 형식 보존 테스트 | `references/silence-cut.md` |
-| 컷 마커·편집점 효과음·`triple-pulse.wav` 시점 검출 | `references/cut-marker.md` |
 | Apple HDR(HLG/BT.2020)→SDR, 사이니지/안드로이드 호환, HEIC→JPG/PNG | `references/apple-hdr.md` |
 
 기본 명령은 해당 reference의 레시피를 베끼고, 전체 옵션은 `ffmpeg -h full` / https://ffmpeg.org/ffmpeg.html 에 위임한다.
-
-## 스크립트
-
-- `scripts/video_silence_cut.py` — 로컬 영상 파일 무음 제거. 원본은 보존하고 새 파일만 만든다.
-- `scripts/detect_cut_markers.py` — `triple-pulse.wav` 컷 마커가 들어간 시점을 시간·정확도 테이블로 찾는다.
