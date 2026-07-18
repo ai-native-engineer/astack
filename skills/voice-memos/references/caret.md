@@ -26,7 +26,7 @@ Caret MCP는 Claude Code 런타임 안에서만 호출 가능. Python 스크립�
 3. 검색 결과의 summary만 보고 판단하지 말고, 관련 노트는 `caret_get_note`로 **전문**을 가져온다.
 4. 전문이 10K 토큰을 초과해 파일로 저장된 경우:
    ```bash
-   python3 ~/.claude/skills/voice-memos/scripts/caret_to_md.py <saved_json_path> -o /tmp/caret_note.md
+   python3 scripts/caret_to_md.py <saved_json_path> -o /tmp/caret_note.md
    wc -l /tmp/caret_note.md
    ```
    변환 후 Read 도구로 60줄씩 병렬 읽기 (Voice Memos 전문 읽기와 동일 패턴).
@@ -42,7 +42,7 @@ Caret MCP는 Claude Code 런타임 안에서만 호출 가능. Python 스크립�
 사용자: "프롬프트 관련 메모 찾아줘"
 
 LLM:
-1. python3 ~/.claude/skills/voice-memos/scripts/search.py --keyword "프롬프트"
+1. python3 scripts/search.py --keyword "프롬프트"
    → Voice Memos transcript + 통화 녹음 + Apple Notes 라벨별 결과
 2. caret_search_knowledge(query="프롬프트")
 3. caret_search_notes(query="프롬프트")

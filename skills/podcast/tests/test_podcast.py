@@ -55,6 +55,35 @@ class PodcastTest(unittest.TestCase):
         ElementTree.fromstring(feed)
 
     @unittest.skipUnless(
+        shutil.which("ffmpeg") and shutil.which("ffprobe"),
+        "requires ffmpeg and ffprobe",
+    )
+    def test_chapter_ts_accumulates_chunk_starts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            chunks = Path(directory) / "chunks"
+            chunks.mkdir()
+            for index in (1, 2, 3):
+                subprocess.run(
+                    [
+                        "ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono",
+                        "-t", "1", str(chunks / f"norm_{index:04d}.wav"),
+                    ],
+                    check=True,
+                )
+            result = subprocess.run(
+                [
+                    "python3", str(SKILL / "scripts/chapter_ts.py"),
+                    "--proj", directory, "--lines", "1,3",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertIn("00:00:00 line 1", result.stdout)
+            self.assertIn("00:00:02 line 3", result.stdout)
+            self.assertIn("total 00:00:03", result.stdout)
+
+    @unittest.skipUnless(
         shutil.which("ffmpeg") and shutil.which("ffprobe") and shutil.which("git"),
         "requires ffmpeg, ffprobe, and git",
     )

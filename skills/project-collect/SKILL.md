@@ -104,15 +104,15 @@ description: "Collects project context from Slack, Notion, Google Workspace, Obs
 
 ## 소스별 검색법
 
-소스별 명령 레시피와 하드코딩 식별자(Notion workspace-id, gog 계정 이메일)는 컨텍스트가 무거우니 본문에 두지 않는다. 검색 실행 단계에서 `references/source-search.md`를 읽고 해당 소스 절차를 따른다.
+소스별 명령 레시피와 로컬 설정 조회법은 컨텍스트가 무거우니 본문에 두지 않는다. 검색 실행 단계에서 `references/source-search.md`를 읽고 해당 소스 절차를 따른다.
 
 대상 소스(상세는 `references/source-search.md`):
 
 - Obsidian
 - 음성 4소스 (음성메모·에이닷 통화녹음·Apple Notes·Caret — voice-memos 스킬로 빠짐없이)
-- Notion (workspace-id 매핑 필요)
+- Notion (등록 workspace/alias 조회)
 - Slack (`agent-slack`)
-- Google Workspace (gog — Gmail·Calendar·Drive, 계정 전수)
+- Google Workspace (gog — Gmail·Calendar·Drive, 등록 계정 전수)
 - 미팅/강의 녹화 (OBS·화면녹화)
 
 ## 아카이브 형식

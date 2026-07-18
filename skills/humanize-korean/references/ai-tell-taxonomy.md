@@ -569,18 +569,18 @@ J. 시각 장식 남용 — J-1~J-4
   - **본진 신규**: `C-9` 숫자 괄호 인덱싱 "1) 2) 3)" [S2] — `_workspace/taxonomy_changelog.md` 회차 1에서 풀 후보 `cand-C-2026-001`이 6게이트 통과 후 승격
   - **본진 보강**: `I-2` 시그니처 예문에 "X은 ~라는 점에 있다" 결합형 변종 4건 추가 — 풀 후보 `cand-I-2026-003`이 Gate 2.2(본진 변종)에서 `merged` 처리되며 흡수
   - **운영 인프라 5종 신설**:
-  - **candidate 풀 신설** (`references/pattern-candidates.md`) — detector·rewriter·naturalness-reviewer가 미분류 의심 패턴을 단일 그릇에 누적. 임시 ID(`cand-{대분류}-{YYYY}-{NNN}`)·4상태(pending/promoted/rejected/merged)·기각 사유 5종 라벨·90일 미재현 자동 만료 정책
+  - **candidate 풀 신설** — detector·rewriter·naturalness-reviewer가 미분류 의심 패턴을 단일 그릇에 누적. 임시 ID(`cand-{대분류}-{YYYY}-{NNN}`)·4상태(pending/promoted/rejected/merged)·기각 사유 5종 라벨·90일 미재현 자동 만료 정책
   - **3개 에이전트 적재 채널 명문화** — detector(미분류 span)·rewriter(윤문 저항·반복 잔존)·naturalness-reviewer(외부 시각, voice profile 미주입)에 풀 적재 트리거·절차 추가. 적재 실패는 메인 파이프라인 막지 않음
   - **taxonomist 풀 운영자 역할 추가** — 4가지 trigger(사용자 명시 / pending 10건 / 단일 후보 occurrences ≥ 3 / 외부 PR) 기반 점검. 점검 6단계 절차와 changelog 표준 형식 명문화
-  - **외부 샘플 수집 파이프라인** (`references/sample-collection.md`) — 4축 다양성 매트릭스(모델·장르·길이·작가), 4종 채널(사용자 자발·합성 샘플·공개 데이터·외부 contributor), 익명화·저작권 5대 정책
-  - **승격 자동 검증 체크리스트** (`references/promotion-checklist.md`) — 6개 게이트(사전 점검·재현·본진 중복·분류 적합성·처방 적합성·본진 위계). 일부 게이트(0.2·0.3·1.1·1.2·5.2)는 향후 스크립트 자동화 가능
+  - **외부 샘플 수집 파이프라인** — 4축 다양성 매트릭스(모델·장르·길이·작가), 4종 채널(사용자 자발·합성 샘플·공개 데이터·외부 contributor), 익명화·저작권 5대 정책
+  - **승격 자동 검증 체크리스트** — 6개 게이트(사전 점검·재현·본진 중복·분류 적합성·처방 적합성·본진 위계). 일부 게이트(0.2·0.3·1.1·1.2·5.2)는 향후 스크립트 자동화 가능
   - **v1.3 발행 전 파일럿 회차 결과**:
     - **회차 1 (인프라 검증, 합성 샘플 2건)**: 미분류 후보 3건 발견 → promoted 1건(C-9 숫자 괄호 인덱싱) · hold 1건(메타 진입 '~을 살펴보면', Gate 1.3 분산 미달) · merged 1건(I-2 결합형). 인프라 작동 확인.
     - **회차 2 (외부 진짜 데이터, 뉴스핌 [AI로 읽는 경제] 시리즈 ① ② — ChatGPT 작성 명시 GPT 출력)**: 미분류 후보 5건 발견 → merged 2건(I-3 보강 '~다는 뜻이다' 결말 변종, H-3 보강 '이 점에서·이 관점에서·이 말은' 메타 진입 변종) · hold 3건(H-N 후보 '결국' 문두 단언 9회+, D-N 후보 'A가 아니라 B' 부정-긍정 대구 7회+, C-N 후보 5~8개 콤마 빠른 나열 4회). hold 3건은 Gate 1.3 분산 보호장치가 진짜 외부 데이터에서 정확히 작동한 결과 — 같은 GPT·같은 기자 시리즈의 노이즈가 본진을 오염시키지 않으면서 다음 회차에 다른 모델·다른 작가 데이터에서 재현되면 즉시 promoted 가능한 강력 후보로 풀에 누적
 - **v1.2** (2026-04-25): Issue #1(simonsez9510) 후속 — 패턴 신설 0건, **권한 위계와 운영 체계 추가**:
   - **권한 위계 §1~§6 신설** — 객관 분류 vs 작가 voice profile의 권한 경계 명문화. opt-in 명시 주입, 패턴 ID 단위 무력화만 허용, 자유 텍스트 mandate 금지, A-8·C-5·D-1~D-6 무력화 불가, naturalness-reviewer 분리 검증층 보존, 회귀 게이트 정책
   - **임계 완화 multiplier 캡표** — 일반 ≤ 2.0, D-1~D-6 ≤ 1.5, A-8·C-5 = 1.0 고정 (임계 우회를 통한 사실상 무력화 방지)
-  - **`author-context.yaml` 스키마** 신설 (`references/author-context-schema.md`) — opt-in voice profile 주입 양식, Schema validator 책임(무력화 불가 disable 거부, multiplier 캡 위반 거부, prompt injection escape character 검증), Telemetry 정책(`voice_profile_log.json`)
+  - **author-context 스키마** 신설 — opt-in voice profile 주입 양식, Schema validator 책임(무력화 불가 disable 거부, multiplier 캡 위반 거부, prompt injection escape character 검증), Telemetry 정책(`voice_profile_log.json`)
   - **에이전트 정의 갱신** — detector·rewriter·auditor에 voice profile 주입, naturalness-reviewer 의도적 미주입 명문화
   - **경로 토큰화** — SKILL.md 절대 경로 제거, `_workspace/`는 cwd 기준
   - **다운스트림 caller reference** — `references/proposals/`(PR #3, simonsez9510 어댑터 reference, 메인테이너 SSOT 외부 격리)

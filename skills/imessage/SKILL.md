@@ -10,8 +10,19 @@ allowed-tools: Bash
 macOS Messages를 MCP 서버 없이 다룬다. 상시 폴링 프로세스도, `claude --channels` 플래그도 필요 없다.
 
 - **읽기·검색**: `~/Library/Messages/chat.db`를 readonly SQLite로 직접 조회. 최신 macOS가 본문을 넣는 `attributedBody`(typedstream)도 디코딩한다.
-- **이름 ↔ 번호**: 연락처(`AddressBook-v22.abcddb`)를 조회해 "홍길동" 같은 이름으로 바로 검색·전송한다.
+- **이름 ↔ 번호**: 연락처(`AddressBook-v22.abcddb`)를 조회해 "김수현" 같은 이름으로 바로 검색·전송한다.
 - **전송**: `osascript`로 Messages.app에 발신 (창 안 띄우고 백그라운드). chat.db에 직접 쓰지 않는다 — DB INSERT는 실제 전송이 안 되고 DB만 손상시킨다.
+
+## 메시지 작성 의존성
+
+iMessage/SMS/RCS로 보낼 문구를 작성·수정·발송할 때는 transport 실행 전에 공통 커뮤니케이션 규칙을 먼저 읽는다.
+
+1. `../communication/references/work-message-contract.md`
+2. `../communication/references/style-profiles.md` (저장된 문체를 맞출 때만)
+3. `../communication/references/message-templates.md` (요청·핸드오프·상태 공유일 때)
+4. `../communication/references/channel-overlays/imessage.md`
+
+공통 스킬을 읽을 수 없으면 최소 계약만 따른다: 목적·수신자·액션을 분리하고, 짧고 직접적으로 쓰며, dry-run으로 대상과 본문을 확인한 뒤에만 실제 발송한다.
 
 ## 요건 (한 번만)
 
@@ -20,26 +31,23 @@ macOS Messages를 MCP 서버 없이 다룬다. 상시 폴링 프로세스도, `c
 
 ## 사용법
 
-스크립트: `scripts/imsg.py` (Python stdlib만, 설치 의존성 0).
+스크립트: `scripts/imsg.py` (Python stdlib만, 설치 의존성 0). 아래 명령은 이 스킬 디렉터리에서 실행한다.
 
 ```bash
-PY=/opt/homebrew/bin/python3
-SK="$HOME/.claude/skills/imessage/scripts/imsg.py"
-
 # 연락처/본문 키워드 검색 → 이름·번호·매칭 메시지
-"$PY" "$SK" search 홍길동
+python3 scripts/imsg.py search 김수현
 
 # 특정 상대와의 대화 읽기 (이름·번호·이메일 모두 가능)
-"$PY" "$SK" read 홍길동 --limit 30
-"$PY" "$SK" read +821012345678
-"$PY" "$SK" read someone@icloud.com
+python3 scripts/imsg.py read 김수현 --limit 30
+python3 scripts/imsg.py read +821000000000
+python3 scripts/imsg.py read person@example.com
 
 # 최근 대화방 목록
-"$PY" "$SK" recent --limit 20
+python3 scripts/imsg.py recent --limit 20
 
 # 전송 — 기본은 DRY-RUN(미리보기). 실제 발송은 --yes
-"$PY" "$SK" send 홍길동 "홍길동님, 최종본 전달드립니다."          # 미리보기만
-"$PY" "$SK" send 홍길동 "홍길동님, 최종본 전달드립니다." --yes     # 실제 발송
+python3 scripts/imsg.py send 김수현 "수현님, 최종본 전달드립니다."          # 미리보기만
+python3 scripts/imsg.py send 김수현 "수현님, 최종본 전달드립니다." --yes     # 실제 발송
 ```
 
 ## 전송 안전 규칙 (에이전트용)

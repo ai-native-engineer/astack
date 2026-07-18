@@ -10,6 +10,7 @@ export PATH="$HOME/scripts:/opt/homebrew/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+CONFIG_FILE="${VOICE_MEMOS_CONFIG_FILE:-$HOME/.config/voice-memos/.env}"
 LOG_DIR="$HOME/.voice-memos/logs"
 LOG_FILE="$LOG_DIR/watcher.log"
 TEMP_LOG=$(mktemp)
@@ -21,10 +22,10 @@ fi
 
 mkdir -p "$LOG_DIR"
 
-# .env에서 Telegram 설정 로드
-if [ -f "$PROJECT_DIR/.env" ]; then
-    TELEGRAM_BOT_TOKEN=$(grep -s '^TELEGRAM_BOT_TOKEN=' "$PROJECT_DIR/.env" | cut -d'=' -f2)
-    TELEGRAM_CHAT_ID=$(grep -s '^TELEGRAM_CHAT_ID=' "$PROJECT_DIR/.env" | cut -d'=' -f2)
+# 사용자 로컬 설정에서 Telegram 설정 로드
+if [ -f "$CONFIG_FILE" ]; then
+    TELEGRAM_BOT_TOKEN=$(grep -s '^TELEGRAM_BOT_TOKEN=' "$CONFIG_FILE" | cut -d'=' -f2)
+    TELEGRAM_CHAT_ID=$(grep -s '^TELEGRAM_CHAT_ID=' "$CONFIG_FILE" | cut -d'=' -f2)
 fi
 
 send_error_alert() {

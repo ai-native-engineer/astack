@@ -4,15 +4,20 @@
 
 ## 구성
 
-- Label: `com.user.voicememos-watcher`
-- plist: `~/Library/LaunchAgents/com.user.voicememos-watcher.plist`
-- 실행: `/bin/bash ~/.claude/skills/voice-memos/scripts/run.sh` (plist는 symlink 아닌 real path 사용)
+- Label과 plist 이름은 설치 환경에서 정한다. 진단 전에 기존 plist와 Label을 찾는다.
+- 실행: `/bin/bash` + 현재 로드된 스킬 루트의 `scripts/run.sh` real path
 - WatchPaths (둘 중 하나에 파일이 생기면 트리거):
   - `~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings` (Voice Memos)
   - `~/Library/Mobile Documents/com~apple~CloudDocs/녹음` (에이닷 통화)
 - 로그: `~/.voice-memos/logs/watcher.log` (**로컬**, 1,000줄 초과 시 최근 500줄만 유지)
 
-**경로 분리 규칙 (중요)**: 전사 산출물(`transcripts/`·`corrections.json`)은 iCloud(`~/.voice-memos/`)에 두되, **로그와 plist의 `StandardOutPath`/`StandardErrorPath`, run.sh의 `LOG_DIR`은 반드시 로컬(`~/.voice-memos/logs/`)**이어야 한다. launchd는 iCloud Drive 동기화 폴더에 파일을 쓰지 못해, 로그를 거기 두면 잡이 `EX_CONFIG`로 실행조차 못 한다(진단 B).
+```bash
+WATCHER_PLIST="$(find "$HOME/Library/LaunchAgents" -maxdepth 1 -type f -name '*.plist' -exec grep -l 'voice-memos/scripts/run.sh' {} + | head -n 1)"
+test -n "$WATCHER_PLIST" || { echo "voice-memos watcher plist not found" >&2; exit 1; }
+WATCHER_LABEL="$(/usr/libexec/PlistBuddy -c 'Print :Label' "$WATCHER_PLIST")"
+```
+
+**경로 분리 규칙 (중요)**: 전사 산출물(`transcripts/`·`corrections.json`)은 `VOICE_MEMOS_DATA_DIR`에 둔다. 미설정 기본값은 `~/Library/Mobile Documents/com~apple~CloudDocs/voice-memos/`다. 알림 자격증명은 `~/.config/voice-memos/.env`(`VOICE_MEMOS_CONFIG_FILE`로 재지정 가능), 로그와 plist의 `StandardOutPath`/`StandardErrorPath`, run.sh의 `LOG_DIR`은 로컬 `~/.voice-memos/logs/`에 둔다. launchd는 iCloud Drive 동기화 폴더에 로그를 쓰지 못해, 로그를 거기 두면 잡이 `EX_CONFIG`로 실행조차 못 한다(진단 B). 데이터 루트나 설정 파일을 바꾸면 plist의 `EnvironmentVariables`에도 같은 값을 설정한다.
 
 ## run.sh 단계
 
@@ -25,7 +30,7 @@
 
 ## 진단 절차
 
-먼저 `launchctl print gui/$(id -u)/com.user.voicememos-watcher | grep -E "state|last exit"`와 `tail -30 ~/.voice-memos/logs/watcher.log`로 **워처는 도는데 처리를 못 하는지(A)** vs **아예 실행이 안 되는지(B)**를 가른다.
+먼저 `launchctl print "gui/$(id -u)/$WATCHER_LABEL" | grep -E "state|last exit"`와 `tail -30 ~/.voice-memos/logs/watcher.log`로 **워처는 도는데 처리를 못 하는지(A)** vs **아예 실행이 안 되는지(B)**를 가른다.
 
 Telegram 에러 알림을 받은 경우는 전달된 로그의 **마지막 실패 단계**를 먼저 본다. `1/4 음성 메모 전사`에서 `0/N 처리됨`이나
 `결과 없음(무음/인식 실패)`가 같이 보여도, `3/4 요약 생성`에 `Fatal error in message reader`가 있으면 전사 실패가 아니라 요약 단계가 원인이다.
@@ -41,7 +46,7 @@ Telegram 에러 알림을 받은 경우는 전달된 로그의 **마지막 실�
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
 ```
 
-검증: `bash ~/.claude/skills/voice-memos/scripts/verify_fda.sh` — 워처 plist를 안 건드리고 일회성 잡으로 `bash→python3` 체인을 재현해 폴더 개수만 센다(부작용 없음). `count>0`이면 성공.
+검증: `bash scripts/verify_fda.sh` — 워처 plist를 안 건드리고 일회성 잡으로 `bash→python3` 체인을 재현해 폴더 개수만 센다(부작용 없음). `count>0`이면 성공.
 
 ### B. 워처가 아예 실행 안 됨 — 로그가 iCloud 경로 (EX_CONFIG)
 
@@ -49,13 +54,13 @@ open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
 
 ### 밀린 분량 처리
 
-직접 `extract.py`를 돌리지 말고 **워처가 처리하게** `launchctl kickstart -k gui/$(id -u)/com.user.voicememos-watcher`. run.sh의 `extract.py --all`은 `--force`가 없어 기존 transcript는 스킵 → 중복 전사가 없다(summary도 처리 마커로 스킵). 알림 없이 돌리려면 `bash ~/.claude/skills/voice-memos/scripts/run.sh --skip-notify`.
+직접 `extract.py`를 돌리지 말고 **워처가 처리하게** `launchctl kickstart -k "gui/$(id -u)/$WATCHER_LABEL"`. run.sh의 `extract.py --all`은 `--force`가 없어 기존 transcript는 스킵 → 중복 전사가 없다(summary도 처리 마커로 스킵). 알림 없이 돌리려면 `bash scripts/run.sh --skip-notify`.
 
 ## 재시작·상태 확인
 
 ```bash
-launchctl print gui/$(id -u)/com.user.voicememos-watcher        # 상태 확인
-launchctl bootout gui/$(id -u)/com.user.voicememos-watcher 2>/dev/null
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.user.voicememos-watcher.plist
-launchctl kickstart -k gui/$(id -u)/com.user.voicememos-watcher  # 즉시 1회 실행
+launchctl print "gui/$(id -u)/$WATCHER_LABEL"        # 상태 확인
+launchctl bootout "gui/$(id -u)/$WATCHER_LABEL" 2>/dev/null
+launchctl bootstrap "gui/$(id -u)" "$WATCHER_PLIST"
+launchctl kickstart -k "gui/$(id -u)/$WATCHER_LABEL" # 즉시 1회 실행
 ```

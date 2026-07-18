@@ -1,14 +1,23 @@
 # astack
 
-**Aiden's Stack** — a small, curated set of [Claude Code](https://docs.claude.com/en/docs/claude-code) skills I actually use every day, packaged as a plugin.
+**Aiden's Stack** — a small, curated set of skills for [Claude Code](https://docs.claude.com/en/docs/claude-code) and Codex, packaged as a plugin.
 
 > The skills respond in Korean by default (they grew out of Korean voice/notes workflows), but the mechanics work in any language.
 
 ## Install
 
+### Claude Code
+
 ```text
 /plugin marketplace add ai-native-engineer/astack
 /plugin install astack@astack
+```
+
+### Codex
+
+```bash
+codex plugin marketplace add ai-native-engineer/astack
+codex plugin add astack@astack
 ```
 
 Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
@@ -28,7 +37,8 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 | `html-explainer` | Single-file HTML explainers in two types, chosen up front: **visual** (static, at-a-glance) builds on a verified stack — Mermaid v11 + ELK auto-layout diagrams (text DSL, no manual coordinates → no overlaps), Apache ECharts 6 (built-in dark theme), Iconify icons; **interactive** (learner-driven walkthrough) is a build-less React 18 + Babel single file with click-through steps, a state machine, keyboard nav, and per-step demos. Both auto dark/light, animations comprehension-only (no decorative fade-ins). Ships a wired template per type, two completed interactive examples, curated pitfall guides (license traps, dead libs, AI-hallucination patterns; interactive-specific gotchas), and a headless render-verify script run before opening. | `chrome-devtools-cli` skill's CLI (for `verify.sh`), internet for CDNs (jsDelivr/unpkg) |
 | `data-go-kr` | Work-unit access to any Korean public-data API (data.go.kr): search the catalog → application guide → call, caching each successful call as a recipe (NTS business status, G2B bid/award info, …) with official reference docs preserved alongside. Calls hit the API directly with your own key — no proxy. | `DATA_GO_KR_API_KEY` (free data.go.kr account; per-API 활용신청), `curl`, Python 3 |
 | `company-context-research` | Pre-outreach / diligence company research → a per-company evidence package with public-surface mapping, recursive crawl and attachments, press inventory, normalized official data, canonical JSON, and a validated local HTML viewer. | Python 3, `crawl` and `data-go-kr` skills, Naver Developers app keys, (optional) `open-api`, DART key, Tavily CLI |
-| `tts` | Local text-to-speech & voice cloning (Qwen3-TTS via mlx-audio; offline after model download) — ships with the bundled `aiden` voice, stores newly registered voices under `voices/<name>/`, and supports `full`/`chunk` generation, partial regeneration, cutoff audit, and edit-ready loudness normalization. | macOS (Apple Silicon), `mlx-audio`, `ffmpeg`, (optional) `apple-stt` for automatic reference transcription |
+| `communication` | Shared work-message contract and channel-specific writing overlays used by transport skills. | None |
+| `tts` | Local text-to-speech & voice cloning (Qwen3-TTS via mlx-audio; offline after model download) — keeps personal voice references in a local data directory outside the plugin and supports `full`/`chunk` generation, partial regeneration, cutoff audit, and edit-ready loudness normalization. | macOS (Apple Silicon), `mlx-audio`, `ffmpeg`, (optional) `apple-stt` for automatic reference transcription |
 | `stt` | Local speech-to-text + optional speaker diarization — transcribe audio/video (full or time-range) with macOS `apple-stt` (Vision, fast) or `argmax-cli` (WhisperKit), then build speaker-labeled transcripts by aligning text with a diarization timeline. Optional OpenAI/ElevenLabs cloud for sensitive-free audio. | macOS (`apple-stt` 26+ Vision binary on PATH), `ffmpeg`, (optional) `argmax-cli` (argmax-oss-swift), (optional) OpenAI/ElevenLabs API keys |
 | `podcast` | Draft, render, or explicitly publish a podcast episode from a news recap or script. Includes spoken-script and show-notes conventions, TTS routing, Apple/Spotify-compatible HTML show notes, validated RSS date ordering, dry-run preflight, and GitHub Releases + Pages publishing. | `gh` (authenticated), `ffmpeg`/`ffprobe`, Python 3, `tts` skill (for voice) |
 | `ffmpeg` | Standalone `ffmpeg`/`ffprobe` (+ macOS `sips`) operations — explicit cuts/joins, compress/convert, extract tracks, resize, FPS, rotate, GIFs, subtitles, thumbnails, normalization, HDR-to-SDR, and HEIC. | `ffmpeg`/`ffprobe` (macOS `sips` for HEIC) |
@@ -41,7 +51,6 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 | `kakaotalk` | macOS KakaoTalk read/search/send via the Accessibility API (atomacos) — list/search chatrooms, read history, send messages, all without stealing the mouse cursor (keyboard + AX actions only). Self-contained minimal message contract before sending. | macOS, KakaoTalk app, Python 3 (`atomacos`) |
 | `goal-plan` | Durable `/goal` harness for long-running agent work: `AGENTS.md` instructions plus a `progress.tsv` scoreboard, scaffolded into an external worktree or dedicated goal repo so every loop step is resumable through git. | git, Python 3 (stdlib only) |
 | `project-organize` | Audit a project workspace for current truth, stale drafts, legacy outputs, cleanup/archive candidates, and AGENTS/README index drift; proposes changes before acting. | `rg`, git (optional) |
-| `curriculum` | Full lifecycle for beginner/non-developer lecture & course material — design (Backward Design + ADDIE), source research, authoring, Notion sync, and review. Script-enforced quality gates (`curriculum_gate.py`) for deep-source exploration, media verification, hallucination blocking, and draft review. Fill in your own Notion workspace IDs/tokens. | Python 3, `ntn` CLI (for Notion sync) |
 
 ## voice-memos setup
 
@@ -49,19 +58,19 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 
 - `apple-stt` (macOS SpeechAnalyzer) for transcription; `ffmpeg` for `.qta` files
 - Python deps: `cd skills/voice-memos && uv sync`
-- **Optional notifications**: copy `skills/voice-memos/.env.example` → `skills/voice-memos/.env` and fill in your Telegram/Discord values. Everything else works without it; only sending is skipped.
+- **Optional notifications**: place Telegram/Discord values in `~/.config/voice-memos/.env` (or set `VOICE_MEMOS_CONFIG_FILE`). Everything else works without it; only sending is skipped.
 - **Optional automation**: register a launchd LaunchAgent that runs `scripts/run.sh` on new recordings — setup, log reading, and Full Disk Access diagnostics in `skills/voice-memos/references/watcher.md`.
 
-## Notes
+## Maintainer
 
-- Early cut (`v0.1.0`). Some `voice-memos` docs reference `~/.claude/skills/voice-memos/...` paths that assume a symlinked install; running purely as a plugin may need path tweaks for the helper scripts.
-- More skills will be added after this MVP.
+The source of truth is `~/.agents/skills/shared/`. This repository's `skills/` directory is generated; do not edit it directly. Run `scripts/sync.sh` after validating the shared skills, then validate both plugin manifests before committing.
 
 ## Test
 
 ```bash
 python3 tests/test_repository.py
-claude plugin validate .
+claude plugin validate .claude-plugin/plugin.json --strict
+claude plugin validate .claude-plugin/marketplace.json --strict
 ```
 
 ## License

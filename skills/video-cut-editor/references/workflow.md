@@ -19,7 +19,7 @@ Timeline boundaries come from audio evidence, not STT.
 1. Analyze the original media.
 
 ```bash
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/video_cut_workflow.py analyze INPUT.mp4
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/video_cut_workflow.py analyze INPUT.mp4
 ```
 
 2. Read the generated `review.md`.
@@ -29,25 +29,25 @@ python3 ~/.agents/skills/shared/video-cut-editor/scripts/video_cut_workflow.py a
 4. Audit the plan.
 
 ```bash
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/audit_cut_plan.py cut-plan.json
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/audit_cut_plan.py cut-plan.json
 ```
 
 5. Dry-run render once.
 
 ```bash
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/video_cut_workflow.py render cut-plan.json --dry-run
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/video_cut_workflow.py render cut-plan.json --dry-run
 ```
 
 6. Render the reviewed plan. The final media stays at `OUTPUT.mp4`; generated evidence goes under `OUTPUT.video-cut-artifacts/` by default.
 
 ```bash
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/video_cut_workflow.py render cut-plan.json --output OUTPUT.mp4
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/video_cut_workflow.py render cut-plan.json --output OUTPUT.mp4
 ```
 
 7. Audit rendered waveform continuity at actual joins only.
 
 ```bash
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/audit_waveform_joins.py OUTPUT.mp4 OUTPUT.video-cut-artifacts/OUTPUT.join-map.json
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/audit_waveform_joins.py OUTPUT.mp4 OUTPUT.video-cut-artifacts/OUTPUT.join-map.json
 ```
 
 8. For multi-file deliverables, spot-check marker-risk joins before merge.
@@ -55,19 +55,19 @@ python3 ~/.agents/skills/shared/video-cut-editor/scripts/audit_waveform_joins.py
 9. Merge only the edited files that passed spot-check and decode verification. The final media stays at `MERGED.mp4`; merge evidence goes under `MERGED.video-cut-artifacts/` by default.
 
 ```bash
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/merge_reviewed_outputs.py --output MERGED.mp4 --spot-check-summary spot-check-summary.json PART1.edited.mp4 PART2.edited.mp4
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/merge_reviewed_outputs.py --output MERGED.mp4 --spot-check-summary spot-check-summary.json PART1.edited.mp4 PART2.edited.mp4
 ```
 
 10. Audit the merged waveform joins against the merged join map.
 
 ```bash
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/audit_waveform_joins.py MERGED.mp4 MERGED.video-cut-artifacts/MERGED.join-map.json
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/audit_waveform_joins.py MERGED.mp4 MERGED.video-cut-artifacts/MERGED.join-map.json
 ```
 
 11. After delivery is accepted, dry-run cleanup before deleting generated evidence/log artifacts.
 
 ```bash
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/cleanup_artifacts.py WORKDIR
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/cleanup_artifacts.py WORKDIR
 ```
 
 ## Request Modes

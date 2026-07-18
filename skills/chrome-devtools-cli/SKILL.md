@@ -10,7 +10,7 @@ description: chrome-devtools CLI(chrome-devtools-mcp 패키지의 standalone CLI
 
 `chrome-devtools`는 `chrome-devtools-mcp` 패키지가 제공하는 **전역 CLI 바이너리**다. MCP 서버 대신 on-demand로 Bash에서 호출해 헤드리스 Chrome을 제어한다(컨텍스트 비용 0, 풀 기능, Google 공식 유지보수). MCP의 모든 도구가 그대로 서브커맨드로 노출된다.
 
-**권장**: 같은 패키지를 MCP 서버로도 등록할 수 있지만(도구 ~40개가 컨텍스트에 상주), 컨텍스트 절약을 위해 MCP 등록은 빼고 이 CLI로만 on-demand 호출하는 구성을 권장한다. `mcp__chrome-devtools__*` 도구가 안 보여도 정상이다.
+**권장**: 같은 패키지를 MCP 서버로도 등록할 수 있지만 도구가 컨텍스트에 상주한다. 기본은 이 CLI를 on-demand로 호출하고, MCP 도구가 없어도 정상으로 본다.
 
 설치 확인: `which chrome-devtools` (없으면 `pnpm add -g chrome-devtools-mcp@latest`).
 

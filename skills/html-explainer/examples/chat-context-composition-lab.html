@@ -147,6 +147,12 @@
       box-shadow: 0 1px 2px rgba(0, 0, 0, .03);
     }
     .new-chat:hover, .nav-item:hover, .icon-button:hover, .ghost-button:hover { background: var(--hover); }
+    .new-chat.context-full {
+      border-color: #dc2626;
+      background: color-mix(in srgb, #dc2626 8%, var(--surface));
+      color: #b91c1c;
+      box-shadow: 0 0 0 3px color-mix(in srgb, #dc2626 14%, transparent);
+    }
 
     .nav-label {
       margin: 24px 10px 8px;
@@ -230,6 +236,22 @@
       color: var(--muted);
       font-size: 12px;
       font-weight: 500;
+    }
+    .model-select {
+      min-width: 132px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 7px 30px 7px 10px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .model-select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
     .header-actions { display: flex; gap: 6px; }
     .icon-button {
@@ -318,6 +340,8 @@
       animation: arrive .24s ease-out both;
     }
     .turn.user { justify-content: flex-end; }
+    .turn.attachment { justify-content: flex-end; }
+    .turn.context-action { justify-content: center; margin: 2px 0 22px; }
     .turn[data-context-index] .bubble { cursor: pointer; }
     .turn.context-selected .bubble {
       outline: 2px solid var(--accent);
@@ -338,6 +362,54 @@
       width: 100%;
       padding: 4px 0;
     }
+    .attachment-bubble {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      gap: 10px;
+      width: min(360px, 82%);
+      padding: 11px 13px;
+      border: 1px solid color-mix(in srgb, #14b8a6 45%, var(--line));
+      border-radius: 16px 16px 5px 16px;
+      background: color-mix(in srgb, #14b8a6 10%, var(--surface));
+      cursor: pointer;
+    }
+    .attachment-bubble-icon {
+      display: grid;
+      width: 24px;
+      height: 24px;
+      place-items: center;
+      border-radius: 7px;
+      background: #14b8a6;
+      color: white;
+      font-size: 14px;
+    }
+    .attachment-bubble strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .attachment-bubble small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .context-action-card {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 10px;
+      width: min(500px, 92%);
+      padding: 11px 13px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface-2);
+    }
+    .context-action-icon {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--faint);
+      color: var(--surface);
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .context-action-card strong { display: block; font-size: 12px; }
+    .context-action-card small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .context-action-card.clear { border-color: color-mix(in srgb, #dc2626 36%, var(--line)); }
+    .context-action-card.clear .context-action-icon { background: #dc2626; }
     .speaker {
       display: flex;
       align-items: center;
@@ -383,6 +455,34 @@
       background: var(--surface);
       box-shadow: 0 8px 30px rgba(0, 0, 0, .08);
     }
+    .composer.context-full { border-color: #dc2626; }
+    .context-limit-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 10px;
+      padding: 10px 11px;
+      border: 1px solid color-mix(in srgb, #dc2626 45%, var(--line));
+      border-radius: 12px;
+      background: color-mix(in srgb, #dc2626 8%, var(--surface));
+    }
+    .context-limit-actions strong { display: block; font-size: 12px; color: #dc2626; }
+    .context-limit-actions span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .context-limit-actions div { display: flex; gap: 6px; flex-shrink: 0; }
+    .context-limit-actions button {
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+    }
+    .context-limit-actions button:first-child { border-color: #dc2626; color: #dc2626; }
+    textarea:disabled { cursor: not-allowed; opacity: .55; }
     textarea {
       display: block;
       width: 100%;
@@ -402,6 +502,59 @@
       justify-content: space-between;
       margin-top: 5px;
     }
+    .composer-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .attachment-button {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border: 0;
+      border-radius: 9px;
+      background: var(--surface-2);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+    }
+    .attachment-button:hover { color: var(--text); background: var(--hover); }
+    .attachment-button svg { width: 18px; height: 18px; }
+    .attachment-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 0 8px;
+    }
+    .attachment-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+      padding: 5px 7px 5px 9px;
+      border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+      border-radius: 9px;
+      background: var(--accent-soft);
+      color: var(--text);
+      font-size: 11px;
+    }
+    .attachment-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attachment-chip small { color: var(--muted); white-space: nowrap; }
+    .attachment-chip button {
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      line-height: 1;
+    }
+    .attachment-chip button:hover { background: var(--hover); color: var(--text); }
     .composer-hint { color: var(--faint); font-size: 11px; }
     .send {
       display: grid;
@@ -487,6 +640,13 @@
       background: linear-gradient(90deg, var(--accent), #22c55e);
       transition: width .35s ease;
     }
+    .meter-fill.over { background: #dc2626; }
+    .model-limit-note {
+      margin: 8px 0 0;
+      color: var(--faint);
+      font-size: 10px;
+      line-height: 1.45;
+    }
     .composition-label {
       display: flex;
       align-items: center;
@@ -500,11 +660,12 @@
       position: relative;
       display: flex;
       height: 24px;
-      overflow: visible;
+      overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 6px;
       background: var(--surface-2);
     }
+    .composition-bar.over-limit { border-color: #dc2626; }
     .composition-segment {
       position: relative;
       min-width: 0;
@@ -872,11 +1033,11 @@
 <body>
   <div class="app">
     <aside class="sidebar" aria-label="대화 목록">
-      <div class="brand" aria-label="Context Lab">
+      <div class="brand" aria-label="조코딩 AX Context Lab">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 64 64" role="img"><path d="M7 48 26 14a7 7 0 0 1 12 0l18 34H44L32 25 19 48Z" fill="#2d64fa"/><path d="m25 48 20-31h12L37 48Z" fill="#f6c205"/></svg>
         </span>
-        <span class="brand-copy"><span class="brand-name">Context <b>Lab</b></span><span class="brand-subtitle">Conversation Context</span></span>
+        <span class="brand-copy"><span class="brand-name">조코딩 <b>AX</b></span><span class="brand-subtitle">Context Lab</span></span>
       </div>
       <button class="new-chat" id="newChat" type="button"><span>새 대화</span><span aria-hidden="true">＋</span></button>
       <p class="nav-label">오늘</p>
@@ -888,7 +1049,7 @@
 
     <main class="chat">
       <header class="chat-header">
-        <div class="model">GPT Context Demo <small>API 연결 없음</small></div>
+        <div class="model">Context Lab <small>API 연결 없음</small></div>
         <div class="header-actions">
           <button class="icon-button" id="themeToggle" type="button" aria-label="테마 전환" title="테마 전환">◐</button>
           <button class="icon-button context-toggle" id="contextToggle" type="button" aria-label="컨텍스트 패널 열기" title="컨텍스트 보기">⌘</button>
@@ -911,11 +1072,29 @@
       <div class="composer-wrap">
         <form class="composer" id="composer">
           <label class="sr-only" for="prompt">메시지 입력</label>
-          <textarea id="prompt" rows="1" placeholder="메시지를 입력하세요"></textarea>
-          <div class="composer-row">
-            <span class="composer-hint">Enter 전송, Shift + Enter 줄바꿈</span>
-            <button class="send" id="sendButton" type="submit" aria-label="메시지 보내기" disabled>↑</button>
+          <div class="context-limit-actions" id="contextLimitActions" hidden>
+            <div><strong>컨텍스트 창이 가득 찼습니다</strong><span>압축하거나 비우세요. 새 세션은 왼쪽의 새 대화에서 시작할 수 있습니다.</span></div>
+            <div><button id="compactButton" type="button">압축</button><button id="clearContextButton" type="button">비우기</button></div>
           </div>
+          <div class="attachment-list" id="attachmentList" hidden aria-live="polite"></div>
+          <textarea id="prompt" rows="1" placeholder="메시지를 입력하세요"></textarea>
+          <div class="composer-row" hidden>
+            <div class="composer-actions">
+              <input id="fileInput" type="file" multiple hidden accept=".txt,.md,.csv,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*">
+              <button class="attachment-button" id="attachButton" type="button" aria-label="파일 또는 사진 추가" title="파일 또는 사진 추가"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m21.4 11.6-8.9 8.9a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg></button>
+              <span class="composer-hint">Enter 전송, Shift + Enter 줄바꿈</span>
+            </div>
+            <div class="composer-actions">
+              <label class="sr-only" for="modelSelect">컨텍스트 모델 선택</label>
+              <select class="model-select" id="modelSelect" aria-label="컨텍스트 모델 선택">
+                <option value="demo">학습용 데모</option>
+                <option value="haiku">Haiku 4.5</option>
+                <option value="sonnet">Sonnet 5 최대</option>
+              </select>
+              <button class="send" id="sendButton" type="submit" aria-label="메시지 보내기" disabled>↑</button>
+            </div>
+          </div>
+          <div id="reactComposerControls"></div>
         </form>
         <p class="disclaimer">오른쪽 수치는 이해를 돕기 위한 토큰 추정치입니다.</p>
       </div>
@@ -932,14 +1111,16 @@
       </div>
 
       <div class="meter-wrap">
-        <div class="meter-label"><span>전체 사용량</span><strong id="tokenCount">0 / 16K tokens</strong></div>
+        <div class="meter-label"><span>입력 컨텍스트 사용량</span><strong id="tokenCount">0 / 16K tokens</strong></div>
         <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
         <div class="composition-label"><span>현재 컨텍스트 구성</span><span id="compositionCount">0 / 16K tokens</span></div>
         <div class="composition-bar" id="contextBar" aria-label="역할별 컨텍스트 구성"></div>
+        <p class="model-limit-note" id="modelLimitNote">같은 대화도 모델마다 수용할 수 있는 입력 컨텍스트가 다릅니다.</p>
         <div class="role-legend">
           <span class="legend-item"><i class="legend-dot" style="background:var(--system)"></i>시스템</span>
           <span class="legend-item"><i class="legend-dot" style="background:var(--accent)"></i>사용자</span>
           <span class="legend-item"><i class="legend-dot" style="background:var(--assistant)"></i>AI 응답</span>
+          <span class="legend-item"><i class="legend-dot" style="background:#14b8a6"></i>첨부</span>
           <span class="legend-item zoom-hint">마우스를 올리면 확대</span>
         </div>
       </div>
@@ -967,6 +1148,11 @@
   <script>
     const SYSTEM_PROMPTS_SOURCE = "https://github.com/asgeirtj/system_prompts_leaks";
     const SYSTEM_PROMPT = "당신은 정확하고 친절한 AI 어시스턴트입니다. 이전 대화의 맥락을 참고해 한국어로 간결하게 답하세요.";
+    const CONTEXT_MODELS = {
+      demo: { label: "학습용 데모", inputLimit: 16000, summary: "16K 입력 컨텍스트 · API 연결 없음" },
+      haiku: { label: "Claude Haiku 4.5", inputLimit: 200000, summary: "200K 입력 컨텍스트 · 최대 출력 64K" },
+      sonnet: { label: "Claude Sonnet 5 최대", inputLimit: 1000000, summary: "1M 입력 컨텍스트 · 최대 출력 128K" }
+    };
     const messages = [{ role: "system", content: SYSTEM_PROMPT }];
     const roleMeta = {
       system: {
@@ -986,6 +1172,18 @@
         className: "assistant-card",
         color: "var(--assistant)",
         note: "AI의 답변도 기록됩니다. 다음 요청부터 이전 맥락으로 함께 전달됩니다."
+      },
+      attachment: {
+        label: "Attachment",
+        className: "attachment-card",
+        color: "#14b8a6",
+        note: "첨부한 자료입니다. 이 데모에서는 파일 크기를 토큰으로 환산한 추정치로 컨텍스트 사용량을 보여줍니다."
+      },
+      summary: {
+        label: "Compressed summary",
+        className: "",
+        color: "#64748b",
+        note: "이전 대화와 첨부 자료를 짧은 요약으로 압축해 다음 작업을 위한 공간을 확보했습니다."
       }
     };
 
@@ -998,16 +1196,44 @@
     const contextBar = $("#contextBar");
     const contextDetail = $("#contextDetail");
     const inspector = $("#inspector");
+    const modelSelect = $("#modelSelect");
+    const fileInput = $("#fileInput");
+    const attachmentList = $("#attachmentList");
     let generating = false;
     let composing = false;
     let selectedContextIndex = 0;
+    let selectedModelId = "demo";
+    let nextAttachmentId = 1;
+    let pendingAttachments = [];
+
+    function selectedModel() {
+      return CONTEXT_MODELS[selectedModelId];
+    }
+
+    function formatTokenLimit(limit) {
+      if (limit >= 1000000) return (limit / 1000000).toFixed(1).replace(".0", "") + "M";
+      return (limit / 1000).toFixed(0) + "K";
+    }
 
     function estimateTokens(text) {
       return Math.max(1, Math.ceil(new TextEncoder().encode(text).length / 3.2) + 4);
     }
 
+    function tokensFor(item) {
+      return item.tokens ?? estimateTokens(item.content);
+    }
+
+    function estimateAttachmentTokens(file) {
+      const bytesPerToken = file.type.startsWith("image/") ? 180 : 4;
+      return Math.max(1000, Math.round(file.size / bytesPerToken));
+    }
+
+    function formatFileSize(size) {
+      return size >= 1024 * 1024 ? (size / 1024 / 1024).toFixed(1) + "MB" : Math.max(1, Math.round(size / 1024)) + "KB";
+    }
+
     function totalTokens() {
-      return messages.reduce((sum, item) => sum + estimateTokens(item.content), 0);
+      return messages.reduce((sum, item) => sum + tokensFor(item), 0);
     }
 
     function setContextFocus(index, active) {
@@ -1030,15 +1256,29 @@
       contextList.replaceChildren();
       contextBar.replaceChildren();
       const used = totalTokens();
+      const model = selectedModel();
+      const compositionLimit = Math.max(model.inputLimit, used);
+      const isContextFull = used >= model.inputLimit;
+      const composer = $("#composer");
+      composer.classList.toggle("context-full", isContextFull);
+      composer.dataset.contextFull = String(isContextFull);
+      const newChatButton = $("#newChat");
+      newChatButton.classList.toggle("context-full", isContextFull);
+      newChatButton.title = isContextFull ? "컨텍스트가 가득 찼습니다. 새 대화를 시작하세요." : "새 대화";
+      promptEl.disabled = isContextFull;
+      promptEl.placeholder = isContextFull ? "컨텍스트 창이 가득 찼습니다" : "메시지를 입력하세요";
+      fileInput.disabled = isContextFull;
+      $("#contextLimitActions").hidden = !isContextFull;
+      sendButton.disabled = isContextFull || (generating || (!promptEl.value.trim() && pendingAttachments.length === 0));
       let turn = 0;
 
       messages.forEach((item, index) => {
         const meta = roleMeta[item.role];
-        if (item.role === "system" || item.role === "user") {
+        if (item.role === "system" || item.role === "user" || item.role === "attachment") {
           if (item.role === "user") turn += 1;
           const phase = document.createElement("div");
           phase.className = "context-phase";
-          phase.textContent = item.role === "system" ? "대화 시작 전 · 자동 포함" : "대화 " + turn + "턴";
+          phase.textContent = item.role === "system" ? "대화 시작 전 · 자동 포함" : item.role === "attachment" ? "첨부 자료 · 컨텍스트에 추가됨" : "대화 " + turn + "턴";
           contextList.append(phase);
         }
 
@@ -1046,13 +1286,13 @@
         segment.className = "composition-segment";
         segment.style.background = meta.color;
         segment.style.setProperty("--segment-color", meta.color);
-        segment.style.setProperty("--segment-weight", estimateTokens(item.content));
-        segment.style.width = estimateTokens(item.content) / 16000 * 100 + "%";
+        segment.style.setProperty("--segment-weight", tokensFor(item));
+        segment.style.width = tokensFor(item) / compositionLimit * 100 + "%";
         segment.dataset.contextIndex = index;
         segment.tabIndex = 0;
         segment.setAttribute("role", "button");
         segment.setAttribute("aria-label", meta.label + " 선택");
-        segment.title = meta.label + " · 약 " + estimateTokens(item.content) + " tokens";
+        segment.title = meta.label + " · 약 " + tokensFor(item) + " tokens";
         segment.classList.toggle("focused", index === selectedContextIndex);
         segment.addEventListener("mouseenter", () => setContextFocus(index, true));
         segment.addEventListener("mouseleave", () => setContextFocus(index, false));
@@ -1088,7 +1328,7 @@
 
         const tokens = document.createElement("span");
         tokens.className = "tokens";
-        tokens.textContent = "약 " + estimateTokens(item.content) + " tokens";
+        tokens.textContent = "약 " + tokensFor(item) + " tokens";
 
         const copy = document.createElement("div");
         copy.className = "context-copy";
@@ -1099,7 +1339,7 @@
         const tokenFill = document.createElement("div");
         tokenFill.className = "context-token-fill";
         tokenFill.style.background = meta.color;
-        tokenFill.style.width = Math.max(4, estimateTokens(item.content) / Math.max(used, 1) * 100) + "%";
+        tokenFill.style.width = Math.max(4, tokensFor(item) / Math.max(used, 1) * 100) + "%";
         tokenBar.append(tokenFill);
 
         const note = document.createElement("div");
@@ -1121,9 +1361,15 @@
         contextList.append(card);
       });
 
-      $("#tokenCount").textContent = used.toLocaleString("ko-KR") + " / 16K tokens";
-      $("#compositionCount").textContent = used.toLocaleString("ko-KR") + " / 16K tokens";
-      $("#meterFill").style.width = Math.min(100, used / 16000 * 100) + "%";
+      const usage = used / model.inputLimit * 100;
+      $("#tokenCount").textContent = used.toLocaleString("ko-KR") + " / " + formatTokenLimit(model.inputLimit) + " tokens";
+      $("#compositionCount").textContent = usage.toFixed(2) + "% 사용 · " + formatTokenLimit(model.inputLimit) + " tokens";
+      $("#meterFill").style.width = Math.min(100, usage) + "%";
+      $("#meterFill").classList.toggle("over", usage > 100);
+      contextBar.classList.toggle("over-limit", usage > 100);
+      $("#modelLimitNote").textContent = usage > 100
+        ? formatTokenLimit(Math.round(used - model.inputLimit)) + " 초과 - 자료를 빼거나 모델을 바꿔 보세요."
+        : model.summary + " · 첨부 자료는 파일 크기 기반의 학습용 토큰 추정치입니다.";
       const selected = messages[selectedContextIndex] || messages[messages.length - 1];
       const selectedMeta = roleMeta[selected.role];
       contextDetail.replaceChildren();
@@ -1134,7 +1380,7 @@
       detailRole.textContent = selectedMeta.label;
       const detailTokens = document.createElement("span");
       detailTokens.className = "tokens";
-      detailTokens.textContent = "약 " + estimateTokens(selected.content) + " tokens";
+      detailTokens.textContent = "약 " + tokensFor(selected) + " tokens";
       detailHead.append(detailRole, detailTokens);
       const detailCopy = document.createElement("p");
       detailCopy.className = "context-detail-copy";
@@ -1159,6 +1405,75 @@
       document.querySelectorAll(".turn[data-context-index]").forEach((turn) => {
         turn.classList.toggle("context-selected", Number(turn.dataset.contextIndex) === selectedContextIndex);
       });
+      renderAttachments();
+    }
+
+    function renderAttachments() {
+      attachmentList.replaceChildren();
+      attachmentList.hidden = pendingAttachments.length === 0;
+      pendingAttachments.forEach((item) => {
+        const chip = document.createElement("div");
+        chip.className = "attachment-chip";
+        chip.title = item.name + " · 약 " + tokensFor(item).toLocaleString("ko-KR") + " tokens";
+        const name = document.createElement("span");
+        name.textContent = item.name;
+        const tokens = document.createElement("small");
+        tokens.textContent = "약 " + formatTokenLimit(tokensFor(item));
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "×";
+        remove.setAttribute("aria-label", item.name + " 첨부 제거");
+        remove.addEventListener("click", () => removeAttachment(item.id));
+        chip.append(name, tokens, remove);
+        attachmentList.append(chip);
+      });
+    }
+
+    function addAttachments(files) {
+      pendingAttachments.push(...[...files].map((file) => {
+        const id = "attachment-" + nextAttachmentId++;
+        const size = formatFileSize(file.size);
+        return {
+          id,
+          role: "attachment",
+          name: file.name,
+          content: file.name + " · " + size,
+          tokens: estimateAttachmentTokens(file)
+        };
+      }));
+      fileInput.value = "";
+      sendButton.disabled = false;
+      renderAttachments();
+    }
+
+    function removeAttachment(id) {
+      pendingAttachments = pendingAttachments.filter((item) => item.id !== id);
+      sendButton.disabled = generating || (!promptEl.value.trim() && pendingAttachments.length === 0);
+      renderAttachments();
+    }
+
+    function compactContext() {
+      const previous = messages.slice(1);
+      const previousTokens = previous.reduce((sum, item) => sum + tokensFor(item), 0);
+      const attachments = previous.filter((item) => item.role === "attachment").map((item) => item.name);
+      const summary = {
+        id: "summary-" + Date.now(),
+        role: "summary",
+        content: "이전 대화 " + previous.length + "개와 첨부 자료" + (attachments.length ? "(" + attachments.join(", ") + ")" : "") + "를 압축한 요약입니다.",
+        tokens: Math.max(400, Math.round(previousTokens * 0.12))
+      };
+      messages.splice(1, messages.length - 1, summary);
+      selectedContextIndex = 1;
+      renderContext();
+      addContextActionTurn("compact", previous.length, previousTokens);
+    }
+
+    function clearContext() {
+      messages.splice(1);
+      pendingAttachments = [];
+      selectedContextIndex = 0;
+      renderContext();
+      addContextActionTurn("clear");
     }
 
     function addTurn(role, content, contextIndex) {
@@ -1197,8 +1512,67 @@
       return turn;
     }
 
-    function makeReply(input) {
+    function addAttachmentTurn(item, contextIndex) {
+      emptyState.hidden = true;
+      const turn = document.createElement("article");
+      turn.className = "turn attachment";
+      turn.dataset.contextIndex = contextIndex;
+      turn.tabIndex = 0;
+      turn.setAttribute("role", "button");
+      turn.setAttribute("aria-label", "첨부 자료 컨텍스트 강조");
+      const card = document.createElement("div");
+      card.className = "attachment-bubble";
+      const icon = document.createElement("span");
+      icon.className = "attachment-bubble-icon";
+      icon.textContent = "↗";
+      const copy = document.createElement("div");
+      const name = document.createElement("strong");
+      name.textContent = item.name;
+      const detail = document.createElement("small");
+      detail.textContent = "첨부됨 · 약 " + tokensFor(item).toLocaleString("ko-KR") + " tokens";
+      copy.append(name, detail);
+      card.append(icon, copy);
+      turn.append(card);
+      turn.addEventListener("click", () => selectContext(contextIndex));
+      turn.addEventListener("mouseenter", () => setContextFocus(contextIndex, true));
+      turn.addEventListener("mouseleave", () => setContextFocus(contextIndex, false));
+      messagesEl.append(turn);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addContextActionTurn(action, turnCount = 0, previousTokens = 0) {
+      emptyState.hidden = true;
+      const isCompact = action === "compact";
+      const turn = document.createElement("article");
+      turn.className = "turn context-action";
+      turn.setAttribute("role", "status");
+
+      const card = document.createElement("div");
+      card.className = "context-action-card " + action;
+      const icon = document.createElement("span");
+      icon.className = "context-action-icon";
+      icon.textContent = isCompact ? "↻" : "×";
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = isCompact ? "컨텍스트를 압축했습니다" : "컨텍스트를 비웠습니다";
+      const detail = document.createElement("small");
+      detail.textContent = isCompact
+        ? "이전 대화 " + turnCount + "개(약 " + previousTokens.toLocaleString("ko-KR") + " tokens)를 요약으로 교체했습니다."
+        : "이전 대화와 첨부 자료를 현재 컨텍스트에서 제거했습니다.";
+      copy.append(title, detail);
+      card.append(icon, copy);
+      turn.append(card);
+      messagesEl.append(turn);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function makeReply(input, attachments = []) {
       const historyCount = messages.filter((item) => item.role !== "system").length;
+      if (attachments.length) {
+        const names = attachments.map((item) => item.name).join(", ");
+        const attachmentTokens = attachments.reduce((sum, item) => sum + tokensFor(item), 0);
+        return "첨부된 " + names + "을(를) 컨텍스트에 포함했습니다. 이 자료는 약 " + attachmentTokens.toLocaleString("ko-KR") + " 토큰으로 계산되며, 다음 질문에서도 이전 대화와 함께 참조됩니다.";
+      }
       if (/요약|세 줄|3줄/.test(input)) {
         return "요약하면 다음과 같습니다.\n\n1. 시스템 프롬프트가 답변의 규칙을 정합니다.\n2. 사용자 메시지가 요청으로 추가됩니다.\n3. AI 응답은 다음 대화의 맥락으로 저장됩니다.";
       }
@@ -1222,22 +1596,32 @@
 
     function sendPrompt(value) {
       const content = value.trim();
-      if (!content || generating) return;
+      const attachments = pendingAttachments;
+      if ((!content && attachments.length === 0) || generating) return;
 
       generating = true;
       promptEl.value = "";
       resizePrompt();
       sendButton.disabled = true;
+      pendingAttachments = [];
 
-      messages.push({ role: "user", content });
-      selectedContextIndex = messages.length - 1;
-      addTurn("user", content, selectedContextIndex);
+      const attachmentStart = messages.length;
+      messages.push(...attachments);
+      attachments.forEach((item, index) => addAttachmentTurn(item, attachmentStart + index));
+      const userContent = content || attachments.map((item) => item.name).join(", ") + " 파일을 첨부했습니다.";
+      if (content) {
+        messages.push({ role: "user", content: userContent });
+        selectedContextIndex = messages.length - 1;
+        addTurn("user", userContent, selectedContextIndex);
+      } else {
+        selectedContextIndex = attachmentStart + attachments.length - 1;
+      }
       renderContext();
       showTyping();
 
       window.setTimeout(() => {
         $("#typingTurn")?.remove();
-        const reply = makeReply(content);
+        const reply = makeReply(userContent, attachments);
         messages.push({ role: "assistant", content: reply });
         selectedContextIndex = messages.length - 1;
         addTurn("assistant", reply, selectedContextIndex);
@@ -1255,6 +1639,7 @@
       emptyState.hidden = false;
       generating = false;
       promptEl.value = "";
+      pendingAttachments = [];
       resizePrompt();
       sendButton.disabled = true;
       renderContext();
@@ -1277,7 +1662,7 @@
 
     promptEl.addEventListener("input", () => {
       resizePrompt();
-      sendButton.disabled = generating || !promptEl.value.trim();
+      sendButton.disabled = generating || (!promptEl.value.trim() && pendingAttachments.length === 0);
     });
 
     promptEl.addEventListener("compositionstart", () => {
@@ -1287,7 +1672,7 @@
     promptEl.addEventListener("compositionend", () => {
       composing = false;
       resizePrompt();
-      sendButton.disabled = generating || !promptEl.value.trim();
+      sendButton.disabled = generating || (!promptEl.value.trim() && pendingAttachments.length === 0);
     });
 
     promptEl.addEventListener("keydown", (event) => {
@@ -1303,9 +1688,19 @@
 
     $("#newChat").addEventListener("click", resetConversation);
     $("#resetButton").addEventListener("click", resetConversation);
+    $("#compactButton").addEventListener("click", compactContext);
+    $("#clearContextButton").addEventListener("click", clearContext);
+    $("#attachButton").addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length) addAttachments(fileInput.files);
+    });
+    modelSelect.addEventListener("change", () => {
+      selectedModelId = modelSelect.value;
+      renderContext();
+    });
 
     $("#jsonButton").addEventListener("click", () => {
-      $("#jsonPreview").textContent = JSON.stringify({ model: "gpt-context-demo", messages }, null, 2);
+      $("#jsonPreview").textContent = JSON.stringify({ model: selectedModelId, messages }, null, 2);
       $("#jsonDialog").showModal();
     });
     $("#closeDialog").addEventListener("click", () => $("#jsonDialog").close());
@@ -1329,8 +1724,65 @@
     let savedTheme = null;
     try { savedTheme = localStorage.getItem("context-lab-theme"); } catch {}
     document.documentElement.dataset.theme = savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    console.assert(messages[0].role === "system" && estimateTokens("테스트") > 0, "Context Lab self-check failed");
+    console.assert(messages[0].role === "system" && estimateTokens("테스트") > 0 && CONTEXT_MODELS.haiku.inputLimit < CONTEXT_MODELS.sonnet.inputLimit, "Context Lab self-check failed");
     renderContext();
+  </script>
+  <script type="module">
+    const React = await import("https://esm.sh/react@18.3.1");
+    const { createRoot } = await import("https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1");
+    const { FiArrowUp, FiPaperclip } = await import("https://esm.sh/react-icons@5.5.0/fi?deps=react@18.3.1");
+    const e = React.createElement;
+    const { useEffect, useState } = React;
+
+    function ComposerControls() {
+      const legacySelect = document.querySelector("#modelSelect");
+      const sendButton = document.querySelector("#sendButton");
+      const composer = document.querySelector("#composer");
+      const fileInput = document.querySelector("#fileInput");
+      const [model, setModel] = useState(legacySelect.value);
+      const [canSend, setCanSend] = useState(!sendButton.disabled);
+      const [contextFull, setContextFull] = useState(composer.dataset.contextFull === "true");
+
+      useEffect(() => {
+        const sync = () => {
+          setModel(legacySelect.value);
+          setCanSend(!sendButton.disabled);
+          setContextFull(composer.dataset.contextFull === "true");
+        };
+        const observer = new MutationObserver(sync);
+        legacySelect.addEventListener("change", sync);
+        document.querySelector("#prompt").addEventListener("input", sync);
+        observer.observe(sendButton, { attributes: true, attributeFilter: ["disabled"] });
+        observer.observe(composer, { attributes: true, attributeFilter: ["data-context-full"] });
+        return () => {
+          legacySelect.removeEventListener("change", sync);
+          document.querySelector("#prompt").removeEventListener("input", sync);
+          observer.disconnect();
+        };
+      }, [legacySelect, sendButton]);
+
+      const changeModel = (event) => {
+        legacySelect.value = event.target.value;
+        legacySelect.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+
+      return e("div", { className: "composer-row" },
+        e("div", { className: "composer-actions" },
+          e("button", { className: "attachment-button", type: "button", title: "파일 또는 사진 추가", "aria-label": "파일 또는 사진 추가", disabled: contextFull, onClick: () => fileInput.click() }, e(FiPaperclip)),
+          e("span", { className: "composer-hint" }, "Enter 전송, Shift + Enter 줄바꿈")
+        ),
+        e("div", { className: "composer-actions" },
+          e("select", { className: "model-select", name: "context-model", value: model, "aria-label": "컨텍스트 모델 선택", onChange: changeModel },
+            e("option", { value: "demo" }, "학습용 데모"),
+            e("option", { value: "haiku" }, "Haiku 4.5"),
+            e("option", { value: "sonnet" }, "Sonnet 5 최대")
+          ),
+          e("button", { className: "send", type: "button", disabled: !canSend || contextFull, "aria-label": "메시지 보내기", onClick: () => composer.requestSubmit() }, e(FiArrowUp))
+        )
+      );
+    }
+
+    createRoot(document.querySelector("#reactComposerControls")).render(e(ComposerControls));
   </script>
 </body>
 </html>

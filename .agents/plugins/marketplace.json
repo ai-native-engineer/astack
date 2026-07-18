@@ -1,0 +1,21 @@
+{
+  "name": "astack",
+  "interface": {
+    "displayName": "astack"
+  },
+  "plugins": [
+    {
+      "name": "astack",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/ai-native-engineer/astack.git",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

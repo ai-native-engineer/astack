@@ -71,10 +71,10 @@ anchor를 못 구하는 소스는 빈 문자열로 두고, 머지 시 기존 본
 
 ```bash
 # 전체 소스 현황 표
-python3 ~/.agents/skills/shared/project-collect/scripts/context_status.py 01-context/company
+python3 scripts/context_status.py 01-context/company
 
 # 특정 소스의 anchor만 (재수집 증분 검색에 그대로 사용)
-python3 ~/.agents/skills/shared/project-collect/scripts/context_status.py 01-context/company --source slack
+python3 scripts/context_status.py 01-context/company --source slack
 ```
 
 기존(frontmatter 없는) 아카이브는 스크립트가 파일명·본문 헤더에서 best-effort로 파싱해 `*`로 표시한다. 다음 머지 때 위 frontmatter를 얹으면 정식 관리로 전환된다.

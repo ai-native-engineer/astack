@@ -1,0 +1,27 @@
+{
+  "name": "astack",
+  "version": "0.2.0",
+  "description": "Aiden's Stack — curated skills for research, media, productivity, and local workflows.",
+  "author": {
+    "name": "Aiden Ahn (Seungwon An)",
+    "url": "https://seunan.dev"
+  },
+  "homepage": "https://github.com/ai-native-engineer/astack",
+  "repository": "https://github.com/ai-native-engineer/astack",
+  "license": "MIT",
+  "keywords": ["claude-code", "codex", "skills", "productivity"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "astack",
+    "shortDescription": "Curated research and productivity skills",
+    "longDescription": "Use a curated set of skills for research, media, productivity, and local workflows.",
+    "developerName": "Aiden Ahn",
+    "category": "Productivity",
+    "capabilities": ["Instructions"],
+    "websiteURL": "https://github.com/ai-native-engineer/astack",
+    "defaultPrompt": [
+      "Find the right astack skill for this task."
+    ],
+    "brandColor": "#111111"
+  }
+}

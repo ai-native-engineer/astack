@@ -1,4 +1,5 @@
-![](media/image1.png)조달청 공공데이터 개방
+<!-- lint-skip: env-values (외부 공식문서 미러 - 원문 담당자 연락처 포함) -->
+조달청 공공데이터 개방
 
 OpenAPI 참고자료
 

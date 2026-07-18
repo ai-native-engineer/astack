@@ -5,7 +5,7 @@
 ## 기본: 로컬 argmax (`stt_diarize.sh`)
 
 ```
-~/.claude/skills/stt/scripts/stt_diarize.sh <오디오> <apple|argmax|both> [start초 end초]
+bash scripts/stt_diarize.sh <오디오> <apple|argmax|both> [start초 end초]  # 설치된 stt 스킬 루트
 ```
 
 세 모드 = 정확도/비용 선택. 스크립트가 정렬·병합까지 끝낸 `.md` 뷰만 내므로 **AI는 고른 뷰 하나만 읽으면 된다**(원본 json/rttm 안 읽어도 됨).
@@ -41,5 +41,5 @@ argmax보다 출력은 표준(인라인 라벨)이나 셋업이 무겁고 깨지
 
 키는 agents-env로 주입(평문 노출 없음).
 
-- **OpenAI** `gpt-4o-transcribe-diarize` — `~/.claude/skills/stt/scripts/transcribe-openai.sh <오디오> [OPENAI_API_KEY@태그] [diarized_json|json|text]`. $0.006/분, 30초+ chunking 자동, 문장 세그먼트 단위.
-- **ElevenLabs Scribe** — `~/.claude/skills/stt/scripts/transcribe-elevenlabs.sh <오디오> [ELEVENLABS_API_KEY@태그] [language_code]`. ~$0.40/시간, 단어 단위 타임스탬프 + 언어 자동감지.
+- **OpenAI** `gpt-4o-transcribe-diarize` — 설치된 스킬 루트에서 `bash scripts/transcribe-openai.sh <오디오> [OPENAI_API_KEY@태그] [diarized_json|json|text]`. $0.006/분, 30초+ chunking 자동, 문장 세그먼트 단위.
+- **ElevenLabs Scribe** — 설치된 스킬 루트에서 `bash scripts/transcribe-elevenlabs.sh <오디오> [ELEVENLABS_API_KEY@태그] [language_code]`. ~$0.40/시간, 단어 단위 타임스탬프 + 언어 자동감지.

@@ -36,7 +36,4 @@
 
 ## 완성 예시
 
-- [claude-code-context-timeline.html](../examples/claude-code-context-timeline.html) — Claude Code 세션 시작부터 파일 읽기·서브에이전트·압축까지, 컨텍스트의 생애주기를 시간순으로 보여주는 게이트형 타임라인.
-- [chat-context-composition-lab.html](../examples/chat-context-composition-lab.html) — 사용자가 채팅을 이어가며 시스템·사용자·AI 메시지가 다음 요청의 컨텍스트로 누적되는 구성을 직접 확인하는 실험실.
-
-둘 다 완성 예시다. 새 파일은 복사하지 말고 `assets/interactive-template.html`에서 시작한다.
+- [context-window-widget.html](../examples/context-window-widget.html) — 채팅 조작으로 시스템·사용자·AI 메시지의 누적 컨텍스트를 설명하는 단일 HTML. 새 파일의 시작 골격이 아니라 상호작용·반응형·브라우저 검증 품질을 참고하는 예시다.

@@ -181,7 +181,9 @@ def refresh_notes_meta() -> None:
     _ensure_notes_synced()
     try:
         conn = sqlite3.connect(f"file:{APPLE_NOTES_DB}?mode=ro", uri=True)
-    except sqlite3.OperationalError:
+    except sqlite3.DatabaseError:
+        # macOS privacy/FDA failures can surface as DatabaseError("authorization denied"),
+        # not only OperationalError. Search should still work for Voice Memos/call recordings.
         return
     try:
         cur = conn.cursor()

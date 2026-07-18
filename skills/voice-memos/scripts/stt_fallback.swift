@@ -11,6 +11,13 @@ import Foundation
 import Speech
 import AVFoundation
 
+let defaultDataDir = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs/voice-memos")
+let dataDir = ProcessInfo.processInfo.environment["VOICE_MEMOS_DATA_DIR"]
+    .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath) }
+    ?? defaultDataDir
+let transcriptsDir = dataDir.appendingPathComponent("transcripts")
+
 // MARK: - tsrp 체크
 
 func hasTsrp(_ path: String) -> Bool {
@@ -104,8 +111,6 @@ func generateMarkdown(filename: String, text: String, language: String) -> Strin
 // MARK: - 저장
 
 func saveTranscript(filename: String, text: String, language: String) -> String? {
-    let homeDir = FileManager.default.homeDirectoryForCurrentUser
-    let transcriptsDir = homeDir.appendingPathComponent(".voice-memos/transcripts")
     let (datePart, timePart, _) = parseDateFromFilename(filename)
 
     let outDir = transcriptsDir.appendingPathComponent(datePart).appendingPathComponent(timePart)
@@ -167,8 +172,8 @@ if args.contains("--batch") {
         if url.pathExtension == "m4a" && !hasTsrp(url.path) {
             // 이미 전사된 것 스킵
             let (dp, tp, _) = parseDateFromFilename(url.lastPathComponent)
-            let existing = homeDir
-                .appendingPathComponent(".voice-memos/transcripts/\(dp)/\(tp)/transcript.md")
+            let existing = transcriptsDir
+                .appendingPathComponent("\(dp)/\(tp)/transcript.md")
             if !FileManager.default.fileExists(atPath: existing.path) {
                 targets.append(url)
             }

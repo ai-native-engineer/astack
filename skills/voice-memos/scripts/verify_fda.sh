@@ -5,7 +5,7 @@
 set -euo pipefail
 
 UID_=$(id -u)
-LABEL="com.user.fda-check"
+LABEL="com.agents.voice-memos-fda-check"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INNER="$SCRIPT_DIR/_fda_check_inner.sh"

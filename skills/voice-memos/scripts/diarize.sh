@@ -11,7 +11,8 @@ MODE="${3:-argmax}"
 START="${4:-}"
 END="${5:-}"
 
-STT_SCRIPT="$HOME/.claude/skills/stt/scripts/stt_diarize.sh"
+SKILLS_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+STT_SCRIPT="$SKILLS_DIR/stt/scripts/stt_diarize.sh"
 
 # stt_diarize.sh 실행 후 생성된 파일 목록 수집
 mapfile -t MADE < <(bash "$STT_SCRIPT" "$AUDIO" "$MODE" "$START" "$END")

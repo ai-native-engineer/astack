@@ -1,21 +1,23 @@
 ---
 argument-hint: "[query]"
 name: session-history
-description: "Claude Code and Codex session history lookup across lists, timelines, full conversation details, tool calls, grep/search, and token usage. Use when user asks 세션 히스토리, 작업 내역, 오늘 한 일, 뭐 했더라, history, 대화 내역, or wants to review past sessions. Do NOT use for personal reflection synthesis, automation packaging, memory updates, or searching current repo files."
+description: "Claude Code and Codex local JSONL session history lookup: lists, timelines, full conversation details, tool calls, grep/search, and token usage. Use for Claude/Codex 작업 내역, 오늘 한 일, 뭐 했더라, history. Do NOT use for Hermes Agent/Discord/Gateway conversations in ~/.hermes/state.db — use session_search instead. Do NOT use for personal reflection synthesis, automation packaging, memory updates, or searching current repo files."
 ---
 
 # Session History
 
 Claude Code (`~/.claude/`) + Codex (`~/.codex/`) 통합 세션 히스토리.
 
-토큰 사용량만 필요하면 `python3 ~/.claude/skills/session-history/scripts/token_usage.py`로 로컬 JSONL의 Claude `usage`와 Codex `token_count`를 파싱한다(`--all-time` 지원).
+Hermes Agent 자체 대화(Discord/Telegram/Gateway/CLI)는 이 스크립트 대상이 아니다. Hermes 대화는 `session_search` 도구가 `~/.hermes/state.db`를 검색한다.
+
+토큰 사용량만 필요하면 설치된 `session-history` 스킬 루트에서 `python3 scripts/token_usage.py`를 실행해 로컬 JSONL의 Claude `usage`와 Codex `token_count`를 파싱한다(`--all-time` 지원).
 
 ## 사용법
 
 네 서브커맨드: `list`(목록)·`timeline`(시간순, 데일리 노트용)·`rg`(세션 전문 검색)·`show`(대화 보기). `grep`도 같은 검색의 호환 alias다. 대표 호출:
 
 ```bash
-SH=~/.claude/skills/session-history/scripts/session_history.py
+SH="scripts/session_history.py"  # 설치된 session-history 스킬 루트에서 실행
 python3 $SH list --cwd                # 현재 프로젝트 오늘 세션 (절대 경로 포함)
 python3 $SH rg "gcloud" --days 30     # 30일간 세션 JSONL 전문 검색 (맥락 발췌)
 python3 $SH rg "error" --days 30 --limit 5  # 실패 신호가 있는 세션 5개만 보기
@@ -39,6 +41,16 @@ python3 $SH show --last --files       # 가장 최근 세션의 수정 파일 �
 2. **특정 작업 찾기**: `rg "키워드"` (7일 기본) → `show <ID>`
 3. **오늘 데일리 노트**: `timeline` → 출력 복사 붙여넣기
 4. **전체 목록**: `list --days 7` → 세션 ID와 파일 경로 확인
+
+## 대화 맥락 교정 대응
+
+사용자가 “이전에 이 내용으로 대화했어”, “전에 확인했잖아”, “면밀하게 확인해봐”처럼 과거 대화 기반으로 교정하면, 바로 추측성 답을 고치지 말고 **세션 검색을 먼저 수행**한다. 특히 Hermes 설정/모드/게이트웨이 상태처럼 현재값과 과거 합의가 함께 중요한 질문은:
+
+1. `session_search` 또는 이 스킬의 `rg`로 과거 발화/키워드를 찾는다.
+2. 찾은 세션의 핵심 메시지와 현재 live config/state를 각각 확인한다.
+3. 답변은 “과거 대화에서 무엇을 확인했는지”와 “현재 상태가 그와 일치하는지”를 짧게 구분해 말한다.
+
+이 패턴은 사용자의 교정 신호가 강한 경우 우선 적용한다. 단순히 현재 컨텍스트에 플래그가 안 보인다는 이유로 “확인 불가”라고 끝내면 안 된다.
 
 ## 데이터 소스
 

@@ -15,9 +15,9 @@ license: MIT
 
 ## 워크플로
 
-레시피 검색·저장의 기준 경로는 `~/.claude/skills/data-go-kr/references/recipes/`.
+레시피 검색·저장의 정본 경로는 `${CLAUDE_PLUGIN_ROOT}/skills/data-go-kr/references/recipes/` (심볼릭 링크 말고 이 원본 기준).
 
-1. **레시피 탐색** — 작업의 도메인 키워드(기관·데이터명)로 `rg -il "<키워드>" ~/.claude/skills/data-go-kr/references/recipes/` 검색.
+1. **레시피 탐색** — 작업의 도메인 키워드(기관·데이터명)로 `rg -il "<키워드>" ${CLAUDE_PLUGIN_ROOT}/skills/data-go-kr/references/recipes/` 검색.
 2. **레시피 있음** → 키 확인 후 레시피대로 호출. 인코딩·에러 처리는 `references/call-patterns.md`.
 3. **레시피 없음** → `references/search-and-apply.md` 절차로 API 검색 → 후보 선정 → 상세 페이지에서 스키마 추출 → 호출 시도.
    - **미신청/미승인 에러**가 떨어지면 활용신청 딥링크를 사용자에게 전달하고 멈춘다 (절차·딥링크 형식은 search-and-apply.md 3절).

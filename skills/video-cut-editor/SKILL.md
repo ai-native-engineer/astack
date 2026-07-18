@@ -23,6 +23,7 @@ description: "Local video cut editing and silence removal workflow for lecture/s
 |---|---|
 | 무음 제거·무음 컷·padding 샘플 테스트 | `references/silence-cut.md` |
 | 말실수·retake·편집점 마커 기반 컷편집 | `references/workflow.md` |
+| `cut-plan.json` 필드·검토 상태 확인 | `references/plan-schema.md` |
 
 마커 기반 컷편집은 `scripts/video_cut_workflow.py analyze INPUT.mp4`로 `review.md`와 `cut-plan.json` 템플릿을 만든 뒤, marker 전후 STT/VAD evidence를 읽고 `remove_intervals`를 채운다.
 

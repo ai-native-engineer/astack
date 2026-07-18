@@ -17,5 +17,6 @@
 - `references/publishing.md` — dry-run, 발행, 실패 복구, 공개 검증.
 - `references/publish-setup.md` — 새 쇼 최초 1회 셋업(repo, Pages, Spotify).
 - `scripts/publish.sh`, `scripts/gen_feed.py` — 발행과 RSS 피드 생성.
+- `scripts/chapter_ts.py` — tts chunk 산출물에서 챕터 타임스탬프(hh:mm:ss) 계산.
 - `tests/test_podcast.py` — RSS 정렬/쇼노트와 publish dry-run 회귀 테스트.
 - `templates/show.json` — 쇼 설정 템플릿.

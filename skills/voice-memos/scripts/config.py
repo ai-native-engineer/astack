@@ -1,16 +1,24 @@
 """공통 경로 설정."""
 
+import os
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = PROJECT_DIR / "scripts"
 
-DATA_DIR = Path.home() / ".voice-memos"
+DATA_DIR = Path(
+    os.environ.get(
+        "VOICE_MEMOS_DATA_DIR",
+        Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/voice-memos",
+    )
+).expanduser()
 TRANSCRIPTS_DIR = DATA_DIR / "transcripts"
 LOGS_DIR = Path.home() / ".voice-memos/logs"  # 로그는 로컬 — launchd가 iCloud 경로엔 못 씀(EX_CONFIG)
 CORRECTIONS_FILE = DATA_DIR / "corrections.json"
 VOCAB_FILE = Path.home() / ".config" / "stt" / "vocab.txt"
-ENV_FILE = PROJECT_DIR / ".env"
+ENV_FILE = Path(
+    os.environ.get("VOICE_MEMOS_CONFIG_FILE", "~/.config/voice-memos/.env")
+).expanduser()
 WATCHER_LOG_FILE = LOGS_DIR / "watcher.log"
 CALL_RECORDINGS_DIR = (
     Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/녹음"
@@ -48,8 +56,8 @@ def is_call_summary(path: Path) -> bool:
 def iter_transcript_files(base_dir: Path) -> list[Path]:
     """전사 파일을 반환합니다.
 
-    Voice Memos는 `~/.voice-memos/transcripts/**/transcript.md`, 에이닷 통화
-    녹음은 iCloud `녹음/*.transcript.md`를 사용합니다.
+    Voice Memos는 `DATA_DIR/transcripts/**/transcript.md`, 에이닷 통화 녹음은
+    iCloud `녹음/*.transcript.md`를 사용합니다.
     """
     files = sorted(base_dir.rglob("transcript.md")) if base_dir.exists() else []
     if base_dir == TRANSCRIPTS_DIR and CALL_RECORDINGS_DIR.exists():

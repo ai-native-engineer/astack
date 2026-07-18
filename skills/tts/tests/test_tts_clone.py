@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -9,10 +10,16 @@ import tts_clone
 
 
 def main():
-    args = SimpleNamespace(voice="aiden", voice_dir=None)
-    ref, ref_text = tts_clone.load_voice(args)
-    assert ref == tts_clone.DEFAULT_VOICE_DIR / "aiden/ref.wav"
-    assert ref.exists() and ref_text
+    with tempfile.TemporaryDirectory() as tmp:
+        voice_dir = Path(tmp)
+        sample = voice_dir / "sample"
+        sample.mkdir()
+        (sample / "ref.wav").write_bytes(b"RIFF")
+        (sample / "ref.txt").write_text("sample reference", encoding="utf-8")
+        args = SimpleNamespace(voice="sample", voice_dir=str(voice_dir))
+        ref, ref_text = tts_clone.load_voice(args)
+        assert ref == sample / "ref.wav"
+        assert ref.exists() and ref_text == "sample reference"
 
     segments = tts_clone.prep_spoken_text("Claude Code와 AI를 4주 동안 배웁니다.")
     assert segments == ["클로드 코드와 에이아이를 사 주 동안 배웁니다."]

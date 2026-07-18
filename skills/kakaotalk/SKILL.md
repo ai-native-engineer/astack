@@ -9,13 +9,21 @@ macOS Accessibility API(atomacos)를 통해 카카오톡 메시지를 읽고 보
 
 **안전선 — 마우스 커서를 옮기지 않는다.** 합성 마우스 클릭(`cliclick`·AppleScript `click at`·Quartz/CGEvent)은 사용자가 컴퓨터를 쓰는 중에 실제 커서를 빼앗는다. UI 조작은 전부 접근성(`.Press()`/`AXUIElementPerformAction`·`AXFocused`)과 키보드(`key code`·클립보드 붙여넣기)·`Raise()`로만 한다.
 
-## 메시지 작성
+## 메시지 작성 의존성
 
-카카오톡으로 보낼 문구를 작성·수정·발송할 때는 transport 실행 전에 최소 메시지 계약을 따른다: 목적·수신자·요청/맥락/액션을 분리하고, 사용자가 승인한 본문은 임의로 재작성하지 않으며, 발송 전 채팅방과 최종 본문을 확인받는다.
+카카오톡으로 보낼 문구를 작성·수정·발송할 때는 transport 실행 전에 공통 커뮤니케이션 규칙을 먼저 읽는다.
 
-**CLI prefix** (모든 명령에 공통):
+1. `../communication/references/work-message-contract.md`
+2. `../communication/references/style-profiles.md` (저장된 문체를 맞출 때만)
+3. `../communication/references/message-templates.md` (요청·핸드오프·상태 공유일 때)
+4. `../communication/references/channel-overlays/kakaotalk.md`
+
+공통 스킬을 읽을 수 없으면 최소 계약만 따른다: 목적·수신자·요청/맥락/액션을 분리하고, 사용자가 승인한 본문은 임의로 재작성하지 않으며, 발송 전 채팅방과 최종 본문을 확인받는다.
+
+이 스킬 디렉터리에서 아래 prefix를 사용한다.
+
 ```
-uv run --project ~/.claude/skills/kakaotalk python ~/.claude/skills/kakaotalk/scripts/
+uv run --project . python scripts/
 ```
 
 ---
@@ -45,10 +53,8 @@ uv run --project ~/.claude/skills/kakaotalk python ~/.claude/skills/kakaotalk/sc
 받는 사람: {채팅방}
 ---
 {메시지 내용}
-
-sent with claude code
 ---
-→ AskUserQuestion: "이 메시지를 보낼까요?" ["보내기", "수정 필요"]
+→ 사용자에게 "이 메시지를 보낼까요?"라고 확인
 ```
 
 ### Step 4: 발송
@@ -57,7 +63,7 @@ sent with claude code
 {prefix}kakao_send.py "채팅방이름" "메시지"
 ```
 
-- 공지/봇성 메시지처럼 서명이 불필요하면 `--no-signature`를 사용한다.
+- 사용자 요청 없이 서명이나 에이전트 표기를 추가하지 않는다.
 - 발송 직후 `kakao_read.py --limit N`에 방금 보낸 메시지가 안 보여도 즉시 실패로 단정하지 않는다. 이 스크립트는 현재 보이는 메시지 범위를 읽기 때문에 뷰포트가 최신 위치가 아니면 직전 발송분이 빠질 수 있다. `kakao_send.py`의 `"success": true`를 1차 확인값으로 본다.
 
 ---
@@ -90,7 +96,7 @@ sent with claude code
 osascript -e 'tell application "System Events" to tell process "KakaoTalk" to get name of every window'
 # 기대값: 카카오톡
 
-uv run --project ~/.claude/skills/kakaotalk python - <<'PY'
+uv run --project . python - <<'PY'
 import atomacos
 app = atomacos.getAppRefByBundleId('com.kakao.KakaoTalkMac')
 print('windows', len(app.windows()))
@@ -121,7 +127,7 @@ PY
 ```bash
 open -a KakaoTalk
 
-uv run --project ~/.claude/skills/kakaotalk python - <<'PY'
+uv run --project . python - <<'PY'
 import atomacos
 app = atomacos.getAppRefByBundleId('com.kakao.KakaoTalkMac')
 print('windows', len(app.windows()))
@@ -142,7 +148,7 @@ osascript -e 'tell application "System Events" to tell process "KakaoTalk" to ge
 오픈채팅 버튼을 **접근성 AXPress로 누른다 — 마우스 커서를 옮기지 않는다.** 합성 마우스 클릭(Quartz/CGEvent·`cliclick`·`click at`)은 사용자가 컴퓨터를 쓰는 중에 실제 커서를 빼앗으므로 이 스킬에서는 쓰지 않는다. `atomacos`의 `.Press()`가 안 먹으면 raw `AXUIElementPerformAction`으로 폴백한다.
 
 ```bash
-uv run --project ~/.claude/skills/kakaotalk python - <<'PY'
+uv run --project . python - <<'PY'
 import atomacos
 from ApplicationServices import AXUIElementPerformAction
 
@@ -163,7 +169,7 @@ PY
 ### 4. 오픈채팅 목록에서 실제 행 텍스트 확인
 
 ```bash
-uv run --project ~/.claude/skills/kakaotalk python - <<'PY'
+uv run --project . python - <<'PY'
 import subprocess
 for i in range(1, 21):
     script = (
@@ -179,8 +185,8 @@ PY
 예시 출력:
 
 ```text
-3	스터디방, 1676, 11:32
-6	스터디방/김민수, 3월 23일
+3	프로젝트 공지, 1676, 11:32
+6	프로젝트 공지/운영자, 3월 23일
 ```
 
 ### 5. 원하는 행 선택 후 Enter로 입장
@@ -194,13 +200,13 @@ osascript \
 입장 후에는 일반 채팅과 동일하게 처리한다.
 
 ```bash
-{prefix}kakao_read.py "스터디방" --json
-{prefix}kakao_send.py "스터디방" "메시지" --no-signature
+{prefix}kakao_read.py "프로젝트 공지" --json
+{prefix}kakao_send.py "프로젝트 공지" "메시지"
 ```
 
 ### 6. 같은 이름의 일반 채팅/오픈채팅이 함께 있을 때
 
-- `스터디방`와 `스터디방/김민수`처럼 유사한 이름이 같이 보일 수 있으니, 행 텍스트 전체를 읽고 정확한 row index를 고른다.
+- `프로젝트 공지`와 `프로젝트 공지/운영자`처럼 유사한 이름이 같이 보일 수 있으니, 행 텍스트 전체를 읽고 정확한 row index를 고른다.
 - `--search`가 0건이어도 오픈채팅 목록 행에는 존재할 수 있으므로, 검색 실패만으로 방이 없다고 결론내리지 않는다.
 
 ---
@@ -211,6 +217,6 @@ osascript \
 
 ## 요구사항
 
-1. **의존성**: `cd ~/.claude/skills/kakaotalk && uv sync`
+1. **의존성**: 이 스킬 디렉터리에서 `uv sync`
 2. **Accessibility 권한**: System Settings > Privacy & Security > Accessibility에서 Terminal 허용
 3. **카카오톡 실행 중**: macOS용 카카오톡 앱

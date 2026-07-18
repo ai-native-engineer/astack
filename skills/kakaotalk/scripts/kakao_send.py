@@ -6,10 +6,7 @@ Usage:
     python kakao_send.py "채팅방이름" "메시지"
     python kakao_send.py "구봉" "안녕하세요!"
     python kakao_send.py "구봉" "밥 먹었어?" --close        # 보내고 창 닫기
-    python kakao_send.py "구봉" "밥 먹었어?" --no-signature  # 서명 없이 보내기
 """
-
-SIGNATURE = "\n\nsent with claude code"
 
 import argparse
 import subprocess
@@ -216,16 +213,11 @@ def main():
     parser.add_argument('message', help='보낼 메시지')
     parser.add_argument('--close', '-c', action='store_true', help='보내고 나서 창 닫기')
     parser.add_argument('--json', '-j', action='store_true', help='JSON 출력')
-    parser.add_argument('--no-signature', action='store_true', help='서명 없이 보내기 (기본: "sent with claude code" 붙음)')
-
+    # Backward-compatible no-op: outbound copy is now always sent unchanged.
+    parser.add_argument('--no-signature', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
 
-    # 서명 추가 (--no-signature가 없으면)
-    message = args.message
-    if not args.no_signature:
-        message = args.message + SIGNATURE
-
-    result = send_message(args.chat_name, message, args.close)
+    result = send_message(args.chat_name, args.message, args.close)
 
     if args.json:
         import json

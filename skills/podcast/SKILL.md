@@ -21,8 +21,9 @@ description: "Podcast episode drafting, voice rendering, and explicit publishing
 3. 뉴스는 `ai-news-recap`, 필요하면 `daily-digest`로 재료를 준비한다. 일반 주제는 사용자가 준 원문을 쓴다.
 4. `references/script-conversion.md`에 따라 URL과 마크다운이 없는 한 줄 한 문장 대본을 만든다.
 5. `references/shownotes-convention.md`에 따라 요약, 챕터, 링크를 분리한다.
-6. `tts`로 기본 voice를 사용해 음성을 만들고, loudnorm 편집본을 44.1kHz 128kbps MP3로 변환한다.
-7. publish 모드에서는 `references/publishing.md`를 읽고 dry-run을 통과한 뒤 발행한다. 새 쇼는 `references/publish-setup.md`를 먼저 따른다.
+6. `tts`로 기본 voice를 사용해 음성을 만들고, `audit --threshold -15`로 끝음 잘림 위험 청크만 골라 `regen`한다(기본 임계는 경계 청크까지 넓게 플래그해 과잉 재생성을 부른다). `regen`에는 `--out`/`--loudnorm-out`을 함께 줘 재조립을 한 명령으로 끝낸다.
+7. loudnorm 편집본을 44.1kHz 128kbps mono MP3로 변환한다. 음성 단독 쇼는 mono가 표준이고, 회차 간 스펙이 같아야 스펙 재확인 없이 발행할 수 있다.
+8. publish 모드에서는 `references/publishing.md`를 읽고 dry-run을 통과한 뒤 발행한다. 새 쇼는 `references/publish-setup.md`를 먼저 따른다.
 
 ## 기본값과 검증
 

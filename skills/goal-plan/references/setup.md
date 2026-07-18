@@ -19,7 +19,7 @@ Read this when creating a goal plan.
 ## Worktree Mode
 
 ```bash
-python3 ~/.claude/skills/goal-plan/scripts/init_goal_plan.py --worktree <tag> --goal "<one measurable end state>"
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/goal-plan/scripts/init_goal_plan.py --worktree <tag> --goal "<one measurable end state>"
 ```
 
 This adds a timestamped worktree under `~/.agents/goals/<YYMMDD-HHMMSS-tag>` on the target repo's `goal/<tag>` branch, extends `AGENTS.md`, writes `CLAUDE.md` as `@AGENTS.md`, seeds `progress.tsv`, and prints the path.
@@ -40,7 +40,7 @@ The ledger lives on the `goal/<tag>` branch, so removing the external worktree l
 Use a short kebab-case name:
 
 ```bash
-python3 ~/.claude/skills/goal-plan/scripts/init_goal_plan.py --dedicated <name> --goal "<one measurable end state>"
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/goal-plan/scripts/init_goal_plan.py --dedicated <name> --goal "<one measurable end state>"
 ```
 
 Example path: `~/.agents/goals/260629-151845-llm-wiki-link-audit`.

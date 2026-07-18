@@ -47,9 +47,14 @@ def main() -> None:
 
     plugin = json.loads((ROOT / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
     marketplace = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
+    codex_plugin = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
+    codex_marketplace = json.loads((ROOT / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
     assert plugin["name"] == "astack"
+    assert plugin["version"] == codex_plugin["version"] == "0.2.0"
     assert marketplace["name"] == "astack"
     assert any(item.get("name") == "astack" and item.get("source") == "./" for item in marketplace["plugins"])
+    assert codex_plugin["skills"] == "./skills/"
+    assert any(item.get("name") == "astack" for item in codex_marketplace["plugins"])
 
     print(f"astack repository checks: pass ({len(skill_dirs)} skills)")
 

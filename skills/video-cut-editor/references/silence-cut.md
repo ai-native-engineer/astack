@@ -14,9 +14,9 @@
 ## 실행
 
 ```bash
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/video_silence_cut.py in.mp4 --dry-run
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/video_silence_cut.py in.mp4 out.sample.mp4 --test-duration 60
-python3 ~/.agents/skills/shared/video-cut-editor/scripts/video_silence_cut.py in.mp4 out.silencecut.mp4
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/video_silence_cut.py in.mp4 --dry-run
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/video_silence_cut.py in.mp4 out.sample.mp4 --test-duration 60
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/video-cut-editor/scripts/video_silence_cut.py in.mp4 out.silencecut.mp4
 ```
 
 기본값은 `-35dB`, `0.8초 이상 무음`, `0.15초 padding`이다. 말 앞뒤가 잘리면 padding을 먼저 늘린다.

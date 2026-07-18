@@ -20,14 +20,14 @@ description: "Local speech-to-text transcription and optional speaker diarizatio
 
 `apple-stt`는 전사만 한다 — 화자 라벨은 별도 단계. **기본은 로컬 argmax.** 모드별 입자 트레이드오프·구간 트림·whispermlx 셋업·클라우드 상세는 `references/diarization.md`.
 
-- **기본(로컬)**: `~/.claude/skills/stt/scripts/stt_diarize.sh <오디오> <apple|argmax|both> [start초 end초]` (diarize/transcribe 스크립트는 스킬 내부 경로 — `apple-stt`만 `~/scripts/`의 별도 빌드 바이너리다. `scripts/`만 적어 `~/scripts/`로 오해하면 `exit 127`)
+- **기본(로컬)**: 설치된 `stt` 스킬 루트에서 `bash scripts/stt_diarize.sh <오디오> <apple|argmax|both> [start초 end초]`를 실행한다. `apple-stt`만 PATH 또는 `~/scripts/`의 별도 빌드 바이너리다.
   - `apple` = apple-stt 텍스트 + argmax 화자(가벼움, 화자 경계 굵음)
   - `argmax` = argmax 텍스트 + 단어단위 정밀 화자(632MB 모델)
   - `both` = 둘 다(정확도 최고·토큰 최다)
   - 출력: `stt/YYMMDD-HHMM/transcript.md`(전사본), `diarized.md`(화자분리전사본). 필요한 것 하나만 읽으면 됨(토큰 절약).
   - 이동·잡음 구간은 가짜 화자로 잡히니 `[start end]`로 회의 구간만 자를 것.
 - **대안(로컬)**: `whispermlx` (pyannote, 단어단위 인라인 라벨) — gated 승인·IPv6 다운로드 함정은 `references/diarization.md`.
-- **옵션(클라우드, 오디오 외부 업로드 — 민감 자료 금지)**: OpenAI `~/.claude/skills/stt/scripts/transcribe-openai.sh`, ElevenLabs `~/.claude/skills/stt/scripts/transcribe-elevenlabs.sh`. 키는 agents-env 주입.
+- **옵션(클라우드, 오디오 외부 업로드 — 민감 자료 금지)**: 설치된 스킬 루트의 `scripts/transcribe-openai.sh` 또는 `scripts/transcribe-elevenlabs.sh`를 쓴다. 키는 agents-env 주입.
 
 ## TTS (텍스트 → 음성)
 

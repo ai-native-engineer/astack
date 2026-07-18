@@ -33,8 +33,8 @@ apple-ocr -l ko "이미지.png"
 표·양식·다단 비교 박스의 행/열 구조가 필요할 때 (일반 텍스트는 위 두 도구로 충분). 표 검출은 img2table, 텍스트 인식은 Apple Vision이라 Tesseract·언어팩 설치가 필요 없다.
 
 ```bash
-uv run ~/.claude/skills/ocr/scripts/extract-tables.py input.pdf --pages 1-20   # PDF (1-based)
-uv run ~/.claude/skills/ocr/scripts/extract-tables.py 표.png --format csv      # 이미지
+uv run scripts/extract-tables.py input.pdf --pages 1-20   # 설치된 ocr 스킬 루트, PDF (1-based)
+uv run scripts/extract-tables.py 표.png --format csv      # 설치된 ocr 스킬 루트, 이미지
 ```
 
 - 출력: markdown(기본)/html/csv → stdout. 옵션 전체는 `--help`.

@@ -55,7 +55,7 @@ Markdown 보고서는 canonical 산출물이 아니다. 필요한 경우에만 �
 - **시작 전 모드 판정**: 대상이 관계사인지 판별하여 `account-first` 인 경우 `summary.deal_status`, `summary.champion_buying_center`, `summary.participant_needs`를 먼저 채운다.
 - **표면 매핑**: single-domain 가정을 깨고 IR 호스트, ATS 채용, CDN 등 분절된 Surface Map을 `data/company-profile.json.surface_map`에 먼저 명세한다.
 - **DART 013(데이터 없음) 감지 시**: 단순 스킵하지 말고, 실적 공시 매핑 지연으로 판명되면 즉시 웹 쿼리로 최근 1분기/결산 매출액·영업이익·당기순이익 실적을 보강한다.
-- **공식 API 위임**: `$open-api`가 설치돼 있으면 레시피 검색 → 호출 → 정규화 파일 병합 흐름을 따른다. 없으면 포함된 `data-go-kr` 절차로 접근 가능한 공식 데이터를 수집하고, 지원하지 않는 공급자는 관측 공백으로 남긴다.
+- **공식 API 위임**: `$open-api`가 설치돼 있으면 레시피 검색 → 호출 → 정규화 파일 병합 흐름을 따른다. 없으면 `data-go-kr`로 접근 가능한 공식 데이터를 수집하고, 지원하지 않는 공급자는 관측 공백으로 남긴다.
 - **Naver 구분**: Naver News는 보도 인벤토리이고, Naver DataLab은 검색 관심도 프록시다. 둘을 같은 데이터로 취급하지 않는다.
 - **재무 손익 정규화**: DART 재무는 `operating_result_krw`, `net_result_krw`처럼 흑자 양수·적자 음수의 signed 값을 canonical로 쓴다. 손실 전용 컬럼만 있을 때만 하위호환 변환한다.
 - **고용 프록시 명칭**: data.go.kr NPS workplace 값은 `국민연금 가입자수`로 표기한다. 고용보험 가입자수와 섞지 않는다.

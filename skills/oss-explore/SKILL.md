@@ -13,7 +13,7 @@ description: "GitHub open-source discovery, contribution entry-point finding, tr
 주제·언어·기간·star 하한은 **전부 사용자 인자**이며 특정 분야/조직을 하드코딩하지 않는다 — 누구나 그대로 쓸 수 있다. 기여 집계는 **머지된 PR을 단일 기준**으로 삼는다(`gh search commits`는 `repository`를 `null`로 반환해 신뢰 불가).
 
 스크립트는 모두 `scripts/`에 있고, 터미널 출력이 기본이며 `--json`(원시)·`--html`(리포트) 옵션을 가진다.
-스크립트 경로 기준: `SC=~/.claude/skills/oss-explore/scripts` (또는 `~/.agents/skills/shared/oss-explore/scripts`).
+설치된 `oss-explore` 스킬 루트에서 `SC=scripts`로 두고 실행한다.
 
 ## 6가지 모드 (발견 → 기여 → 회고)
 
@@ -67,7 +67,7 @@ PR 생성은 자동화하지 않는다(레포별 규약이 다름). 부트스트
 - explore는 키워드+토픽을 **둘 다** 돌려 병합한다(키워드만 쓰면 자기태깅 토픽 레포를, 토픽만 쓰면 이름/설명 매치 레포를 놓침). 토픽은 소문자-하이픈 슬러그로 변환
 - 머지 PR 검색은 `gh search prs --author=U --merged` — `--state=merged`는 잘못된 플래그(jq parse error 유발)
 - **본인 vs 타인 조직 분류**: 조회 대상이 현재 로그인이면 `user/orgs`(비공개 포함), 타인이면 `users/<u>/orgs`(공개만) → 타인은 비공개 조직이 "외부"로 오분류될 수 있음(API 한계)
-- 병렬 보강은 `xargs -P 10 -n 1 sh -c '... "$1" ...' _` 패턴 — macOS BSD `xargs -I {}`는 명령 255바이트 제한이 있어 긴 스크립트에서 깨진다
+- 병렬 보강은 짧은 helper script를 `xargs -P 10 -n 1`로 호출한다. macOS BSD `xargs -I {}`는 명령 255바이트 제한이 있어 긴 인라인 명령에서 깨진다.
 - 트렌딩은 공식 API가 없어 HTML 파싱(`trending.py`). 페이지 구조가 바뀌면 정규식 갱신 필요
 - `gh search issues`는 query가 `-`로 시작하면 플래그로 오인 → discover는 `created:>=`를 항상 맨 앞에 둬 차단. `--stale-ok` created 하한은 `2008-01-01`(1926년은 GitHub이 0건 반환)
 

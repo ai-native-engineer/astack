@@ -2,13 +2,25 @@
 
 Apple Voice Memos 앱이 만든 `.m4a`/`.qta` 녹음 파일을 `apple-stt`(macOS SpeechAnalyzer)로 전사하고, 요약·제목 생성·알림까지 다루는 풀 파이프라인. 이 스킬에서 가장 비중이 큰 소스다.
 
-평소에는 launchd 워처가 새 녹음을 감지해 아래 §1·§3·§5를 자동 실행한다(`watcher.md`). 아래 명령들은 수동 재실행·부분 실행용.
+평소에는 launchd 워처가 새 녹음을 감지해 아래 1절, 3절, 5절을 자동 실행한다(`watcher.md`). 아래 명령들은 수동 재실행·부분 실행용.
+
+## 목차
+- 위치
+- 1. 전사 추출 (extract)
+- 2. 교정 (correct) — 수동 도구
+- 3. 요약 (summarize)
+- 교정 사항 / 요약
+- 4. 전문 읽기 (read)
+- 5. 알림 전송 (notify)
+- 6. (폐기) Apple 전사 트리거 (trigger-tsrp)
+- 7. 앱 표시 이름 변경 (rename-title)
 
 ## 위치
 
 - 원본: `~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/*.{m4a,qta}`
-- 산출물: `~/.voice-memos/transcripts/YYYYMMDD/HHMMSS/transcript.md` + `summary.md`
-- 단어장: `~/.voice-memos/corrections.json`
+- 데이터 루트: `VOICE_MEMOS_DATA_DIR`. 미설정 시 `~/Library/Mobile Documents/com~apple~CloudDocs/voice-memos`
+- 산출물: 데이터 루트의 `transcripts/YYYYMMDD/HHMMSS/transcript.md` + `summary.md`
+- 단어장: 데이터 루트의 `corrections.json`
 
 전사본 한 줄이 수만 자로 매우 길어서 Read 도구로 직접 열면 토큰 제한에 걸린다. 전문 읽기는 아래 "전문 읽기" 절차를 따른다.
 
@@ -18,13 +30,13 @@ Apple Voice Memos 앱이 만든 `.m4a`/`.qta` 녹음 파일을 `apple-stt`(macOS
 
 ```bash
 # 새 파일만 추출
-python3 ~/.claude/skills/voice-memos/scripts/extract.py
+python3 scripts/extract.py
 
 # 전체 재추출
-python3 ~/.claude/skills/voice-memos/scripts/extract.py --all --force
+python3 scripts/extract.py --all --force
 
 # 특정 파일만
-python3 ~/.claude/skills/voice-memos/scripts/extract.py --file <path.m4a>
+python3 scripts/extract.py --file <path.m4a>
 ```
 
 - `wait_until_settled()`로 파일 크기가 안정될 때까지 대기 → 녹음 중 미완성 파일 전사 방지
@@ -34,14 +46,14 @@ python3 ~/.claude/skills/voice-memos/scripts/extract.py --file <path.m4a>
 
 ## 2. 교정 (correct) — 수동 도구
 
-`corrections.json` 단어장으로 음성인식 오류를 일괄 치환하는 수동 도구. **`run.sh` 자동 파이프라인에는 포함되지 않는다** (교정은 §3 summarize가 LLM으로 함께 수행). 단어장 기반 일괄 치환이 따로 필요할 때만 실행한다.
+`corrections.json` 단어장으로 음성인식 오류를 일괄 치환하는 수동 도구. **`run.sh` 자동 파이프라인에는 포함되지 않는다** (교정은 3절 summarize가 LLM으로 함께 수행). 단어장 기반 일괄 치환이 따로 필요할 때만 실행한다.
 
 ```bash
-python3 ~/.claude/skills/voice-memos/scripts/correct.py
-python3 ~/.claude/skills/voice-memos/scripts/correct.py --all --force
+python3 scripts/correct.py
+python3 scripts/correct.py --all --force
 ```
 
-새 단어를 추가할 때는 `~/.voice-memos/corrections.json`을 직접 편집:
+새 단어를 추가할 때는 데이터 루트의 `corrections.json`을 직접 편집:
 
 ```json
 { "잘못된단어": "올바른단어" }
@@ -58,7 +70,7 @@ python3 ~/.claude/skills/voice-memos/scripts/correct.py --all --force
 claude-agent-sdk 의존이라 스킬 디렉터리의 uv venv로 실행하고, Claude Code 세션 안에서는 `CLAUDECODE`를 unset한다 (run.sh와 동일).
 
 ```bash
-cd ~/.claude/skills/voice-memos && unset CLAUDECODE
+unset CLAUDECODE
 uv run python scripts/summarize.py            # 미요약만
 uv run python scripts/summarize.py --all --force
 uv run python scripts/summarize.py --recent 5
@@ -101,12 +113,12 @@ uv run python scripts/summarize.py --file <path/transcript.md>
 
 Voice Memos 전사본에는 화자 라벨이 없다. 다자 대화·미팅을 요약할 때:
 
-1. 전사본에 등장하는 이름·닉네임(예: `화자1`, `화자2` 등)을 기계적으로 특정 발화자에게 매핑하지 않는다.
+1. 전사본에 등장하는 이름·닉네임을 기계적으로 특정 발화자에게 매핑하지 않는다.
 2. 사용자의 관점·의견·결정을 추론·요약하기 전에 "이 녹음에서 당신은 어느 발언을 했는지" 사용자에게 먼저 묻는다. 특히 다음 상황은 필수:
    - 사용자의 의사결정·심리·평가를 요약할 때
    - 특정 인물의 발언을 사용자에게 귀속시킬 때
    - 발언 주체에 따라 결론이 달라질 때
-3. AGENTS.md의 사용자 호칭(본인 이름·닉네임)이 전사본에 등장하면 사용자를 지칭할 가능성이 높지만, 그 문장이 사용자의 **발화**인지 사용자**에 대한 언급**인지 반드시 구분한다.
+3. 사용자 프로필에 알려진 호칭이 전사본에 등장하면 사용자를 지칭할 가능성이 높지만, 그 문장이 사용자의 **발화**인지 사용자**에 대한 언급**인지 반드시 구분한다.
 4. 추측으로 화자를 특정해 요약하지 말고, 불확실하면 묻고 답을 받은 뒤 요약을 확정한다.
 
 ### [필수] Caret MCP 사전 보강
@@ -115,11 +127,14 @@ Voice Memos 전사본에는 화자 라벨이 없다. 다자 대화·미팅을 �
 
 ## 4. 전문 읽기 (read)
 
-전사본은 줄 수는 적지만 한 줄이 수만 자라 Read 도구의 10K 토큰 제한을 초과한다. "전문 가져와줘"·"메모 내용 읽어줘" 요청 시:
+전사본은 줄 수는 적지만 한 줄이 수만 자라 Read 도구의 10K 토큰 제한을 초과한다. iCloud Drive 파일은 Hermes/Python 직접 읽기에서 `OSError: [Errno 11] Resource deadlock avoided`가 날 수 있다. 이때는 먼저 `/bin/cp '<icloud-file>' /tmp/<name>.md`로 로컬 임시 복사본을 만든 뒤 그 복사본을 `fold`/Read 한다. `cp`도 같은 오류로 실패하면 파일이 `compressed,dataless` 상태일 수 있다. `/usr/bin/stat -f '%Sf' '<icloud-file>'`로 확인하고, `brctl download '<icloud-file>'` 실행 후 2-10초 기다려 flags에서 `dataless`가 사라졌는지 확인한 다음 다시 `/bin/cp` 한다. `brctl download`도 안 되면 Finder에서 다운로드하거나 FDA/파일 접근 권한을 확인해야 한다.
+
+"전문 가져와줘"·"메모 내용 읽어줘" 요청 시:
 
 ```bash
 # 1) 200자 단위로 분할
-fold -s -w 200 ~/.voice-memos/transcripts/YYYYMMDD/HHMMSS/transcript.md > /tmp/transcript_folded.md
+DATA_DIR="${VOICE_MEMOS_DATA_DIR:-$HOME/Library/Mobile Documents/com~apple~CloudDocs/voice-memos}"
+fold -s -w 200 "$DATA_DIR/transcripts/YYYYMMDD/HHMMSS/transcript.md" > /tmp/transcript_folded.md
 
 # 2) 줄 수 확인
 wc -l /tmp/transcript_folded.md
@@ -142,25 +157,25 @@ Read /tmp/transcript_folded.md offset=301 limit=50
 
 ## 5. 알림 전송 (notify)
 
-명시 요청 시에만 실행. `.env`에 Discord/Telegram 설정 필요.
+명시 요청 시에만 실행. `~/.config/voice-memos/.env`에 Discord/Telegram 설정이 필요하다. 다른 위치를 쓰면 `VOICE_MEMOS_CONFIG_FILE`로 지정한다.
 
 ```bash
-python3 ~/.claude/skills/voice-memos/scripts/notify.py --file <path.md>
-python3 ~/.claude/skills/voice-memos/scripts/notify.py   # 미전송 일괄
+python3 scripts/notify.py --file <path.md>
+python3 scripts/notify.py   # 미전송 일괄
 ```
 
 ## 6. (폐기) Apple 전사 트리거 (trigger-tsrp)
 
-> 2026-05-30 폐기. 현재는 §1 `apple-stt`로 직접 전사하므로 이 절차는 불필요하다. `trigger_tsrp.sh`/`transcribe_visible.swift`/`stt_fallback.swift`는 폴백용으로만 보관한다. 아래는 구버전 기록.
+> 2026-05-30 폐기. 현재는 1절 `apple-stt`로 직접 전사하므로 이 절차는 불필요하다. `trigger_tsrp.sh`/`transcribe_visible.swift`/`stt_fallback.swift`는 폴백용으로만 보관한다. 아래는 구버전 기록.
 
 (구버전) Voice Memos가 녹음을 연 뒤 상단 `전사문` 버튼을 눌러야 Apple 원본 전사(`tsrp`)가 생기던 경우.
 
 ```bash
 # 현재 선택된 녹음 하나만 처리
-~/.claude/skills/voice-memos/scripts/trigger_tsrp.sh
+scripts/trigger_tsrp.sh
 
 # 현재 보이는 목록의 미전사 항목을 안전 처리. 결과: transcribed / unavailable / timeout
-~/.claude/skills/voice-memos/scripts/transcribe_visible.swift --timeout 180
+scripts/transcribe_visible.swift --timeout 180
 ```
 
 규칙:

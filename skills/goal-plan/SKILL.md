@@ -26,6 +26,12 @@ Read `references/setup.md` when creating a plan. Read `references/progress-ledge
 
 AGENTS.md goal instructions need more than a one-line goal. Before scaffolding, inspect the repo enough to propose concrete defaults, then run at least one interview round with the user. Ask only what changes the run, use the host's structured clarification UI when available, and fill the Context section from the repo, not the user.
 
+When the user asks to turn a rough operations/TODO list into a Codex `/goal`, especially with phrases like "until it works" or "isolated environment", do not hand off a vague goal. Convert the list into acceptance criteria, a deterministic proof command, explicit scope/out-of-scope boundaries, reversible-change constraints, and a progress row for each major subsystem. If the user chooses real infrastructure scope, keep the goal repo isolated but constrain real host changes to narrow, reversible user-level canaries unless they explicitly approve broader actions.
+
+If the user later corrects the goal scope, rewrite both `AGENTS.md` and `progress.tsv` to match the corrected scope, remove stale acceptance criteria/rows/phrases from the prior scope, verify with a content search, and commit the rewrite. Do not leave old risky domains (for example security/network/production ops) as active proof requirements after the user moved them out of scope.
+
+For service-boilerplate or harness goals where the user asks for spec-driven development, use the user's named spec system instead of inventing a generic `SPEC.md`. In particular, if they say GitHub Spec Kit, encode Spec Kit as the source of truth: `specify-cli` install/verification via `uv`, `specify init`, and the `constitution -> specify -> plan -> tasks -> implement` flow. Note command naming differences: most slash-command agents use `/speckit.*`, while Codex CLI in skills mode uses `$speckit-*`. A local `SPEC.md` may only be a thin compatibility note around Spec Kit outputs, not the primary spec system.
+
 The interview round is required for broad or long-running requests. Present a short overview of the inferred goal, proof, scope, and risks, then ask 1-3 concrete questions. Do not scaffold in the first response unless the user explicitly says to use defaults, skip questions, or continue without interview.
 
 Settle these fields before writing the goal instructions:

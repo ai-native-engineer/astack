@@ -13,11 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import vm_notes
-
-TRANSCRIPTS_DIR = Path.home() / ".voice-memos/transcripts"
-CALL_RECORDINGS_DIR = (
-    Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/녹음"
-)
+from config import CALL_RECORDINGS_DIR, TRANSCRIPTS_DIR
 
 # 에이닷 통화 녹음 폴더의 원본 .txt와 파생 .transcript.md를 검색 대상으로 본다.
 # 날짜 정렬/필터링은 파일명 끝의 `_YYYYMMDD_HHMMSS` suffix만 사용한다.
@@ -136,7 +132,7 @@ def file_to_datetime(path: Path) -> datetime | None:
 def iter_transcript_files() -> list[Path]:
     """전사/메모 파일 목록을 반환합니다.
 
-    - Voice Memos transcript: `~/.voice-memos/transcripts/**/transcript.md`
+    - Voice Memos transcript: `DATA_DIR/transcripts/**/transcript.md`
     - iCloud 통화 녹음: `~/Library/Mobile Documents/com~apple~CloudDocs/녹음/*.txt`
       + `*.transcript.md`
     - Apple Notes: `~/Library/.../NoteStore.sqlite` (mode=ro 직접 쿼리)

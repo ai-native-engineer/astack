@@ -2,17 +2,17 @@
 """Local voice-clone TTS driver around mlx-audio (default Qwen3-TTS).
 
 Two data stores, on purpose:
-  - VOICE STORE (persistent): reusable reference voices live in
-    <skill>/voices/<name>/ (ref.wav + ref.txt), so packaged skills include
-    their voices. Override with --voice-dir or env TTS_VOICE_DIR.
+  - VOICE STORE (persistent, local-only): reusable reference voices live in
+    ~/.local/share/tts/voices/<name>/ (ref.wav + ref.txt). Override with
+    --voice-dir, env TTS_VOICE_DIR, or ~/.config/tts/config.json.
   - PROJECT (ephemeral): generated audio + work files. Default is a fresh
     /tmp/tts-XXXX (pass --proj to pin a location). Use --out to also copy the
     finished output.wav to a directory or .wav path you want to keep.
 
 Subcommands:
   prep   <media|wav> --voice NAME [--ref-text T | --ref-text-file F]
-         Extract a clean reference clip (loudnorm, 24k mono) and store it under
-         <skill>/voices/NAME/. Uses apple-stt when reference text is omitted.
+         Extract a clean reference clip (loudnorm, 24k mono) and store it in
+         the local voice store. Uses apple-stt when reference text is omitted.
   voices List registered voices in the store.
   preptext (--text T | --text-file F) [--out F]
          Rewrite Korean script text into TTS-friendly spoken chunks.
@@ -37,10 +37,49 @@ import argparse, json, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 
 DEFAULT_MODEL = "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
-DEFAULT_VOICE = "aiden"
-DEFAULT_VOICE_DIR = Path(__file__).resolve().parent.parent / "voices"
+CONFIG_FILE = Path(
+    os.environ.get("TTS_CONFIG_FILE", "~/.config/tts/config.json")
+).expanduser()
+
+
+def _load_config():
+    try:
+        value = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+_CONFIG = _load_config()
+DEFAULT_VOICE = str(
+    os.environ.get("TTS_DEFAULT_VOICE")
+    or _CONFIG.get("default_voice")
+    or "default"
+)
+DEFAULT_VOICE_DIR = Path(
+    os.environ.get("TTS_VOICE_DIR")
+    or _CONFIG.get("voice_dir")
+    or "~/.local/share/tts/voices"
+).expanduser()
+WHISPER_MODEL = "mlx-community/whisper-large-v3-turbo"
 # apple-stt uses locale tags; map mlx_audio --lang codes
 _LANG_LOCALE = {"ko": "ko-KR", "en": "en-US"}
+
+
+def _tool(name):
+    found = shutil.which(name)
+    if found:
+        return found
+    # Hermes background jobs can start with a minimal PATH that misses Homebrew.
+    # Fall back to standard macOS locations before letting subprocess raise.
+    for candidate in (f"/opt/homebrew/bin/{name}", f"/usr/local/bin/{name}", f"/usr/bin/{name}"):
+        if Path(candidate).exists():
+            return candidate
+    return name
+
+
+FFMPEG = _tool("ffmpeg")
+FFPROBE = _tool("ffprobe")
 # tail fade-out (~60ms) + leading declick + trailing silence; keeps chunk ends clean
 NORM_AF = "afade=t=in:d=0.02,areverse,afade=t=in:d=0.06,areverse,apad=pad_dur={gap},aresample=24000"
 EDIT_LOUDNORM_AF = "loudnorm=I=-16:TP=-1.5:LRA=11"
@@ -86,7 +125,7 @@ def run(cmd, **kw):
 
 def ffprobe_dur(p):
     out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+        [FFPROBE, "-v", "error", "-show_entries", "format=duration",
          "-of", "default=nk=1:nw=1", str(p)],
         capture_output=True, text=True, check=True)
     return float(out.stdout.strip())
@@ -165,14 +204,14 @@ def _concat(wavs, out):
     listf = out.with_suffix(".concat.txt")
     listf.write_text("\n".join(f"file '{Path(w).resolve()}'" for w in wavs) + "\n",
                      encoding="utf-8")
-    run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(listf),
+    run([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", str(listf),
          "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", str(out)],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     listf.unlink(missing_ok=True)
 
 
 def _normalize(raw, norm, gap):
-    run(["ffmpeg", "-y", "-i", str(raw), "-af", NORM_AF.format(gap=gap),
+    run([FFMPEG, "-y", "-i", str(raw), "-af", NORM_AF.format(gap=gap),
          "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", str(norm)],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -195,7 +234,7 @@ def _deliver_loudnorm(src, out):
     dst = Path(out).expanduser()
     dst = dst if dst.suffix.lower() == ".wav" else dst / "output-loudnorm.wav"
     dst.parent.mkdir(parents=True, exist_ok=True)
-    run(["ffmpeg", "-y", "-i", str(src), "-af", EDIT_LOUDNORM_AF,
+    run([FFMPEG, "-y", "-i", str(src), "-af", EDIT_LOUDNORM_AF,
          "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", str(dst)],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return dst
@@ -408,7 +447,7 @@ def cmd_prep(args):
     dest.mkdir(parents=True, exist_ok=True)
     ref = dest / "ref.wav"
     af = "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=24000"
-    cmd = ["ffmpeg", "-y"]
+    cmd = [FFMPEG, "-y"]
     if args.ss is not None:
         cmd += ["-ss", str(args.ss)]
     cmd += ["-i", str(Path(args.media).expanduser()), "-map", "0:a:0"]
@@ -426,7 +465,6 @@ def cmd_prep(args):
         sys.exit("[tts] reference text is empty")
     txt.write_text(one + "\n", encoding="utf-8")
     print(f"[tts] voice '{args.voice}' stored: {dest} ({ffprobe_dur(ref):.1f}s)")
-    print(f"[tts] ref_text: {one}")
 
 
 def cmd_voices(args):
@@ -436,8 +474,8 @@ def cmd_voices(args):
     print(f"[tts] voice store: {store}")
     for d in sorted(store.iterdir()):
         if (d / "ref.wav").exists():
-            t = (d / "ref.txt").read_text(encoding="utf-8")[:48] if (d / "ref.txt").exists() else ""
-            print(f"  {d.name:16} {ffprobe_dur(d/'ref.wav'):5.1f}s  {t}")
+            has_text = "yes" if (d / "ref.txt").exists() else "no"
+            print(f"  {d.name:16} {ffprobe_dur(d/'ref.wav'):5.1f}s  ref_text={has_text}")
 
 
 def cmd_full(args):

@@ -2,7 +2,7 @@
 
 ## Project Rules
 
-- **이 디렉터리가 파이프라인 코드의 원본(single source of truth)이다.** launchd 워처 plist(`~/Library/LaunchAgents/com.user.voicememos-watcher.plist`)가 이곳의 `scripts/run.sh`를 real path로 직접 실행하므로, 스크립트 이동·이름 변경 시 plist 재지정 + `launchctl bootout/bootstrap`이 필요하다.
+- **이 디렉터리가 파이프라인 코드의 원본(single source of truth)이다.** launchd 워처 plist는 현재 로드된 스킬 루트의 `scripts/run.sh` real path를 직접 실행하므로, 스크립트 이동·이름 변경 시 plist 재지정 + `launchctl bootout/bootstrap`이 필요하다.
 - 모든 파일은 UTF-8 인코딩으로 작성하고, 수정 후 `file -I`로 확인한다.
 - Voice Memos 전사는 `apple-stt`(macOS SpeechAnalyzer, 음성 메모와 동일 엔진)로 오디오를 직접 전사한다. Apple 기본 전사(`tsrp` atom)나 UI 전사 버튼 트리거에 의존하지 않는다.
 - `apple-stt`는 vocab을 `~/.config/apple-stt/vocab.txt`에서 자동 로드하지만, 이 프로젝트의 실제 vocab은 `~/.config/stt/vocab.txt`에 있으므로 `extract.py`가 `--vocab-file`로 명시 전달한다 (config.py `VOCAB_FILE`이 단일 소스).

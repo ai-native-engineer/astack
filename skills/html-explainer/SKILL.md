@@ -8,19 +8,21 @@ argument-hint: "[visual|interactive] [topic]"
 
 설명 자료를 단일 HTML로 만든다. **두 타입**이 있고, 시작 전에 먼저 고른다. 핵심 멘탈 모델: **수동으로 좌표를 계산하지 않는다** - 시각형은 배치를 레이아웃 엔진(Mermaid/ELK)에, 인터랙티브형은 상태를 React에 위임한다. 수동 SVG 좌표 계산은 요소 겹침·가림 사고의 근원이다(실측 실패 패턴).
 
-## 두 가지 타입 - 먼저 고른다
+## 타입 - 먼저 고른다
 
 | 타입 | 무엇 / 언제 | 스택 | 시작 템플릿 + 읽을 reference |
 |---|---|---|---|
 | **시각형** | 다이어그램·차트로 핵심을 한 화면에(정적). 구조·관계·수치를 한눈에, 참고·요약. | Mermaid v11+ELK, ECharts 6, Iconify | `assets/template.html` + `references/stack-guide.md` |
 | **인터랙티브형** | 단계를 클릭하며 스스로 결론에 도달(단계 워크스루). 개념 체득, 비교·의사결정, 교육. | React 18 + Babel 단일 HTML | `assets/interactive-template.html` + `references/interactive-walkthrough.md` |
+| **위키/지식베이스형** | 긴 용어집·FAQ·핸드북·문서 뭉치를 검색·탐색 가능한 위키처럼. 사용자가 “위키처럼”, “기존 템플릿 말고”, “용어집/사전”을 원할 때. | Vanilla JS 단일 HTML, embedded JSON, hash routing | 커스텀 단일 HTML + `references/wiki-knowledge-base.md` |
 
-## 워크플로 (두 타입 공통)
+## 워크플로 (공통)
 
-1. **타입 선택 -> 템플릿 복사**: 위 표의 시작 템플릿을 출력 경로로 복사해 내용만 채운다. 테마·폰트·다크/라이트·네비 배선이 이미 들어 있다 - 골격을 재작성하지 않는다.
+1. **타입 선택**: 시각형/인터랙티브형은 위 표의 시작 템플릿을 출력 경로로 복사해 내용만 채운다. **위키/지식베이스형은 템플릿 강제 금지** - source 문서를 구조화해 커스텀 단일 HTML로 만든다.
 2. **내용 작성**: 작성 전 그 타입의 reference에서 쓸 기능의 함정·레시피를 읽는다.
-3. **검증**: `scripts/verify.sh <파일>` - 콘솔 에러·렌더를 확인하고, 출력된 스크린샷을 Read로 열어 겹침·잘림을 육안 확인한다. 통과 전에는 사용자에게 열어주지 않는다.
+3. **검증**: `scripts/verify.sh <파일>` - 콘솔 에러·렌더를 확인하고, 출력된 스크린샷을 Read로 열어 겹침·잘림을 육안 확인한다. 통과 전에는 사용자에게 열어주지 않는다. 검증 스크립트 의존성이 아직 준비되지 않은 환경이면 브라우저로 직접 열어 콘솔 에러, 주요 인터랙션, 가로 overflow, 스크린샷/시각 검사를 확인하고 그 결과를 보고한다. 위키형은 검색, Enter 이동, 해시 라우팅, 대표 문서 상세 페이지까지 확인한다.
 4. **열기**: `open <파일>`.
+5. **공개 링크가 필요할 때만 배포**: 사용자가 지정한 정적 호스팅·배포 도구로 넘긴다. 배포 단계는 파일 배치·버전 백업·실제 URL 검증만 맡고, 디자인·카피·레이아웃 판단은 이 스킬 안에서 끝낸다.
 
 출력 경로는 기본 `/tmp/<slug>.html`(1회성 열람). 보관·공유를 원하면 프로젝트 폴더에 둔다.
 
@@ -41,8 +43,10 @@ argument-hint: "[visual|interactive] [topic]"
 
 | 언제 | 무엇 |
 |---|---|
-| 타입 선택·라우팅 | 위 "두 가지 타입" 표 |
+| 타입 선택·라우팅 | 위 "타입" 표 |
 | 시각형 내용 작성 전 | `references/stack-guide.md` |
 | 인터랙티브형 내용 작성 전 | `references/interactive-walkthrough.md` |
-| 새 파일 시작 | `assets/template.html`(시각형) / `assets/interactive-template.html`(인터랙티브형) |
-| 생성 후 검증 | `scripts/verify.sh <파일.html>` |
+| 인터랙티브형 문맥 구성 예시 | `examples/chat-context-composition-lab.html` |
+| 위키/지식베이스형 작성 전 | `references/wiki-knowledge-base.md` |
+| 새 파일 시작 | `assets/template.html`(시각형) / `assets/interactive-template.html`(인터랙티브형) / 커스텀 단일 HTML(위키형) |
+| 생성 후 검증 | `scripts/verify.sh <파일.html>` 또는 브라우저 직접 검증 |
