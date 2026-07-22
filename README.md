@@ -26,6 +26,7 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 
 | Skill | What it does | External deps |
 |-------|--------------|---------------|
+| `agent-team` | Coordinate independent work across Claude Code, Codex, or persistent Zellij panes with a strong lead and reliable completion signaling. | None; optional Zellij and worker CLIs for cross-harness panes |
 | `session-history` | Unified view & search of Claude Code (`~/.claude`) + Codex (`~/.codex`) sessions — list, timeline, full-text search across messages and tool calls (`rg`/`grep`, `--limit`), show, token usage summary. | Python 3 |
 | `voice-memos` | Apple Voice Memos / call recordings / Apple Notes / Caret MCP → transcribe, correct, search, summarize, notify. Includes a launchd watcher pipeline (auto transcribe → summarize → notify on new recordings, incl. call `.m4a`) with FDA diagnostics. | macOS, Python 3, `apple-stt`, `ffmpeg`, (optional) `stt` skill for speaker diarization, (optional) Caret MCP, Telegram/Discord |
 | `imessage` | Read & search macOS Messages (iMessage/SMS/RCS) via readonly SQLite (decodes `attributedBody`); send via `osascript`. MCP-free, on-demand. | macOS, Python 3 (stdlib only), Full Disk Access |

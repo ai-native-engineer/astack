@@ -101,4 +101,5 @@ if [[ -n "$privacy_hits$email_hits$voice_hits" ]]; then
   exit 1
 fi
 rsync -a --delete "$stage/skills/" "$ROOT/skills/"
+python3 "$ROOT/tests/test_repository.py"
 echo "synced: ${SKILLS[*]}"
