@@ -4,12 +4,14 @@
 이유: 자막을 youtube.com/<ID>.md 별도 트리에 두면 어느 글의 영상인지 연관을 못 찾는다.
 대신 영상이 인용된 위치 바로 아래에 자막을 붙여 맥락과 함께 읽히게 한다.
 
-선행: youtube-transcripts.sh가 <out>/youtube.com/<ID>.md 캐시(frontmatter+자막)를 먼저 만든다.
-이 스크립트는 그 캐시를 읽어 각 페이지에 인라인한다. 캐시(youtube.com/)는 gitignore -- 발행되는 건 인라인 형태.
-멱등: <!-- yt-inline:ID --> 마커로 재실행 시 중복 삽입 안 함. 자막 없는 영상은 "자막 없음" 블록을 붙인다."""
+선행: youtube-transcripts.sh가 <out>/_yt-cache/<ID>.md 캐시(frontmatter+자막)를 먼저 만든다.
+이 스크립트는 그 캐시를 읽어 각 페이지에 인라인한다. 캐시는 gitignore -- 발행되는 건 인라인 형태.
+멱등: <!-- yt-inline:ID --> 마커로 재실행 시 중복 삽입 안 함. 자막 없는 영상은 "자막 없음" 블록을 붙인다.
+Git 저장소에서는 ignore된 로컬 문서를 건드리지 않는다."""
 import glob
 import os
 import re
+import subprocess
 import sys
 
 ID_RE = re.compile(
@@ -31,6 +33,25 @@ def load_transcripts(mirror):
         body = t.split("## 자막", 1)[1].split("\n", 1)[1].strip() if "## 자막" in t else ""
         m[vid] = {"title": fm.get("title", vid), "duration": fm.get("duration", ""), "body": body}
     return m
+
+
+def gitignored(mirror, paths):
+    """Git 저장소면 ignore된 경로를 일괄 반환하고, 아니면 빈 집합을 반환한다."""
+    if not paths:
+        return set()
+    rels = [os.path.relpath(p, mirror) for p in paths]
+    try:
+        result = subprocess.run(
+            ["git", "-C", mirror, "check-ignore", "-z", "--stdin"],
+            input=("\0".join(rels) + "\0").encode(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        return set()
+    if result.returncode not in (0, 1):
+        return set()
+    return set(result.stdout.decode(errors="replace").rstrip("\0").split("\0")) - {""}
 
 
 def block(vid, tr):
@@ -101,6 +122,12 @@ def main():
         res = open(tf).read()
         assert res.count(f"yt-inline:{vid}") == 1, "블록이 정확히 1번 삽입돼야 함"
         assert "yt-inline" not in res.split("---", 2)[1], "frontmatter 안엔 블록이 들어가면 안 됨"
+        mirror = tempfile.mkdtemp()
+        subprocess.run(["git", "init", "-q", mirror], check=True)
+        ignored = os.path.join(mirror, "ignored.md")
+        open(ignored, "w").write(sample)
+        open(os.path.join(mirror, ".git", "info", "exclude"), "a").write("ignored.md\n")
+        assert gitignored(mirror, [ignored]) == {"ignored.md"}, "gitignored 로컬 문서를 건너뛰어야 함"
         print("self-test ok")
         return
     mirror = sys.argv[1]
@@ -110,8 +137,11 @@ def main():
     # 범용 비대상 트리만 경로로 제외(이미지·전사 캐시·채널 발행). academy 등 도메인은 하드코딩하지 않는다 ->
     # 대신 process()가 render-video-refs 마커(<!-- youtube/vimeo:)를 가진 파일을 건너뛴다(도메인 무관, 중복 방지).
     skip = ("/images/", os.sep + "_yt-cache" + os.sep, os.sep + "youtube.com" + os.sep)
-    for fp in glob.glob(os.path.join(mirror, "**", "*.md"), recursive=True):
-        if any(s in fp for s in skip):
+    candidates = [fp for fp in glob.glob(os.path.join(mirror, "**", "*.md"), recursive=True)
+                  if not any(s in fp for s in skip)]
+    ignored = gitignored(mirror, candidates)
+    for fp in candidates:
+        if os.path.relpath(fp, mirror) in ignored:
             continue
         n = process(fp, tr)
         if n:

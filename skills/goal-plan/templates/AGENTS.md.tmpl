@@ -9,7 +9,7 @@ Start the loop with `/goal @AGENTS.md`.
 
 ## Proof
 
-TBD: the exact command or check that proves the Goal (propose it from the repo, then confirm). Make it deterministic, repeatable, and self-contained -- include service startup, readiness/wait, check, cleanup, required env, test exit code, build status, count, or artifact path. Do not use a "looks good" judgment, because on an unattended run the agent is the only verifier.
+{{PROOF}}
 
 ## Acceptance Criteria
 
@@ -56,7 +56,7 @@ Run as an autonomous loop until the Goal holds.
 
 1. `goal_log.py show` to see where you are.
 2. Take the next row (or `goal_log.py add --task ...`), then `goal_log.py start <id>`. Pick the row most likely to advance the Goal or unblock the rest, not just the next in line.
-3. Do the work within Scope and Constraints, then run the Proof.
+3. For behavior changes, first add or reproduce a failing test/check. Do the minimum work within Scope and Constraints, run the Proof, read its result, and fix the root cause until it passes or a real blocker is recorded.
 4. `goal_log.py done <id> --decision keep|discard|crash --artifact "<proof>"` (keep if it advanced the goal; discard if it did not but did no harm; crash if it caused a regression). Be skeptical of your own success -- if the Proof passed quietly, rerun it before marking done. Every done row needs artifact or notes evidence; for discard/crash, put WHY it failed and what to try instead in notes so a later session does not repeat the dead end. Use `goal_log.py drop <id> --notes "<reason>"` only for rows that are no longer needed.
 5. Commit the changed files plus `{{PROGRESS_FILE}}`: `git add <files> {{PROGRESS_FILE}} && git commit -m "<keep|discard>: <what you did>"`. If target code changes live outside this repo, also commit the target repo or commit patch/snapshot artifacts here, according to Target Change Tracking.
 6. Surface the Proof in your reply as evidence, not a claim: paste the actual command output (pass/fail, line numbers, exact errors), then name the checkpoint, what you verified this step, what remains, and whether you are blocked. The Proof must verify every Acceptance Criteria item. The `/goal` evaluator reads the conversation, not the files.

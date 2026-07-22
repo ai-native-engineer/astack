@@ -1,0 +1,306 @@
+#!/usr/bin/env bash
+# zdel: persistent CLI workers in Zellij panes with race-safe file sentinels.
+set -euo pipefail
+
+BASE="${ZDEL_BASE:-${TMPDIR:-/tmp}/agent-team-zellij}"
+SESSION="${ZELLIJ_SESSION_NAME:-}"
+
+die() {
+  printf 'zdel: %s\n' "$*" >&2
+  exit 1
+}
+
+usage() {
+  sed -n '/^usage:/,/^$/p' <<'EOF'
+usage:
+  zdel start <worker> <prompt> -- <agent-command...>
+  zdel send <worker> <prompt>
+  zdel wait <worker> [timeout-sec]
+  zdel wait-all <timeout-sec> <worker...>
+  zdel key <worker> <keys...>
+  zdel peek <worker> [lines]
+  zdel result <worker> [turn]
+  zdel status
+  zdel stop <worker>
+  zdel self-test
+
+EOF
+}
+
+require_runtime() {
+  command -v zellij >/dev/null 2>&1 || die "zellij is not installed"
+  [ -n "$SESSION" ] || die "run inside Zellij"
+  case "$SESSION" in
+    *[!A-Za-z0-9._-]*) die "invalid Zellij session name: $SESSION" ;;
+  esac
+}
+
+validate_worker() {
+  [ -n "${1:-}" ] || die "worker name is required"
+  case "$1" in
+    *[!A-Za-z0-9._-]*) die "worker name may contain only letters, numbers, dot, underscore, and hyphen" ;;
+  esac
+}
+
+zellij_cmd() {
+  zellij "$@"
+}
+
+session_dir() {
+  printf '%s/%s' "$BASE" "$SESSION"
+}
+
+worker_dir() {
+  validate_worker "$1"
+  printf '%s/%s' "$(session_dir)" "$1"
+}
+
+current_turn() {
+  local file
+  file="$(worker_dir "$1")/turn"
+  [ -f "$file" ] || die "no state for worker '$1'; run start first"
+  sed -n '1p' "$file"
+}
+
+pane_id() {
+  local file
+  file="$(worker_dir "$1")/pane-id"
+  [ -f "$file" ] || die "no pane for worker '$1'; run start first"
+  sed -n '1p' "$file"
+}
+
+flatten() {
+  printf '%s' "$1" | tr '\n' ' '
+}
+
+completion_suffix() {
+  local result_file="$1" done_file="$2" quoted_result quoted_done
+  printf -v quoted_result '%q' "$result_file"
+  printf -v quoted_done '%q' "$done_file"
+  printf 'When completely done, write your full deliverable for this turn (complete text, not a summary) to %s -- write only to this exact file, never to an earlier turn file -- and then run: touch %s' "$quoted_result" "$quoted_done"
+}
+
+full_prompt() {
+  local prompt="$1" result_file="$2" done_file="$3"
+  printf '%s %s' "$(flatten "$prompt")" "$(completion_suffix "$result_file" "$done_file")"
+}
+
+pane_alive() {
+  zellij_cmd action dump-screen --pane-id "$1" >/dev/null 2>&1
+}
+
+start_worker() {
+  local worker="$1" prompt="$2"
+  shift 2
+  [ "$#" -gt 0 ] || die "agent command is required after --"
+
+  local dir turn result_file done_file pane output
+  dir="$(worker_dir "$worker")"
+  [ ! -e "$dir" ] || die "worker '$worker' already has state; use send or stop"
+  mkdir -p "$dir"
+  turn=1
+  printf '%s\n' "$turn" >"$dir/turn"
+  result_file="$dir/turn-$turn.md"
+  done_file="$dir/turn-$turn.done"
+
+  if ! output="$(zellij_cmd run --name "agent-$worker" --cwd "$PWD" -- "$@" "$(full_prompt "$prompt" "$result_file" "$done_file")")"; then
+    rm -rf "$dir"
+    die "failed to start Zellij pane for '$worker'"
+  fi
+  pane="$(printf '%s\n' "$output" | tail -n 1)"
+  case "$pane" in
+    terminal_[0-9]*) ;;
+    *) die "unexpected pane id from zellij: $pane" ;;
+  esac
+  printf '%s\n' "$pane" >"$dir/pane-id"
+  printf "started '%s' in %s; wait with: zdel wait %s\n" "$worker" "$pane" "$worker"
+}
+
+send_worker() {
+  local worker="$1" prompt="$2" dir turn result_file done_file pane message
+  dir="$(worker_dir "$worker")"
+  pane="$(pane_id "$worker")"
+  pane_alive "$pane" || die "pane '$pane' for worker '$worker' is not running"
+  turn=$(( $(current_turn "$worker") + 1 ))
+  printf '%s\n' "$turn" >"$dir/turn"
+  result_file="$dir/turn-$turn.md"
+  done_file="$dir/turn-$turn.done"
+  message="$(full_prompt "$prompt" "$result_file" "$done_file")"
+
+  zellij_cmd action write-chars --pane-id "$pane" -- "$message"
+  case "$prompt" in
+    /*|\$*) sleep 1; zellij_cmd action send-keys --pane-id "$pane" Enter; sleep 1 ;;
+    *) sleep 0.3 ;;
+  esac
+  zellij_cmd action send-keys --pane-id "$pane" Enter
+  printf "sent turn %s to '%s'; wait with: zdel wait %s\n" "$turn" "$worker" "$worker"
+}
+
+peek_worker() {
+  local worker="$1" lines="${2:-60}" pane
+  case "$lines" in *[!0-9]*|'') die "lines must be a positive integer" ;; esac
+  pane="$(pane_id "$worker")"
+  zellij_cmd action dump-screen --pane-id "$pane" --full | tail -n "$lines"
+}
+
+wait_worker() {
+  local worker="$1" timeout="${2:-1800}" dir turn done_file result_file pane elapsed
+  case "$timeout" in *[!0-9]*|'') die "timeout must be a non-negative integer" ;; esac
+  dir="$(worker_dir "$worker")"
+  turn="$(current_turn "$worker")"
+  done_file="$dir/turn-$turn.done"
+  result_file="$dir/turn-$turn.md"
+  pane="$(pane_id "$worker")"
+  elapsed=0
+
+  while [ ! -f "$done_file" ]; do
+    pane_alive "$pane" || die "pane '$pane' exited before worker '$worker' signaled completion"
+    if [ "$elapsed" -ge "$timeout" ]; then
+      printf "zdel: timeout after %ss waiting for '%s' turn %s\n" "$timeout" "$worker" "$turn" >&2
+      peek_worker "$worker" 40 >&2 || true
+      return 124
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+
+  printf "worker '%s' turn %s done\n" "$worker" "$turn"
+  if [ -f "$result_file" ]; then
+    sed -n '1,240p' "$result_file"
+  else
+    printf '(worker wrote no result file)\n'
+  fi
+}
+
+wait_all_workers() {
+  local timeout="$1" output_dir worker worker_rc final_rc index
+  shift
+  case "$timeout" in *[!0-9]*|'') die "timeout must be a non-negative integer" ;; esac
+  [ "$#" -gt 0 ] || die "wait-all requires at least one worker"
+
+  local workers=("$@") pids=()
+  output_dir="$(mktemp -d "${TMPDIR:-/tmp}/zdel-wait-all.XXXXXX")"
+  final_rc=0
+
+  for worker in "${workers[@]}"; do
+    validate_worker "$worker"
+    (wait_worker "$worker" "$timeout") >"$output_dir/$worker.out" 2>"$output_dir/$worker.err" &
+    pids+=("$!")
+  done
+
+  for ((index = 0; index < ${#workers[@]}; index++)); do
+    worker_rc=0
+    wait "${pids[$index]}" || worker_rc=$?
+    worker="${workers[$index]}"
+    printf -- '--- %s ---\n' "$worker"
+    sed -n '1,240p' "$output_dir/$worker.out"
+    sed -n '1,120p' "$output_dir/$worker.err" >&2
+    [ "$worker_rc" -eq 0 ] || final_rc="$worker_rc"
+  done
+
+  rm -rf "$output_dir"
+  return "$final_rc"
+}
+
+stop_worker() {
+  local worker="$1" dir pane
+  dir="$(worker_dir "$worker")"
+  pane="$(pane_id "$worker")"
+  zellij_cmd action close-pane --pane-id "$pane" >/dev/null 2>&1 || true
+  rm -rf "$dir"
+  printf "stopped '%s'\n" "$worker"
+}
+
+self_test() {
+  local worker="zdel-self-test-$$" dir result_file done_file next_result_file next_done_file
+  dir="$(worker_dir "$worker")"
+  result_file="$dir/turn-1.md"
+  done_file="$dir/turn-1.done"
+  next_result_file="$dir/turn-2.md"
+  next_done_file="$dir/turn-2.done"
+  trap 'stop_worker "$worker" >/dev/null 2>&1 || true' EXIT
+  start_worker "$worker" "self test" bash -c 'printf "turn-1-ok\n" >"$1"; touch "$2"; IFS= read -r line; printf "turn-2-ok\n" >"$3"; touch "$4"; sleep 30' _ "$result_file" "$done_file" "$next_result_file" "$next_done_file" >/dev/null
+  wait_worker "$worker" 10 | grep -q '^turn-1-ok$' || die "self-test turn 1 mismatch"
+  send_worker "$worker" "follow-up" >/dev/null
+  wait_all_workers 10 "$worker" | grep -q '^turn-2-ok$' || die "self-test turn 2 mismatch"
+  stop_worker "$worker" >/dev/null
+  trap - EXIT
+  printf 'zdel self-test passed\n'
+}
+
+command_name="${1:---help}"
+[ "$#" -gt 0 ] && shift
+
+case "$command_name" in
+  --help|-h|help) usage; exit 0 ;;
+esac
+require_runtime
+
+case "$command_name" in
+  start)
+    [ "$#" -ge 4 ] || { usage; exit 1; }
+    worker="$1" prompt="$2"
+    shift 2
+    [ "${1:-}" = "--" ] || die "start requires -- before the agent command"
+    shift
+    start_worker "$worker" "$prompt" "$@"
+    ;;
+  send)
+    [ "$#" -eq 2 ] || { usage; exit 1; }
+    send_worker "$1" "$2"
+    ;;
+  wait)
+    [ "$#" -ge 1 ] && [ "$#" -le 2 ] || { usage; exit 1; }
+    wait_worker "$@"
+    ;;
+  wait-all)
+    [ "$#" -ge 2 ] || { usage; exit 1; }
+    wait_all_workers "$@"
+    ;;
+  key)
+    [ "$#" -ge 2 ] || { usage; exit 1; }
+    worker="$1"
+    shift
+    zellij_cmd action send-keys --pane-id "$(pane_id "$worker")" "$@"
+    ;;
+  peek)
+    [ "$#" -ge 1 ] && [ "$#" -le 2 ] || { usage; exit 1; }
+    peek_worker "$@"
+    ;;
+  result)
+    [ "$#" -ge 1 ] && [ "$#" -le 2 ] || { usage; exit 1; }
+    worker="$1"
+    turn="${2:-$(current_turn "$worker")}"
+    case "$turn" in *[!0-9]*|'') die "turn must be a positive integer" ;; 0) die "turn must be a positive integer" ;; esac
+    result_file="$(worker_dir "$worker")/turn-$turn.md"
+    [ -f "$result_file" ] || die "no result for worker '$worker' turn $turn"
+    sed -n '1,240p' "$result_file"
+    ;;
+  status)
+    [ "$#" -eq 0 ] || { usage; exit 1; }
+    found=0
+    for dir in "$(session_dir)"/*; do
+      [ -d "$dir" ] || continue
+      found=1
+      worker="$(basename "$dir")"
+      turn="$(current_turn "$worker")"
+      if [ -f "$dir/turn-$turn.done" ]; then state=done; else state=running; fi
+      pane="$(pane_id "$worker")"
+      pane_alive "$pane" || state=dead
+      printf '%s  pane=%s  turn=%s  %s\n' "$worker" "$pane" "$turn" "$state"
+    done
+    [ "$found" -eq 1 ] || printf 'no workers\n'
+    ;;
+  stop)
+    [ "$#" -eq 1 ] || { usage; exit 1; }
+    stop_worker "$1"
+    ;;
+  self-test)
+    [ "$#" -eq 0 ] || { usage; exit 1; }
+    self_test
+    ;;
+  *)
+    usage >&2
+    exit 1
+    ;;
+esac

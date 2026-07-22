@@ -36,4 +36,8 @@
 
 ## 완성 예시
 
-- [context-window-widget.html](../examples/context-window-widget.html) — 채팅 조작으로 시스템·사용자·AI 메시지의 누적 컨텍스트를 설명하는 단일 HTML. 새 파일의 시작 골격이 아니라 상호작용·반응형·브라우저 검증 품질을 참고하는 예시다.
+- [claude-code-context-timeline.html](../examples/claude-code-context-timeline.html) — Claude Code 세션 시작부터 파일 읽기·서브에이전트·압축까지, 컨텍스트의 생애주기를 시간순으로 보여주는 게이트형 타임라인.
+- [chat-context-composition-lab.html](../examples/chat-context-composition-lab.html) — 사용자가 채팅을 이어가며 시스템·사용자·AI 메시지가 다음 요청의 컨텍스트로 누적되는 구성을 직접 확인하는 실험실.
+- [claude-directory-explorer.html](../examples/claude-directory-explorer.html) — `.claude` 디렉터리의 파일 트리를 탐색하며 파일별 설명·팁을 보는 2패널 탐색기. 스텝형이 아닌 탐색기형 패턴(트리 + 상세 패널 + URL 해시 딥링크)과 런타임 인라인 오프라인 단일 파일의 예시. 공식 문서 컴포넌트를 포팅한 것이라 CDN 대신 React UMD를 인라인했다.
+
+모두 완성 예시다. 새 파일은 복사하지 말고 `assets/interactive-template.html`에서 시작한다.

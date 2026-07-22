@@ -8,6 +8,7 @@ PDF는 자체 텍스트 레이어가 있어 필요 시 추출이 쉬우므로 .m
 대상 호스트는 --host로 지정한다(필수, 반복). 미러 소유 도메인만 넣어 외부 인용 PDF(arxiv·대학·정부 등)를 받지 않게 한다 -- 두 미러 공용 도구라 어느 미러의 도메인도 하드코딩하지 않는다.
 증분·멱등: 기존 파일은 skip(--force로 재다운로드). HTML 에러페이지를 PDF로 오인 저장하지 않도록 %PDF- 매직바이트를 검증한다.
 --max-mb(기본 100) 초과 PDF는 미러하지 않는다 -- GitHub 파일 하드 리밋이라, 받아두면 git push가 통째로 거부된다(소스 링크는 .md에 남는다).
+본문에서 말줄임표로 축약된 URL은 skip하고, 회수된 404 원본은 stale로 분리한다.
 
 Usage: pdf-mirror.py <out_dir> --host <substr> [--host <substr>]... [--force]
   anthropic: --host anthropic.com --host claude.com
@@ -16,10 +17,17 @@ Usage: pdf-mirror.py <out_dir> --host <substr> [--host <substr>]... [--force]
 import argparse
 import os
 import re
+import sys
+import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
 
 PDF_RE = re.compile(r'https?://[^\s)"\'<>]+\.pdf(?:\?[^\s)"\'<>]*)?', re.I)
+
+
+def invalid_source_url(url):
+    """본문에서 말줄임표로 잘린 URL은 다운로드 가능한 원문 주소가 아니다."""
+    return "…" in url
 
 
 def scan(out, hosts):
@@ -62,6 +70,11 @@ def fetch(url):
 
 
 def main():
+    if sys.argv[1:] == ["--self-test"]:
+        assert invalid_source_url("https://example.com/a[…]b.pdf")
+        assert not invalid_source_url("https://example.com/a-b.pdf")
+        print("self-test ok")
+        return
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
     ap.add_argument("--force", action="store_true", help="기존 파일도 다시 다운로드")
@@ -74,14 +87,26 @@ def main():
 
     urls = scan(a.out, hosts)
     print(f"PDF 링크 {len(urls)}개 발견", flush=True)
-    saved = skipped = failed = 0
+    saved = skipped = stale = failed = 0
     for u in urls:
+        if invalid_source_url(u):
+            print(f"  SKIP(축약된 원문 URL) {u}", flush=True)
+            skipped += 1
+            continue
         fp = dest(a.out, u)
         if os.path.exists(fp) and not a.force:
             skipped += 1
             continue
         try:
             data = fetch(u)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                print(f"  STALE(404 원본 없음) {u}", flush=True)
+                stale += 1
+                continue
+            print(f"  FAIL {u} [{str(e)[:80]}]", flush=True)
+            failed += 1
+            continue
         except Exception as e:
             print(f"  FAIL {u} [{str(e)[:80]}]", flush=True)
             failed += 1
@@ -101,7 +126,7 @@ def main():
             f.write(data)
         saved += 1
         print(f"  saved {fp} ({len(data) // 1024}KB)", flush=True)
-    print(f"저장 {saved} / skip {skipped} / 실패 {failed}", flush=True)
+    print(f"저장 {saved} / skip {skipped} / stale {stale} / 실패 {failed}", flush=True)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ AGENTS_ROOT="${AGENTS_ROOT:-$HOME/.agents}"
 SOURCE_ROOT="$AGENTS_ROOT/skills/shared"
 VALIDATORS="$SOURCE_ROOT/skill-manager/scripts"
 SKILLS=(
+  agent-team
   chrome-devtools-cli
   company-context-research
   communication
@@ -74,7 +75,7 @@ find "$stage/skills" -type f \( -name 'SKILL.md' -o -path '*/references/*.md' \)
   's|~/.agents/skills/shared/|${CLAUDE_PLUGIN_ROOT}/skills/|g' {} +
 find "$stage/skills" -type f -name '*.bak' -delete
 privacy_hits="$(rg --pcre2 -n --hidden \
-  '(sk-|ghp_|gho_|github_pat_|xox[bp]-)[A-Za-z0-9_-]{8,}|/Users/[^/[:space:]]+' \
+  '(?<![A-Za-z0-9-])(sk-|ghp_|gho_|github_pat_|xox[bp]-)[A-Za-z0-9_-]{8,}|/Users/[^/[:space:]]+' \
   "$stage/skills" || true)"
 voice_hits="$(find "$stage/skills" -type f -path '*/voices/*' \
   \( -name '*.aac' -o -name '*.flac' -o -name '*.m4a' -o -name '*.mp3' \

@@ -10,6 +10,16 @@ Read this when creating a goal plan.
 4. Scaffold only after the user answers, or after the user explicitly says to use defaults or skip questions.
 5. Replace every `TBD`, add the initial progress rows, commit the plan, then stop.
 
+## Optional Stop Gate
+
+When the Proof is fast, deterministic, bounded, non-interactive, and non-destructive, pass it during scaffolding:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/goal-plan/scripts/init_goal_plan.py --dedicated <name> --goal "<one measurable end state>" --proof-command '<exact command>'
+```
+
+This fills the generated Proof and installs the same `scripts/stop_gate.py` command hook in `.claude/settings.json` and `.codex/hooks.json`. The gate translates a failed Proof into a blocking Stop response once; `stop_hook_active` prevents an unbounded hook-only loop while `/goal` remains responsible for continued work and Bounds. Review and trust project hooks when the runtime prompts. Omit `--proof-command` for slow, flaky, costly, destructive, or human-only checks and keep them in the final Proof.
+
 ## Workspace Choice
 
 - If the target is a git repo and its git/worktree may be touched, scaffold into an external git worktree under `~/.agents/goals/<YYMMDD-HHMMSS-name>`.

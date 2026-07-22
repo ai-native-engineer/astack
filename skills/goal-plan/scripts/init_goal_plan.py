@@ -8,7 +8,9 @@ Plans can live in a target repo worktree or in a dedicated repo under
 from __future__ import annotations
 
 import argparse
+import json
 import re
+import shlex
 import shutil
 import subprocess
 from datetime import datetime, timezone
@@ -17,9 +19,18 @@ import sys
 
 
 DEFAULT_GOAL = "TBD: one measurable end state for this goal"
+DEFAULT_PROOF = (
+    "TBD: the exact command or check that proves the Goal (propose it from the repo, then "
+    "confirm). Make it deterministic, repeatable, and self-contained -- include service startup, "
+    "readiness/wait, check, cleanup, required env, test exit code, build status, count, or artifact "
+    "path. Do not use a \"looks good\" judgment, because on an unattended run the agent is the "
+    "only verifier. If no suitable check exists, make creating the smallest test, fixture diff, or "
+    "screenshot comparison the first progress row."
+)
 DEFAULT_DEDICATED_ROOT = Path("~/.agents/goals")
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 AGENTS_TEMPLATE = SKILL_ROOT / "templates" / "AGENTS.md.tmpl"
+STOP_GATE = SKILL_ROOT / "scripts" / "stop_gate.py"
 GOAL_START = "<!-- goal-plan:start -->"
 GOAL_END = "<!-- goal-plan:end -->"
 
@@ -62,14 +73,25 @@ def add_worktree(root: Path, tag: str, worktree_root: Path) -> Path:
     return wt
 
 
-def goal_instructions(goal: str, progress_file: str, goal_log: str) -> str:
+def proof_instructions(proof_command: str | None) -> str:
+    if proof_command is None:
+        return DEFAULT_PROOF
+    indented = "\n".join(f"    {line}" for line in proof_command.splitlines())
+    return (
+        "Run this exact command from the goal workspace. Claude Code and Codex Stop hooks run the "
+        "same command as a deterministic gate before allowing the agent to stop:\n\n"
+        f"{indented}"
+    )
+
+
+def goal_instructions(goal: str, proof_command: str | None, progress_file: str, goal_log: str) -> str:
     clean_goal = tsv_cell(goal).strip() or DEFAULT_GOAL
     try:
         template = AGENTS_TEMPLATE.read_text(encoding="utf-8")
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"missing goal template: {AGENTS_TEMPLATE}") from exc
     missing = [
-        marker for marker in ["{{GOAL}}", "{{PROGRESS_FILE}}", "{{GOAL_LOG}}"]
+        marker for marker in ["{{GOAL}}", "{{PROOF}}", "{{PROGRESS_FILE}}", "{{GOAL_LOG}}"]
         if marker not in template
     ]
     if missing:
@@ -78,13 +100,14 @@ def goal_instructions(goal: str, progress_file: str, goal_log: str) -> str:
     return (
         template
         .replace("{{GOAL}}", clean_goal)
+        .replace("{{PROOF}}", proof_instructions(proof_command))
         .replace("{{PROGRESS_FILE}}", progress_file)
         .replace("{{GOAL_LOG}}", goal_log)
     )
 
 
-def goal_block(goal: str, progress_file: str, goal_log: str) -> str:
-    body = goal_instructions(goal, progress_file, goal_log).strip()
+def goal_block(goal: str, proof_command: str | None, progress_file: str, goal_log: str) -> str:
+    body = goal_instructions(goal, proof_command, progress_file, goal_log).strip()
     return f"{GOAL_START}\n{body}\n{GOAL_END}\n"
 
 
@@ -158,10 +181,75 @@ def write_claude(path: Path) -> list[str]:
     return messages
 
 
+def stop_hook_command(proof_command: str) -> str:
+    return shlex.join(["python3", str(STOP_GATE), "--proof-command", proof_command])
+
+
+def without_goal_plan_stop_hook(groups: list[object]) -> list[object]:
+    kept_groups: list[object] = []
+    for group in groups:
+        if not isinstance(group, dict) or not isinstance(group.get("hooks"), list):
+            raise ValueError("Stop hook groups must contain a hooks array")
+        handlers = [
+            handler for handler in group["hooks"]
+            if not (
+                isinstance(handler, dict)
+                and isinstance(handler.get("command"), str)
+                and str(STOP_GATE) in handler["command"]
+            )
+        ]
+        if handlers:
+            updated = dict(group)
+            updated["hooks"] = handlers
+            kept_groups.append(updated)
+    return kept_groups
+
+
+def stop_hook_content(path: Path, command: str) -> str:
+    data: dict[str, object] = {}
+    if path.exists():
+        try:
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"invalid hook config JSON in {path}: {exc}") from exc
+        if not isinstance(loaded, dict):
+            raise ValueError(f"hook config must be a JSON object: {path}")
+        data = loaded
+
+    hooks = data.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        raise ValueError(f"hooks must be a JSON object: {path}")
+    stop_groups = hooks.get("Stop", [])
+    if not isinstance(stop_groups, list):
+        raise ValueError(f"hooks.Stop must be an array: {path}")
+    hooks["Stop"] = without_goal_plan_stop_hook(stop_groups) + [
+        {"hooks": [{"type": "command", "command": command}]}
+    ]
+    return json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+
+
+def write_stop_hook(path: Path, content: str) -> list[str]:
+    if path.exists() and path.read_text(encoding="utf-8") == content:
+        return [f"kept Stop hook in {path}"]
+    messages = []
+    backup = backup_existing(path)
+    if backup:
+        messages.append(backup)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    messages.append(f"wrote Stop hook to {path}")
+    return messages
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", nargs="?", default=".", help="Target repo (worktree mode) or workspace directory")
     parser.add_argument("--goal", default=DEFAULT_GOAL, help="Measurable completion condition")
+    parser.add_argument(
+        "--proof-command",
+        default=None,
+        help="Fast deterministic Proof command; also installs Claude and Codex Stop hooks",
+    )
     parser.add_argument("--worktree", metavar="TAG", default=None,
                         help="Create the plan in a timestamped external goal/<TAG> git worktree")
     parser.add_argument("--worktree-root", default=str(DEFAULT_DEDICATED_ROOT),
@@ -180,6 +268,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.dedicated and args.path != ".":
         print("error: --dedicated creates its own path; use --dedicated-root to change the root",
               file=sys.stderr)
+        return 2
+    if args.proof_command is not None and not args.proof_command.strip():
+        print("error: --proof-command cannot be empty", file=sys.stderr)
         return 2
 
     target = Path(args.path).expanduser().resolve()
@@ -215,17 +306,29 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: git init failed: {detail}", file=sys.stderr)
             return 2
 
+    hook_files: list[tuple[Path, str]] = []
+    if args.proof_command:
+        command = stop_hook_command(args.proof_command)
+        try:
+            for path in (target / ".claude" / "settings.json", target / ".codex" / "hooks.json"):
+                hook_files.append((path, stop_hook_content(path, command)))
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+
     progress_file = args.progress_file
     goal_log = str(Path(__file__).resolve().parent / "goal_log.py")
 
     messages = []
     try:
         messages.extend(write_agents(target / "AGENTS.md",
-                                     goal_block(args.goal, progress_file, goal_log)))
+                                     goal_block(args.goal, args.proof_command, progress_file, goal_log)))
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     messages.extend(write_claude(target / "CLAUDE.md"))
+    for path, content in hook_files:
+        messages.extend(write_stop_hook(path, content))
     messages.append(write_file(target / progress_file, progress_tsv(args.goal), args.force))
     if args.worktree:
         messages.append(f"worktree ready at {target} (branch goal/{args.worktree})")

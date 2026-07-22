@@ -1,4 +1,4 @@
-# Voice clone — 상세 (Qwen3-TTS / mlx-audio)
+# 로컬 TTS 상세 - Qwen3-TTS / mlx-audio
 
 레이어 구분: 실행 프로그램(`mlx-audio`) = uv tool / 전사 = `apple-stt`(`~/scripts/apple-stt`, stt 스킬) / 모델 가중치 = HF 캐시(`~/.cache/huggingface`). `hf`는 가중치 다운로드 도구지 프로그램 설치 도구가 아니다.
 
@@ -6,6 +6,7 @@
 
 - 셋업 (최초 1회)
 - 런타임 복구 — transformers 비호환
+- 개인정보와 로컬 노출 범위
 - 저장 위치 (영구 vs 휘발)
 - 1) 레퍼런스 준비 (prep)
 - 2) 생성 — full vs chunk
@@ -37,10 +38,19 @@ uv pip install --python ~/.local/share/uv/tools/mlx-audio/bin/python 'transforme
 
 해당 venv만 격리 다운그레이드라 다른 uv tool은 영향이 없고, 가중치는 HF 캐시에 있어 재다운로드도 없다. 복구 확인: `~/.local/share/uv/tools/mlx-audio/bin/python -c "import mlx_lm.tokenizer_utils"`.
 
+## 개인정보와 로컬 노출 범위
+
+- 이 드라이버는 모델 가중치만 내려받고 음성·대본을 원격 추론 서비스로 보내지 않는다.
+- `mlx-audio` 자식 프로세스에는 대본·전사문·음성 지시를 표준입력으로 전달한다. 해당 내용은 자식 프로세스 인자와 드라이버 실행 로그에 나타나지 않는다.
+- 사용자가 실행한 부모 명령은 셸 기록에 남을 수 있다. 민감한 내용은 `--text-file`, `--ref-text-file`, `--instruct-file`로 전달한다.
+- 음성 보관함과 작업 프로젝트는 `700`, `ref.wav`, `ref.txt`, `manifest.json`, 생성 WAV는 `600` 권한으로 저장한다.
+- 기존 음성 보관함은 `voices`로 조회하거나 해당 음성을 사용할 때 같은 권한으로 보정한다.
+- `manifest.json`에는 부분 재생성을 위한 대본 청크와 음성 모드 설정이 남는다. 프로젝트가 불필요해지면 프로젝트 폴더를 삭제한다.
+
 ## 저장 위치 (영구 vs 휘발)
 - **레퍼런스(원본 목소리)**: `prep --voice <name>`은 기본적으로 `~/.local/share/tts/voices/<name>/ref.wav + ref.txt`에 저장한다. 스킬·플러그인 repo에는 사람의 음성이나 전사문을 넣지 않는다. env `TTS_VOICE_DIR`, `--voice-dir`, `~/.config/tts/config.json`으로 위치와 기본 음성을 바꿀 수 있다.
 - **로컬 설정**: `~/.config/tts/config.json`에 `{"voice_dir":"~/.local/share/tts/voices","default_voice":"<voice-name>"}`를 둔다. 환경변수 `TTS_DEFAULT_VOICE`가 있으면 설정 파일보다 우선한다.
-- **프로젝트(작업 폴더)**: `--proj` 미지정 시 `tempfile.mkdtemp`로 `/tmp/tts-XXXX` 자동 생성. `manifest.json`이 레퍼런스 절대경로를 기록하므로, 보관함 voice가 있으면 /tmp 프로젝트가 날아가도 `prep` 없이 다시 생성 가능.
+- **프로젝트(작업 폴더)**: `--proj` 미지정 시 `tempfile.mkdtemp`로 `/tmp/tts-XXXX` 자동 생성. `manifest.json`은 대본 청크·모델·음성 모드와 레퍼런스 파일 경로를 기록하지만 레퍼런스 전사문을 복제 저장하지 않는다.
 - **최종본 보관**: `--out <폴더|*.wav>`로 완성된 `output.wav`를 원하는 위치에 복사(작업 폴더와 별개). full/chunk/regen/join 모두 지원. `--proj`와 `--out`을 함께 쓴다.
 - **편집용 정규화본 보관**: `--loudnorm-out <폴더|*.wav>`로 원본과 별개인 편집용 WAV를 만든다. 필터는 `loudnorm=I=-16:TP=-1.5:LRA=11`, 출력은 48kHz mono `pcm_s16le`. CapCut/유튜브 나레이션에 바로 넣을 때는 이 파일을 우선 사용하고, 원본 `output.wav`는 재처리용으로 남긴다.
 
@@ -48,6 +58,7 @@ uv pip install --python ~/.local/share/uv/tools/mlx-audio/bin/python 'transforme
 좋은 클론은 레퍼런스가 9할. 조건: **단일 화자, 클린(무음악·저잡음), 자연 발화 10~30초**.
 - 배경음악 깔린 구간 금지 — 클론에 음악이 섞인다. `ffmpeg ... silencedetect=noise=-30dB:d=0.4`로 무음이 거의 없으면 음악 베드이므로 다른 구간을 쓴다.
 - `prep`이 클립을 loudnorm·24kHz·mono로 정리하고 `ref.wav`/`ref.txt`를 만든다. **ref_text(전사)를 같이 줘야 클론 품질이 오른다.**
+- 음성 이름은 경로가 아닌 단순 별칭을 쓴다. `prep`은 변환과 전사가 모두 성공한 뒤에만 기존 레퍼런스를 교체한다.
 - 전사문이 있으면 `prep <file> --voice <name> --ref-text-file transcript.txt`를 쓴다. 전사문을 생략하면 `apple-stt`를 자동 탐색하고, 없으면 필요한 옵션을 알려주고 멈춘다.
 - 미디어에서 특정 구간만: `prep <file> --voice <name> --ss <시작초> --dur <길이>`. 이미 깨끗한 wav면 `--ss/--dur` 생략.
 
@@ -56,6 +67,7 @@ uv pip install --python ~/.local/share/uv/tools/mlx-audio/bin/python 'transforme
 - **chunk**: 한 줄=한 문장으로 쪼개 각각 생성 → 끝 페이드(~60ms)+무음 패딩 → concat. `manifest.json`에 모델·ref·문장 리스트를 저장.
   - 장점: 한 청크만 망가져도 `regen`으로 그것만 교체. 품질 최상.
   - 단점: 세그먼트 독립 샘플링이라 톤 일관성이 약간 흔들릴 수 있다(아래 튜닝으로 완화).
+  - 고정 `--proj`는 한 번만 생성한다. 기존 프로젝트는 `regen`/`join`으로 이어가고, 전체 재생성은 새 경로를 쓴다.
 
 ### 한국어 발화용 텍스트 전처리
 TTS에는 화면용 표기보다 **귀로 들었을 때 자연스러운 발화문**을 넣는다. 이 스킬은 최종 발화용 대본을 만드는 쪽이므로 원문/녹음용 파일을 강제로 분리하지 않는다.
@@ -92,7 +104,7 @@ python3 tts_clone.py regen --proj DIR --seg 3 --duration-multiplier 1.08 # 끝�
 python3 tts_clone.py join  --proj DIR                      # 수동 편집 후 재이어붙이기
 python3 tts_clone.py join  --proj DIR --loudnorm-out edit.wav # 편집용 loudnorm 파일만 다시 출력
 ```
-`regen`은 `manifest.json` 기준으로 해당 청크만 재생성하고 `output.wav`를 다시 만든다.
+`regen`은 `manifest.json`의 언어·기본 튜닝 옵션을 유지하고, 명령에서 지정한 튜닝은 해당 재생성에만 일회성으로 적용한다. `--text` 또는 `--text-file`로 바꾼 대본만 manifest에 저장한다.
 
 ## 최종 음량 정규화 (편집용)
 TTS 원본은 문장별 음량이 조금 작거나 편차가 있을 수 있다. 긴 나레이션을 영상 편집에 넣을 때는 원본과 편집용 파일을 둘 다 남긴다.
@@ -132,15 +144,31 @@ python3 tts_clone.py chunk --voice <voice-name> --text-file script.txt --lang ko
 - 드라이버 옵션: `--duration-multiplier`, `--speed`, `--ddpm-steps`, `--temperature`, `--top-p`, `--top-k`, `--repetition-penalty`를 `full`/`chunk`/`regen`에서 그대로 넘길 수 있다.
 
 ## 모드(음성 종류) & 대안 엔진
-같은 `mlx_audio.tts.generate`로 다른 모델/모드를 쓴다 (`--model`로 교체):
-- **Qwen3-TTS** (기본): `...-Base`(3초 클론) / `...-CustomVoice`(프리셋 보이스, `--voice Chelsie|Ethan|Vivian…`) / `...-VoiceDesign`(자연어 설계, `--instruct "차분한 30대 남성"`).
-- **VoxCPM2** (OpenBMB): `mlx-community/VoxCPM2-8bit` 등. Apache 2.0(상업 OK)·48kHz·한국어 O. 같은 레퍼런스로 A/B 비교 가능.
-- 참고: Voxtral(Mistral)은 오픈웨이트로는 커스텀 클론 불가(프리셋만)·한국어 미지원이라 로컬 한국어 클론엔 부적합.
+
+입력 옵션에 따라 Qwen3-TTS 기본 모델을 자동 선택한다. `--model`을 주면 해당 모델로 교체한다.
+
+- **등록 음성 복제**: `--voice <local-name>`. 옵션을 생략해도 설정된 기본 로컬 음성을 쓴다.
+- **CustomVoice**: `--preset-voice Aiden`으로 프리셋 화자를 고른다. `--instruct` 또는 `--instruct-file`을 함께 주면 감정·스타일을 지정한다.
+- **VoiceDesign**: 프리셋 없이 `--instruct` 또는 `--instruct-file`만 주면 자연어 설명으로 음성을 설계한다.
+- **VoxCPM2**: `--model mlx-community/VoxCPM2-8bit`로 교체한다. 로컬 `--voice`를 함께 주면 같은 레퍼런스로 A/B 비교할 수 있다.
+
+```bash
+# CustomVoice
+python3 tts_clone.py full --preset-voice Aiden --instruct-file style.txt --text-file script.txt
+
+# VoiceDesign
+python3 tts_clone.py full --instruct-file voice-description.txt --text-file script.txt
+
+# VoxCPM2 복제 비교
+python3 tts_clone.py full --voice <local-name> --model mlx-community/VoxCPM2-8bit --text-file script.txt
+```
+
+Qwen3-TTS의 프리셋 화자·VoiceDesign은 별도 레퍼런스 음성을 요구하지 않는다. Voxtral은 오픈웨이트 기준 한국어 커스텀 클론 용도로 쓰지 않는다.
 
 ## 산출물 레이아웃
 ```
-~/.local/share/tts/voices/<name>/ref.wav  ref.txt  # 로컬 영구 보관함
-/tmp/tts-XXXX/manifest.json  output.wav             # 휘발 프로젝트
+~/.local/share/tts/voices/<name>/ref.wav  ref.txt  # 로컬 영구 보관함, 파일 600
+/tmp/tts-XXXX/manifest.json  output.wav             # 휘발 프로젝트, 폴더 700
 /tmp/tts-XXXX/chunks/seg_NN_000.wav                 # 원본 청크
 /tmp/tts-XXXX/chunks/norm_NN.wav                    # 페이드+패딩 적용본(concat 대상)
 out/edit.wav                                        # --loudnorm-out 편집용 최종본(선택)
