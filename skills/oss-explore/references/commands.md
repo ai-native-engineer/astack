@@ -6,8 +6,10 @@
 
 | 목적 | 명령 |
 |---|---|
-| 주제로 레포 발견 (키워드) | `gh search repos "<주제>" --archived=false --sort stars --limit N --json fullName,stargazersCount,forksCount,description,url,updatedAt,pushedAt,language,openIssuesCount` |
-| 주제로 레포 발견 (토픽) | `gh search repos --topic <topic-slug> ...` (위와 동일 필드; 슬러그=소문자-하이픈) |
+| 이름/설명으로 레포 발견 | `gh search repos "<주제>" --match name,description --archived=false --include-forks=false ...` |
+| 토픽으로 레포 발견 | `gh search repos --topic <topic-slug> ...` (슬러그=소문자-하이픈, 빈 슬러그면 생략) |
+| README fallback | `gh search repos "<주제>" --match readme ...` (고신호 후보가 출력 상한보다 적을 때만) |
+| 라이선스 필터 | `gh search repos ... --license mit` |
 | 기여 신호 네이티브 필터 | `gh search repos --good-first-issues ">=N"` / `--help-wanted-issues ">=N"` (필터만; **카운트는 JSON 필드 아님** → per-repo 보강 필요) |
 | 머지된 PR (특정 author) | `gh search prs --author=USER --merged --limit 1000 --json repository,title,url,createdAt` |
 | 전체 PR | `gh search prs --author=USER --limit 1000 --json createdAt,state` |
@@ -15,6 +17,8 @@
 | 본인 소속 조직 (비공개 포함) | `gh api --paginate user/orgs --jq '.[].login'` |
 | 타인 소속 조직 (공개만) | `gh api --paginate users/USER/orgs --jq '.[].login'` |
 | 레포 메타 (star/설명/언어) | `gh repo view OWNER/REPO --json stargazerCount,description,url,primaryLanguage` |
+| shortlist 깊이 확인 | `gh repo view OWNER/REPO --json description,homepageUrl,licenseInfo,latestRelease,pushedAt,repositoryTopics` |
+| 커뮤니티 파일 확인 | `gh api repos/OWNER/REPO/community/profile --jq '{health_percentage,files}'` |
 | 현재 로그인 | `gh api user --jq .login` |
 | fork+clone | `gh repo fork OWNER/REPO --clone` (origin=fork, upstream=원본 자동) |
 | 트렌딩 (API 없음 → HTML 파싱) | `curl -s https://github.com/trending/LANG?since=weekly` → `trending.py`로 파싱 |
@@ -54,14 +58,15 @@ gh api --paginate user/orgs --jq '.[].login' | jq -R . | jq -s .
 10. **`--stale-ok` created 하한은 `2008-01-01`**: "사실상 전체"를 보려고 `date -v-36500d`(1926년)를 넣으면 GitHub 검색이 **0건** 반환(비현실적 과거 날짜). GitHub 창립 무렵 `2008-01-01` 고정이 정답.
 11. **기여자 관점 발굴 한정자**(gh-contribute에서 흡수): `-linked:pr`(이미 PR 달린 이슈 제외), `created:>=<date>`(신선도), `-label:blocked -label:wontfix -label:stale`. `commentsCount`는 `gh search issues --json` 필드라 추가 호출 0건(0=미선점 신호).
 12. **`gh search repos` star 필드는 `stargazersCount`(s 있음)** — `gh repo view`의 `stargazerCount`(s 없음)와 다르다. explore는 전자, contributions/stats는 후자를 쓴다. 헷갈리면 null/빈 값.
-13. **explore는 키워드+토픽을 둘 다 돌려 병합**: 키워드만 → 자기태깅 토픽 레포 누락, 토픽만 → 이름/설명 매치 레포 누락. `--sort` 유효값은 `stars|updated|forks|help-wanted-issues`(gh 기준; explore CLI는 stars/updated/forks 노출). 병합 후 정렬키로 재정렬(updated는 `pushedAt` 기준).
+13. **explore는 관련도 계층을 먼저 적용**: 이름/설명 > 토픽 > README fallback 순이다. 각 후보에 `matched_by`를 남기고 같은 계층 안에서 선택한 정렬키를 적용한다. README 전역 검색은 관련 없는 인기 레포를 섞기 쉬워 후보가 부족할 때만 쓴다.
 14. **`--good-first-issues`/`--help-wanted-issues`는 필터 전용**: 레포를 "GFI≥N개"로 거르지만 그 수를 JSON으로 돌려주진 않는다(JSON 필드 목록에 없음). explore는 표시용 카운트를 per-repo `gh search issues --repo R --label "..." --json url | jq length`로 보강(trending `--issues`와 동일 패턴).
+15. **비라틴 주제의 토픽 fallback**: ASCII 밖의 주제는 토픽 슬러그가 빈 문자열이 될 수 있다. 이때 토픽 호출을 생략하고 이름/설명과 README 검색 결과를 유지한다.
 
 ## 스크립트 옵션 (전체 시그니처)
 
 SKILL.md는 각 모드의 핵심 사용법만 둔다. 전체 플래그는 아래가 권위 소스다(스크립트가 `--help`를 지원하지 않을 경우).
 
-- `explore.sh "<주제>" [--language L] [--min-stars N] [--sort stars|updated|forks] [--limit N] [--no-issues] [--json|--html]`
+- `explore.sh "<주제>" [--language L] [--license L] [--min-stars N] [--sort stars|updated|forks] [--limit N] [--issues] [--json|--html]`
 - `discover.sh [--language L] [--label L].. [--topic KW] [--min-stars N] [--curated] [--top N] [--hot] [--summary] [--max-age D] [--stale-ok] [--include-linked] [--sort recent|comments-asc] [--json]`
 - `trending.sh [language] [--since daily|weekly|monthly] [--limit N] [--highlight a,b] [--issues] [--json]`
 - `bootstrap.sh <owner/repo> [branch] [--dir D] [--dry]`
@@ -70,7 +75,7 @@ SKILL.md는 각 모드의 핵심 사용법만 둔다. 전체 플래그는 아래
 
 ## JSON 출력 스키마
 
-- explore (→ render_html.py): `{type:"explore", generated, query:{topic,language,min_stars,sort,with_issues}, count, repos:[{repo,stars,forks,language,pushed,open_issues,url,description,gfi,hw}]}` (`gfi/hw`는 `--no-issues`면 null)
+- explore (→ render_html.py): `{type:"explore", generated, query:{topic,language,license,min_stars,sort,with_issues}, count, repos:[{repo,stars,forks,language,license,pushed,open_issues,url,homepage,matched_by,description,gfi,hw}]}` (`gfi/hw`는 `--issues`가 없으면 null)
 - contributions (→ render_html.py): `{type, user, generated, summary:{merged_prs,external_repos,org_groups}, external:[{repo,prs,stars,description,url}], orgs:[{org,prs,repos:[{repo,prs}]}]}`
 - stats (→ render_html.py): `{type, user, generated, summary:{total_prs,merged_prs,merge_rate}, years:[{year,prs}], months:[{month,prs}], weekdays:[{day,prs}], languages:[{name,repos}]}`
 - discover: `{type, query:{language,topic,labels,min_stars,since,exclude_linked,exclude_stale,curated}, total, count, issues:[{repo,title,url,labels,updated,comments,stars?}]}` (`stars`는 `--min-stars`일 때만, `total`>`count`면 `--top`으로 잘림)

@@ -123,24 +123,28 @@ def render_explore(d):
 
     if repos:
         if with_issues:
-            head = "<tr><th>레포</th><th>★</th><th>언어</th><th>최근푸시</th><th>GFI</th><th>HW</th><th>설명</th></tr>"
+            head = "<tr><th>레포</th><th>★</th><th>언어</th><th>최근푸시</th><th>라이선스</th><th>검색 근거</th><th>GFI</th><th>HW</th><th>설명</th></tr>"
             rows = "\n".join(
                 f"<tr><td><a href='{esc(r['url'])}' target='_blank'>{esc(r['repo'])}</a></td>"
                 f"<td class='c'><span class='star'>★ {r['stars']:,}</span></td>"
                 f"<td class='c'>{esc(r['language'])}</td>"
                 f"<td class='c'>{esc(r['pushed'])}</td>"
+                f"<td class='c'>{esc(r.get('license', 'unknown'))}</td>"
+                f"<td class='c'>{esc(', '.join(r.get('matched_by', [])))}</td>"
                 f"<td class='c'>{'<strong>'+str(r['gfi'])+'</strong>' if (r.get('gfi') or 0) > 0 else 0}</td>"
                 f"<td class='c'>{r.get('hw') or 0}</td>"
                 f"<td class='desc'>{esc(r.get('description', ''))}</td></tr>"
                 for r in repos
             )
         else:
-            head = "<tr><th>레포</th><th>★</th><th>언어</th><th>최근푸시</th><th>설명</th></tr>"
+            head = "<tr><th>레포</th><th>★</th><th>언어</th><th>최근푸시</th><th>라이선스</th><th>검색 근거</th><th>설명</th></tr>"
             rows = "\n".join(
                 f"<tr><td><a href='{esc(r['url'])}' target='_blank'>{esc(r['repo'])}</a></td>"
                 f"<td class='c'><span class='star'>★ {r['stars']:,}</span></td>"
                 f"<td class='c'>{esc(r['language'])}</td>"
                 f"<td class='c'>{esc(r['pushed'])}</td>"
+                f"<td class='c'>{esc(r.get('license', 'unknown'))}</td>"
+                f"<td class='c'>{esc(', '.join(r.get('matched_by', [])))}</td>"
                 f"<td class='desc'>{esc(r.get('description', ''))}</td></tr>"
                 for r in repos
             )
@@ -151,6 +155,8 @@ def render_explore(d):
     meta = []
     if q.get("language"):
         meta.append(f"lang={esc(q['language'])}")
+    if q.get("license"):
+        meta.append(f"license={esc(q['license'])}")
     if q.get("min_stars"):
         meta.append(f"★≥{q['min_stars']}")
     meta.append(f"sort={esc(q.get('sort', 'stars'))}")
@@ -226,7 +232,7 @@ def main():
 <h1>{title}</h1>
 <div class='gen'>생성: {esc(d.get('generated', ''))} · gh CLI 기준</div>
 {body}
-<footer>oss-explore · GitHub CLI 기반 · 오픈소스 발견 → 기여 → 회고</footer>
+<footer>oss-explore · GitHub CLI 기반 · 오픈소스 발견 → 비교 → 기여/회고</footer>
 </div></body></html>"""
     sys.stdout.write(html_out)
 

@@ -4,6 +4,7 @@ set -euo pipefail
 
 BASE="${ZDEL_BASE:-${TMPDIR:-/tmp}/agent-team-zellij}"
 SESSION="${ZELLIJ_SESSION_NAME:-}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die() {
   printf 'zdel: %s\n' "$*" >&2
@@ -103,6 +104,14 @@ start_worker() {
   result_file="$dir/turn-$turn.md"
   done_file="$dir/turn-$turn.done"
 
+  # codex notify / claude Stop hook fire on every turn completion, so the
+  # sentinel no longer depends on the worker model obeying the file-write
+  # instruction.
+  case "$(basename "$1")" in
+    codex) set -- "$@" -c "notify=[\"$SCRIPT_DIR/zdel-notify\",\"$dir\"]" ;;
+    claude) set -- "$@" --settings "{\"hooks\":{\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"'$SCRIPT_DIR/zdel-notify-claude' '$dir'\"}]}]}}" ;;
+  esac
+
   if ! output="$(zellij_cmd run --name "agent-$worker" --cwd "$PWD" -- "$@" "$(full_prompt "$prompt" "$result_file" "$done_file")")"; then
     rm -rf "$dir"
     die "failed to start Zellij pane for '$worker'"
@@ -145,6 +154,7 @@ peek_worker() {
 
 wait_worker() {
   local worker="$1" timeout="${2:-1800}" dir turn done_file result_file pane elapsed
+  local snap prev_snap="" stable=0 idle_after="${ZDEL_IDLE_AFTER:-12}"
   case "$timeout" in *[!0-9]*|'') die "timeout must be a non-negative integer" ;; esac
   dir="$(worker_dir "$worker")"
   turn="$(current_turn "$worker")"
@@ -162,6 +172,20 @@ wait_worker() {
     fi
     sleep 2
     elapsed=$((elapsed + 2))
+    # TUI agents (codex, claude) redraw a spinner/timer every second while working,
+    # so an unchanged screen means the worker is idle even if it skipped the sentinel.
+    snap="$(zellij_cmd action dump-screen --pane-id "$pane" --full 2>/dev/null | cksum || true)"
+    if [ "$snap" = "$prev_snap" ]; then
+      stable=$((stable + 2))
+      if [ "$stable" -ge "$idle_after" ] && [ ! -f "$done_file" ]; then
+        printf "zdel: '%s' pane idle %ss without sentinel (turn %s) -- worker likely answered in chat, left a prompt unsubmitted, or hit a dialog; recover the text below via peek, resubmit with key, or re-request the file with send\n" "$worker" "$stable" "$turn" >&2
+        peek_worker "$worker" 40
+        return 3
+      fi
+    else
+      stable=0
+      prev_snap="$snap"
+    fi
   done
 
   printf "worker '%s' turn %s done\n" "$worker" "$turn"
@@ -224,6 +248,14 @@ self_test() {
   send_worker "$worker" "follow-up" >/dev/null
   wait_all_workers 10 "$worker" | grep -q '^turn-2-ok$' || die "self-test turn 2 mismatch"
   stop_worker "$worker" >/dev/null
+  trap - EXIT
+
+  local idle_worker="zdel-idle-test-$$" idle_rc=0
+  trap 'stop_worker "$idle_worker" >/dev/null 2>&1 || true' EXIT
+  start_worker "$idle_worker" "idle test" bash -c 'printf "chat-only-answer\n"; sleep 300' >/dev/null
+  wait_worker "$idle_worker" 60 >/dev/null 2>&1 || idle_rc=$?
+  [ "$idle_rc" -eq 3 ] || die "self-test idle detection expected rc 3, got $idle_rc"
+  stop_worker "$idle_worker" >/dev/null
   trap - EXIT
   printf 'zdel self-test passed\n'
 }
