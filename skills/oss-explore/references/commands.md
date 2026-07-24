@@ -66,7 +66,7 @@ gh api --paginate user/orgs --jq '.[].login' | jq -R . | jq -s .
 
 SKILL.md는 각 모드의 핵심 사용법만 둔다. 전체 플래그는 아래가 권위 소스다(스크립트가 `--help`를 지원하지 않을 경우).
 
-- `explore.sh "<주제>" [--language L] [--license L] [--min-stars N] [--sort stars|updated|forks] [--limit N] [--issues] [--json|--html]`
+- `explore.sh "<주제>" [--language L] [--license L] [--min-stars N] [--sort stars|updated|forks] [--limit N] [--issues|--no-issues] [--json|--html]` (`--no-issues`는 기존 호출 호환용 no-op)
 - `discover.sh [--language L] [--label L].. [--topic KW] [--min-stars N] [--curated] [--top N] [--hot] [--summary] [--max-age D] [--stale-ok] [--include-linked] [--sort recent|comments-asc] [--json]`
 - `trending.sh [language] [--since daily|weekly|monthly] [--limit N] [--highlight a,b] [--issues] [--json]`
 - `bootstrap.sh <owner/repo> [branch] [--dir D] [--dry]`

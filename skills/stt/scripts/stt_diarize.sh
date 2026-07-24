@@ -1,58 +1,82 @@
 #!/usr/bin/env bash
-# 로컬 STT + 화자분리 뷰 생성: apple-stt 텍스트와 argmax 화자 타임라인을 정렬해 화자 라벨 전사본을 만든다.
-#
-# usage: stt_diarize.sh <audio> <apple|argmax|both> [start_sec] [end_sec]
-#   apple  : apple-stt 텍스트 + argmax 화자(굵음). 가벼움(전사 모델 없이 diarize만 다운로드)
-#   argmax : argmax(WhisperKit) 텍스트 + 단어단위 정밀 화자. 무거움(632MB 모델)
-#   both   : 둘 다 생성. 정확도 최고 / 토큰 최다
-#   [start end] : 구간만 처리(초). 이동·잡음 구간 제외해 화자 과검출 방지. 예) 0 752
-#
-# env:
-#   ARGMAX_CLI  argmax-cli 경로 (기본 ~/Dev/argmax-oss-swift/.build/release/argmax-cli)
-#   STT_OUT     출력 루트 (기본 ./stt)
-#   STT_LANG    전사 언어 코드 (기본 ko)
-# 출력: <STT_OUT>/YYMMDD-HHMM/{transcript.md, diarized.md}
+# Apple text + Argmax RTTM only. Argmax never transcribes.
+# usage: stt_diarize.sh <audio> [start_sec] [end_sec]
 set -euo pipefail
 
-AUDIO="$1"; MODE="${2:-apple}"; START="${3:-}"; END="${4:-}"
-CLI="${ARGMAX_CLI:-$HOME/Dev/argmax-oss-swift/.build/release/argmax-cli}"
-LANG_CODE="${STT_LANG:-ko}"
+if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then
+  echo "usage: stt_diarize.sh <audio> [start_sec] [end_sec]" >&2
+  exit 64
+fi
+
+AUDIO="$1"
+START="${2:-}"
+END="${3:-}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-OUT="${STT_OUT:-$PWD/stt}/$(date +%y%m%d-%H%M)"
+OUT_ROOT="${STT_OUT:-$PWD/stt}"
+OUT="$OUT_ROOT/$(date +%y%m%d-%H%M%S)-$$"
+
+if [ ! -f "$AUDIO" ]; then
+  echo "audio file not found: $AUDIO" >&2
+  exit 66
+fi
+
+for boundary in "$START" "$END"; do
+  if [ -n "$boundary" ] && ! [[ "$boundary" =~ ^([0-9]+([.][0-9]*)?|[.][0-9]+)$ ]]; then
+    echo "start/end must be nonnegative seconds" >&2
+    exit 64
+  fi
+done
+if [ -n "$START" ] && [ -n "$END" ] && ! awk -v start="$START" -v end="$END" 'BEGIN { exit !(end > start) }'; then
+  echo "end must be greater than start" >&2
+  exit 64
+fi
+
+APPLE_STT_BIN="${APPLE_STT_BIN:-$(command -v apple-stt || true)}"
+if [ -z "$APPLE_STT_BIN" ]; then
+  echo "apple-stt not found; add it to PATH or set APPLE_STT_BIN" >&2
+  exit 69
+fi
+
+ARGMAX_BIN="${ARGMAX_CLI:-$(command -v argmax-cli || true)}"
+if [ -z "$ARGMAX_BIN" ]; then
+  local_argmax="$HOME/Dev/argmax-oss-swift/.build/release/argmax-cli"
+  if [ -x "$local_argmax" ]; then
+    ARGMAX_BIN="$local_argmax"
+  else
+    echo "argmax-cli not found; add it to PATH or set ARGMAX_CLI" >&2
+    exit 69
+  fi
+fi
+
 mkdir -p "$OUT"
-
-# 구간 트림(선택) — 이동·잡음 구간이 가짜 화자로 잡히는 것 방지
 SRC="$AUDIO"
+CLIP=""
+
+cleanup() {
+  [ -z "$CLIP" ] || rm -- "$CLIP" 2>/dev/null || true
+  rm -- "$OUT/apple.json" 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 if [ -n "$START$END" ]; then
-  SRC="$OUT/clip.m4a"
-  args=(-y); [ -n "$START" ] && args+=(-ss "$START"); args+=(-i "$AUDIO")
-  [ -n "$END" ] && args+=(-to "$END"); args+=(-c copy "$SRC")
-  ffmpeg "${args[@]}" >/dev/null 2>&1
+  if ! command -v ffmpeg >/dev/null 2>&1; then
+    echo "ffmpeg is required when start/end trimming is requested" >&2
+    exit 69
+  fi
+  CLIP="$OUT/clip.m4a"
+  ffmpeg_args=(-y)
+  [ -z "$START" ] || ffmpeg_args+=(-ss "$START")
+  [ -z "$END" ] || ffmpeg_args+=(-to "$END")
+  ffmpeg_args+=(-i "$AUDIO")
+  ffmpeg_args+=(-c copy "$CLIP")
+  ffmpeg "${ffmpeg_args[@]}" >/dev/null 2>&1
+  SRC="$CLIP"
 fi
 
-case "$MODE" in apple|argmax|both) ;; *) echo "MODE: apple|argmax|both"; exit 1 ;; esac
+"$APPLE_STT_BIN" --json -q "$SRC" > "$OUT/apple.json"
+"$ARGMAX_BIN" diarize --audio-path "$SRC" --rttm-path "$OUT/diar.rttm" >/dev/null
+python3 "$HERE/diar_views.py" "$OUT/apple.json" "$OUT/diar.rttm" "${START:-0}" > "$OUT/diarized.md"
 
-# 화자 타임라인은 두 뷰 공통 입력 → 항상 생성(전사 없이 가벼움)
-"$CLI" diarize --audio-path "$SRC" --rttm-path "$OUT/diar.rttm" >/dev/null 2>&1
-
-made=()
-if [ "$MODE" = apple ] || [ "$MODE" = both ]; then
-  apple-stt "$SRC" --json > "$OUT/apple.json" 2>/dev/null
-  python3 "$HERE/diar_views.py" apple "$OUT/apple.json" "$OUT/diar.rttm" > "$OUT/transcript.md"
-  made+=("$OUT/transcript.md")
-fi
-AJSON=""
-if [ "$MODE" = argmax ] || [ "$MODE" = both ]; then
-  "$CLI" transcribe --audio-path "$SRC" --model large-v3-v20240930_turbo_632MB \
-     --language "$LANG_CODE" --diarization --word-timestamps --report --report-path "$OUT" >/dev/null 2>&1
-  AJSON="$OUT/$(basename "${SRC%.*}").json"
-  python3 "$HERE/diar_views.py" argmax "$AJSON" "$OUT/diar.rttm" > "$OUT/diarized.md"
-  made+=("$OUT/diarized.md")
-fi
-
-# 중간 파일 정리 — _view.md만 남김
-rm -f "$OUT/apple.json" "$OUT/diar.rttm" "$OUT"/*.srt
-[ -n "$AJSON" ] && rm -f "$AJSON"
-[ -n "$START$END" ] && rm -f "$OUT/clip.m4a"
-
-printf '%s\n' "${made[@]}"
+printf '%s\n' "$OUT/diarized.md"

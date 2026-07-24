@@ -19,7 +19,7 @@ argument-hint: "[visual|interactive] [topic]"
 ## 워크플로 (공통)
 
 1. **타입 선택**: 시각형/인터랙티브형은 위 표의 시작 템플릿을 출력 경로로 복사해 내용만 채운다. **위키/지식베이스형은 템플릿 강제 금지** - source 문서를 구조화해 커스텀 단일 HTML로 만든다.
-2. **내용 작성**: 작성 전 그 타입의 reference에서 쓸 기능의 함정·레시피를 읽는다.
+2. **내용 작성**: 작성 전 그 타입의 reference에서 쓸 기능의 함정·레시피를 읽는다. 용도별 정보 구조가 필요하면 `assets/AGENTS.md`에서 가장 가까운 번호형 HTML을 골라 참고하되, 타입별 시작 템플릿과 철칙은 유지한다.
 3. **검증**: `scripts/verify.sh <파일>` - 콘솔 에러·렌더를 확인하고, 출력된 스크린샷을 Read로 열어 겹침·잘림을 육안 확인한다. 통과 전에는 사용자에게 열어주지 않는다. 검증 스크립트 의존성이 아직 준비되지 않은 환경이면 브라우저로 직접 열어 콘솔 에러, 주요 인터랙션, 가로 overflow, 스크린샷/시각 검사를 확인하고 그 결과를 보고한다. 위키형은 검색, Enter 이동, 해시 라우팅, 대표 문서 상세 페이지까지 확인한다.
 4. **열기**: `open <파일>`.
 5. **공개 링크가 필요할 때만 배포**: 사용자가 지정한 정적 호스팅·배포 도구로 넘긴다. 배포 단계는 파일 배치·버전 백업·실제 URL 검증만 맡고, 디자인·카피·레이아웃 판단은 이 스킬 안에서 끝낸다.
@@ -49,4 +49,5 @@ argument-hint: "[visual|interactive] [topic]"
 | 인터랙티브형 문맥 구성 예시 | `examples/chat-context-composition-lab.html` |
 | 위키/지식베이스형 작성 전 | `references/wiki-knowledge-base.md` |
 | 새 파일 시작 | `assets/template.html`(시각형) / `assets/interactive-template.html`(인터랙티브형) / 커스텀 단일 HTML(위키형) |
+| 용도별 단일 HTML 예시 | `assets/AGENTS.md`에서 20개 번호형 템플릿의 용도 확인 |
 | 생성 후 검증 | `scripts/verify.sh <파일.html>` 또는 브라우저 직접 검증 |

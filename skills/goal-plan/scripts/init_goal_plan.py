@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a minimal AGENTS.md + progress.tsv goal plan.
+"""Create a minimal GOAL.md + progress.tsv goal plan.
 
 Plans can live in a target repo worktree or in a dedicated repo under
 ~/.agents/goals.
@@ -30,9 +30,8 @@ DEFAULT_PROOF = (
 DEFAULT_DEDICATED_ROOT = Path("~/.agents/goals")
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 AGENTS_TEMPLATE = SKILL_ROOT / "templates" / "AGENTS.md.tmpl"
+GOAL_TEMPLATE = SKILL_ROOT / "templates" / "GOAL.md.tmpl"
 STOP_GATE = SKILL_ROOT / "scripts" / "stop_gate.py"
-GOAL_START = "<!-- goal-plan:start -->"
-GOAL_END = "<!-- goal-plan:end -->"
 
 
 def now_iso() -> str:
@@ -87,9 +86,9 @@ def proof_instructions(proof_command: str | None) -> str:
 def goal_instructions(goal: str, proof_command: str | None, progress_file: str, goal_log: str) -> str:
     clean_goal = tsv_cell(goal).strip() or DEFAULT_GOAL
     try:
-        template = AGENTS_TEMPLATE.read_text(encoding="utf-8")
+        template = GOAL_TEMPLATE.read_text(encoding="utf-8")
     except FileNotFoundError as exc:
-        raise FileNotFoundError(f"missing goal template: {AGENTS_TEMPLATE}") from exc
+        raise FileNotFoundError(f"missing goal template: {GOAL_TEMPLATE}") from exc
     missing = [
         marker for marker in ["{{GOAL}}", "{{PROOF}}", "{{PROGRESS_FILE}}", "{{GOAL_LOG}}"]
         if marker not in template
@@ -104,24 +103,6 @@ def goal_instructions(goal: str, proof_command: str | None, progress_file: str, 
         .replace("{{PROGRESS_FILE}}", progress_file)
         .replace("{{GOAL_LOG}}", goal_log)
     )
-
-
-def goal_block(goal: str, proof_command: str | None, progress_file: str, goal_log: str) -> str:
-    body = goal_instructions(goal, proof_command, progress_file, goal_log).strip()
-    return f"{GOAL_START}\n{body}\n{GOAL_END}\n"
-
-
-def merge_agents(existing: str, block: str) -> str:
-    has_start = GOAL_START in existing
-    has_end = GOAL_END in existing
-    if has_start != has_end:
-        raise ValueError("AGENTS.md has partial goal-plan markers")
-    if has_start:
-        before, rest = existing.split(GOAL_START, 1)
-        _, after = rest.split(GOAL_END, 1)
-        return f"{before.rstrip()}\n\n{block.rstrip()}\n\n{after.lstrip()}".rstrip() + "\n"
-    prefix = existing.rstrip()
-    return f"{prefix}\n\n{block}" if prefix else block
 
 
 def progress_tsv(goal: str) -> str:
@@ -157,13 +138,21 @@ def backup_existing(path: Path) -> str | None:
     return f"backed up {path} to {backup}"
 
 
-def write_agents(path: Path, block: str) -> list[str]:
+def write_agents(path: Path) -> list[str]:
+    if path.exists():
+        return [f"kept existing {path}"]
+    path.write_text(AGENTS_TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
+    return [f"wrote {path}"]
+
+
+def write_goal(path: Path, content: str) -> list[str]:
+    if path.exists() and path.read_text(encoding="utf-8") == content:
+        return [f"kept existing {path}"]
     messages = []
     backup = backup_existing(path)
     if backup:
         messages.append(backup)
-    existing = path.read_text(encoding="utf-8") if path.exists() else ""
-    path.write_text(merge_agents(existing, block), encoding="utf-8")
+    path.write_text(content, encoding="utf-8")
     messages.append(f"wrote {path}")
     return messages
 
@@ -259,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dedicated-root", default=str(DEFAULT_DEDICATED_ROOT),
                         help="Root for --dedicated repos (default: ~/.agents/goals)")
     parser.add_argument("--progress-file", default="progress.tsv", help="Progress TSV file name")
-    parser.add_argument("--force", action="store_true", help="Overwrite existing files")
+    parser.add_argument("--force", action="store_true", help="Overwrite an existing progress file")
     args = parser.parse_args(argv)
 
     if args.worktree and args.dedicated:
@@ -321,8 +310,11 @@ def main(argv: list[str] | None = None) -> int:
 
     messages = []
     try:
-        messages.extend(write_agents(target / "AGENTS.md",
-                                     goal_block(args.goal, args.proof_command, progress_file, goal_log)))
+        messages.extend(write_agents(target / "AGENTS.md"))
+        messages.extend(write_goal(
+            target / "GOAL.md",
+            goal_instructions(args.goal, args.proof_command, progress_file, goal_log),
+        ))
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -340,7 +332,7 @@ def main(argv: list[str] | None = None) -> int:
         "next: fill every TBD, add initial progress rows, commit the plan, then stop",
         "handoff overview: summarize goal, acceptance criteria, proof, progress rows, workspace, branch, and plan commit",
         f"run: !cd {target}",
-        "run: /goal @AGENTS.md",
+        "run: /goal @GOAL.md",
     ])
     print("\n".join(messages))
     return 0

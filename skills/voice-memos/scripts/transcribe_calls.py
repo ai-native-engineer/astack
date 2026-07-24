@@ -1,195 +1,310 @@
 #!/usr/bin/env python3
-"""
-에이닷 통화 녹음(.m4a) 자동 전사.
+"""Transcribe iCloud call recordings with the same Apple evidence contract."""
 
-iCloud 녹음 폴더의 통화 m4a를 apple-stt로 전사해
-같은 폴더의 `<원본>.transcript.md`로 저장한다.
+from __future__ import annotations
 
-Apple Voice Memos와 달리 통화 m4a에는 tsrp atom이 없어 extract.py로는
-처리할 수 없으므로 별도 경로로 둔다. 저장 포맷은 extract.py와 동일하게
-`## 전사 내용` 마커를 포함하므로, 이후 summarize.py / notify.py 파이프라인이
-그대로 이어받는다.
-
-에이닷이 자동 전사 .txt를 함께 올린 통화는 search.py가 이미 인덱싱하므로
-여기서는 .m4a만 대상으로 한다. (같은 통화의 .txt 유무와 무관하게 m4a를 전사)
-"""
-
+import os
 import re
 import subprocess
 import sys
 import time
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-from config import CALL_RECORDINGS_DIR, CALL_TRANSCRIPT_SUFFIX
+from config import (
+    AppleResult,
+    AnalysisSchemaError,
+    CALL_RECORDINGS_DIR,
+    CALL_TRANSCRIPT_SUFFIX,
+    CONTEXT_DIR,
+    Outcome,
+    OutcomeStatus,
+    PipelineError,
+    REVIEW_DB_PATH,
+    RecordingBusy,
+    VOCAB_FILE,
+    analysis_is_fresh,
+    apple_binary_sha256,
+    atomic_write_json,
+    atomic_write_text,
+    create_audio_snapshot,
+    recording_lock,
+    run_apple_stt,
+    run_is_fresh,
+    run_record,
+    source_sha256,
+    stt_mode,
+    wait_until_settled,
+)
+from review import (
+    ContextValidationError,
+    ReviewStore,
+    build_context_pack,
+    candidate_segments,
+    context_for_recording,
+    context_path,
+)
 
 CALLS_DIR = CALL_RECORDINGS_DIR
-APPLE_STT = Path.home() / "scripts/apple-stt"
-
-# 에이닷 통화 녹음 폴더의 m4a는 이름/번호 변형이 있을 수 있으므로,
-# 날짜 정렬/필터링에 필요한 suffix만 엄격하게 본다.
 FILENAME_RE = re.compile(r"^(?P<prefix>.+)_(?P<date>\d{8})_(?P<time>\d{6})\.m4a$")
 TRAILING_PHONE_RE = re.compile(r"^(?P<contact>.+)_(?P<phone>\d{7,11})$")
-
-DOWNLOAD_TIMEOUT = 180  # dataless 다운로드 대기 상한(초)
-SETTLE_CHECKS = 3       # 크기 안정 판정 연속 횟수
-SETTLE_INTERVAL = 2     # 안정 체크 간격(초)
+DOWNLOAD_TIMEOUT = 180
+DOWNLOAD_POLL_INTERVAL = 2
 
 
 def is_dataless(path: Path) -> bool:
-    """iCloud placeholder(미다운로드) 여부. 로컬 블록이 0이면 dataless."""
     return path.stat().st_blocks == 0
 
 
 def materialize(path: Path) -> bool:
-    """dataless면 brctl download로 받아 완료까지 대기. 로컬에 있으면 즉시 True."""
     if not is_dataless(path):
         return True
     subprocess.run(["brctl", "download", str(path)], check=False, capture_output=True)
-    waited = 0
-    while waited < DOWNLOAD_TIMEOUT:
-        if path.stat().st_blocks > 0:
+    deadline = time.monotonic() + DOWNLOAD_TIMEOUT
+    while time.monotonic() < deadline:
+        if not is_dataless(path):
             return True
-        time.sleep(SETTLE_INTERVAL)
-        waited += SETTLE_INTERVAL
-    return path.stat().st_blocks > 0
-
-
-def wait_until_settled(path: Path) -> None:
-    """파일 크기가 SETTLE_CHECKS회 연속 동일할 때까지 대기(업로드/다운로드 안정화)."""
-    last = -1
-    stable = 0
-    while stable < SETTLE_CHECKS:
-        size = path.stat().st_size
-        if size == last and size > 0:
-            stable += 1
-        else:
-            stable = 0
-            last = size
-        time.sleep(SETTLE_INTERVAL)
+        time.sleep(DOWNLOAD_POLL_INTERVAL)
+    return not is_dataless(path)
 
 
 def parse_filename(name: str):
-    """파일명에서 (연락처, 번호, YYYYMMDD, HHMMSS, datetime) 추출. 불일치 시 None."""
     match = FILENAME_RE.match(name)
     if not match:
         return None
     prefix = match.group("prefix")
     phone_match = TRAILING_PHONE_RE.match(prefix)
-    if phone_match:
-        contact = phone_match.group("contact")
-        phone = phone_match.group("phone")
-    else:
-        contact = prefix
-        phone = ""
+    contact = phone_match.group("contact") if phone_match else prefix
+    phone = phone_match.group("phone") if phone_match else ""
     date_part = match.group("date")
     time_part = match.group("time")
     try:
-        dt = datetime.strptime(f"{date_part}{time_part}", "%Y%m%d%H%M%S")
+        parsed = datetime.strptime(f"{date_part}{time_part}", "%Y%m%d%H%M%S")
     except ValueError:
         return None
-    return contact, phone, date_part, time_part, dt
+    return contact, phone, date_part, time_part, parsed
 
 
 def transcript_has_body(path: Path) -> bool:
-    """transcript.md에 실제 전사 본문이 있는지 확인(멱등 처리용)."""
     try:
         content = path.read_text(encoding="utf-8")
     except OSError:
         return False
-    idx = content.find("## 전사 내용")
-    if idx == -1:
+    marker = "## 전사 내용"
+    index = content.find(marker)
+    if index == -1:
         return False
-    body = re.sub(r"<!--.*?-->", "", content[idx + len("## 전사 내용"):]).strip()
-    return bool(body)
+    return bool(re.sub(r"<!--.*?-->", "", content[index + len(marker) :]).strip())
 
 
-def transcribe(path: Path) -> str | None:
-    """apple-stt로 타임스탬프 포함 전사. stdout 텍스트 반환, 실패 시 None."""
-    result = subprocess.run(
-        [str(APPLE_STT), "-t", "-q", str(path)],
-        capture_output=True,
-        text=True,
+def transcribe(
+    path: Path,
+    recording_id: str,
+    mode: str,
+    context_terms: list[str] | None = None,
+) -> AppleResult:
+    return run_apple_stt(
+        path,
+        recording_id=recording_id,
+        mode=mode,
+        context_terms=context_terms,
+        timestamps=mode == "legacy",
     )
-    if result.returncode != 0:
-        print(f"  [ERROR] apple-stt 실패: {path.name}\n{result.stderr}", file=sys.stderr)
-        return None
-    text = result.stdout.strip()
-    return text or None
 
 
 def generate_markdown(contact: str, phone: str, dt: datetime, name: str, text: str) -> str:
-    """extract.py와 동일한 `## 전사 내용` 마커 포맷으로 변환."""
-    date_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+    date_string = dt.strftime("%Y-%m-%d %H:%M:%S")
     contact_label = contact[:-1] if contact.endswith("님") else contact
-    lines = [
-        f"# {date_str} {contact_label}님과의 통화",
-        "",
-        f"- **녹음일시**: {date_str}",
-        f"- **상대**: {contact}" + (f" ({phone})" if phone else ""),
-        "- **언어**: ko-KR",
-        f"- **원본파일**: `{name}`",
-        "- **전사**: apple-stt (화자 라벨 없음)",
-        "",
-        "## 전사 내용",
-        "",
-        text,
-        "",
-    ]
-    return "\n".join(lines)
-
-
-def process_file(path: Path, force: bool = False) -> bool:
-    """단일 통화 m4a를 처리. 성공 시 True."""
-    parsed = parse_filename(path.name)
-    if parsed is None:
-        return False
-    contact, phone, _date_part, _time_part, dt = parsed
-
-    out_path = path.with_name(f"{path.stem}{CALL_TRANSCRIPT_SUFFIX}")
-    if out_path.exists() and not force and transcript_has_body(out_path):
-        return False
-
-    if not materialize(path):
-        print(f"  [ERROR] iCloud 다운로드 실패: {path.name}", file=sys.stderr)
-        return False
-    wait_until_settled(path)
-
-    text = transcribe(path)
-    if not text:
-        return False
-
-    out_path.write_text(
-        generate_markdown(contact, phone, dt, path.name, text), encoding="utf-8"
+    return "\n".join(
+        [
+            f"# {date_string} {contact_label}님과의 통화",
+            "",
+            f"- **녹음일시**: {date_string}",
+            f"- **상대**: {contact}" + (f" ({phone})" if phone else ""),
+            "- **언어**: ko-KR",
+            f"- **원본파일**: `{name}`",
+            "- **전사**: apple-stt (화자 라벨 없음)",
+            "",
+            "## 전사 내용",
+            "",
+            text,
+            "",
+        ]
     )
-    print(f"  {path.name} → {out_path.name}")
-    return True
 
 
-def main():
+def process_file(path: Path, force: bool = False) -> Outcome:
+    recording_id = ""
+    snapshot_path: Path | None = None
+    try:
+        mode = stt_mode()
+        parsed = parse_filename(path.name)
+        if parsed is None:
+            return Outcome(OutcomeStatus.FAILED, code="FilenameUnsupported")
+        if not path.exists():
+            return Outcome(OutcomeStatus.FAILED, code="AudioFileNotFound")
+        contact, phone, _date, _time, dt = parsed
+        transcript_path = path.with_name(f"{path.stem}{CALL_TRANSCRIPT_SUFFIX}")
+        analysis_path = path.with_name(f"{path.stem}.analysis.json")
+        run_path = path.with_name(f"{path.stem}.run.json")
+        if (
+            mode == "legacy"
+            and not force
+            and transcript_has_body(transcript_path)
+            and path.stat().st_mtime_ns <= transcript_path.stat().st_mtime_ns
+        ):
+            return Outcome(OutcomeStatus.SKIPPED, code="FreshArtifact")
+        if not materialize(path):
+            return Outcome(OutcomeStatus.FAILED, code="AudioMaterializeError")
+        if not wait_until_settled(path):
+            return Outcome(OutcomeStatus.DEFERRED, code="SettleDeferred")
+
+        snapshot_path = create_audio_snapshot(path)
+        recording_id = source_sha256(snapshot_path)
+        if source_sha256(path) != recording_id:
+            return Outcome(OutcomeStatus.DEFERRED, recording_id, "SourceChanged")
+        source_mtime_ns = path.stat().st_mtime_ns
+        with recording_lock(recording_id):
+            if source_sha256(path) != recording_id:
+                return Outcome(OutcomeStatus.DEFERRED, recording_id, "SourceChanged")
+            context = None
+            context_missing = True
+            context_pack = None
+            engine_version = ""
+            reprocess_marker = None
+            if mode != "legacy":
+                context, context_missing = context_for_recording(recording_id, CONTEXT_DIR)
+                with ReviewStore(REVIEW_DB_PATH) as store:
+                    context_pack = build_context_pack(context, store, VOCAB_FILE)
+                reprocess_marker = context_path(recording_id, CONTEXT_DIR).with_suffix(
+                    ".reprocess"
+                )
+                force = force or reprocess_marker.exists()
+                engine_version = apple_binary_sha256()
+                if (
+                    not force
+                    and analysis_is_fresh(
+                        analysis_path,
+                        recording_id,
+                        engine_version=engine_version,
+                        context_fingerprint=context_pack["fingerprint"],
+                        locale="ko-KR",
+                    )
+                    and run_is_fresh(
+                        run_path,
+                        recording_id,
+                        mode=mode,
+                        engine_version=engine_version,
+                        context_fingerprint=context_pack["fingerprint"],
+                    )
+                    and (mode == "shadow" or transcript_has_body(transcript_path))
+                ):
+                    return Outcome(OutcomeStatus.SKIPPED, recording_id, "FreshArtifact")
+
+            result = transcribe(
+                snapshot_path,
+                recording_id,
+                mode,
+                None if context_pack is None else context_pack["selected"],
+            )
+            if source_sha256(path) != recording_id:
+                return Outcome(OutcomeStatus.DEFERRED, recording_id, "SourceChanged")
+            markdown = generate_markdown(contact, phone, dt, path.name, result.text)
+            if mode == "legacy":
+                if source_sha256(path) != recording_id:
+                    return Outcome(
+                        OutcomeStatus.DEFERRED, recording_id, "SourceChanged"
+                    )
+                atomic_write_text(transcript_path, markdown)
+                os.utime(
+                    transcript_path,
+                    ns=(source_mtime_ns, source_mtime_ns),
+                )
+            else:
+                if result.analysis is None:
+                    raise AnalysisSchemaError("analysis result missing")
+                apple_context = result.analysis.get("context")
+                if not isinstance(apple_context, dict):
+                    raise AnalysisSchemaError("analysis context missing")
+                if apple_context.get("selected") != context_pack["selected"]:
+                    raise AnalysisSchemaError("Apple context does not match requested pack")
+                if result.analysis.get("engine_version") != engine_version:
+                    raise AnalysisSchemaError("analysis engine hash mismatch")
+                apple_context.update(context_pack)
+                candidate_count = (
+                    len(candidate_segments(result.analysis)) if mode == "review" else 0
+                )
+                final_run = run_record(
+                    recording_id,
+                    mode,
+                    OutcomeStatus.PROCESSED,
+                    privacy=context["privacy"],
+                    context_fingerprint=context_pack["fingerprint"],
+                    context_missing=context_missing,
+                    engine_version=engine_version,
+                    review_state=(
+                        "review_pending" if candidate_count else "finalizable"
+                    ),
+                    candidate_count=candidate_count,
+                )
+                publishing_run = {**final_run, "review_state": "publishing"}
+                atomic_write_json(run_path, publishing_run)
+                atomic_write_json(analysis_path, result.analysis)
+                if mode == "review":
+                    atomic_write_text(transcript_path, markdown)
+                if source_sha256(path) != recording_id:
+                    return Outcome(
+                        OutcomeStatus.DEFERRED, recording_id, "SourceChanged"
+                    )
+                atomic_write_json(run_path, final_run)
+                if reprocess_marker is not None:
+                    reprocess_marker.unlink(missing_ok=True)
+            return Outcome(OutcomeStatus.PROCESSED, recording_id)
+    except RecordingBusy:
+        return Outcome(OutcomeStatus.DEFERRED, recording_id, "RecordingBusy")
+    except ContextValidationError:
+        return Outcome(OutcomeStatus.FAILED, recording_id, "ContextValidationError")
+    except PipelineError as error:
+        return Outcome(OutcomeStatus.FAILED, recording_id, error.code)
+    except OSError:
+        return Outcome(OutcomeStatus.FAILED, recording_id, "AudioFileError")
+    finally:
+        if snapshot_path is not None:
+            snapshot_path.unlink(missing_ok=True)
+
+
+def _run(files: list[Path], force: bool) -> int:
+    outcomes = [process_file(path, force=force) for path in files]
+    counts = Counter(outcome.status.value for outcome in outcomes)
+    print(
+        "  "
+        + " ".join(
+            f"{status.value}={counts[status.value]}" for status in OutcomeStatus
+        )
+    )
+    for outcome in outcomes:
+        if outcome.status == OutcomeStatus.FAILED:
+            print(
+                f"  [ERROR] {outcome.recording_id[:8] or 'unknown'} {outcome.code}",
+                file=sys.stderr,
+            )
+    return 1 if counts[OutcomeStatus.FAILED.value] else 0
+
+
+def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(description="에이닷 통화 녹음(.m4a) 자동 전사")
-    parser.add_argument("--file", type=str, help="특정 m4a 파일만 처리")
-    parser.add_argument("--force", action="store_true", help="이미 전사된 파일도 재처리")
-    parser.add_argument("--all", action="store_true", help="모든 m4a 처리(기본 동작과 동일)")
+    parser = argparse.ArgumentParser(description="Call recording transcription")
+    parser.add_argument("--file", help="process one .m4a file")
+    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--all", action="store_true")
     args = parser.parse_args()
 
     if args.file:
-        filepath = Path(args.file).expanduser()
-        if not filepath.exists():
-            print(f"File not found: {filepath}", file=sys.stderr)
-            sys.exit(1)
-        process_file(filepath, force=args.force)
-        return
-
-    if not CALLS_DIR.exists():
-        print(f"  통화 폴더 없음: {CALLS_DIR}")
-        return
-
-    files = sorted(CALLS_DIR.glob("*.m4a"))
-    processed = sum(1 for file in files if process_file(file, force=args.force))
-    print(f"  {processed}/{len(files)} 전사됨")
+        raise SystemExit(_run([Path(args.file).expanduser()], args.force))
+    files = sorted(CALLS_DIR.glob("*.m4a")) if CALLS_DIR.exists() else []
+    raise SystemExit(_run(files, args.force))
 
 
 if __name__ == "__main__":

@@ -82,8 +82,12 @@ completion_suffix() {
 }
 
 full_prompt() {
-  local prompt="$1" result_file="$2" done_file="$3"
-  printf '%s %s' "$(flatten "$prompt")" "$(completion_suffix "$result_file" "$done_file")"
+  local prompt="$1" result_file="$2" done_file="$3" mode="$4"
+  if [ "$mode" = hook ]; then
+    flatten "$prompt"
+  else
+    printf '%s %s' "$(flatten "$prompt")" "$(completion_suffix "$result_file" "$done_file")"
+  fi
 }
 
 pane_alive() {
@@ -95,7 +99,7 @@ start_worker() {
   shift 2
   [ "$#" -gt 0 ] || die "agent command is required after --"
 
-  local dir turn result_file done_file pane output
+  local dir turn result_file done_file pane output mode
   dir="$(worker_dir "$worker")"
   [ ! -e "$dir" ] || die "worker '$worker' already has state; use send or stop"
   mkdir -p "$dir"
@@ -104,15 +108,20 @@ start_worker() {
   result_file="$dir/turn-$turn.md"
   done_file="$dir/turn-$turn.done"
 
-  # codex notify / claude Stop hook fire on every turn completion, so the
-  # sentinel no longer depends on the worker model obeying the file-write
-  # instruction.
+  mode=prompt
   case "$(basename "$1")" in
-    codex) set -- "$@" -c "notify=[\"$SCRIPT_DIR/zdel-notify\",\"$dir\"]" ;;
-    claude) set -- "$@" --settings "{\"hooks\":{\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"'$SCRIPT_DIR/zdel-notify-claude' '$dir'\"}]}]}}" ;;
+    codex)
+      mode=hook
+      set -- "$@" -c "notify=[\"$SCRIPT_DIR/zdel-notify\",\"$dir\"]"
+      ;;
+    claude)
+      mode=hook
+      set -- "$@" --settings "{\"hooks\":{\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"'$SCRIPT_DIR/zdel-notify' '$dir'\"}]}]}}"
+      ;;
   esac
+  printf '%s\n' "$mode" >"$dir/completion-mode"
 
-  if ! output="$(zellij_cmd run --name "agent-$worker" --cwd "$PWD" -- "$@" "$(full_prompt "$prompt" "$result_file" "$done_file")")"; then
+  if ! output="$(zellij_cmd run --name "agent-$worker" --cwd "$PWD" -- "$@" "$(full_prompt "$prompt" "$result_file" "$done_file" "$mode")")"; then
     rm -rf "$dir"
     die "failed to start Zellij pane for '$worker'"
   fi
@@ -126,15 +135,20 @@ start_worker() {
 }
 
 send_worker() {
-  local worker="$1" prompt="$2" dir turn result_file done_file pane message
+  local worker="$1" prompt="$2" dir turn result_file done_file pane message mode
   dir="$(worker_dir "$worker")"
   pane="$(pane_id "$worker")"
   pane_alive "$pane" || die "pane '$pane' for worker '$worker' is not running"
-  turn=$(( $(current_turn "$worker") + 1 ))
+  turn="$(current_turn "$worker")"
+  [ -f "$dir/turn-$turn.done" ] || die "turn $turn for worker '$worker' is still running; wait before send"
+  [ -f "$dir/completion-mode" ] || die "worker '$worker' predates completion tracking; stop and restart it"
+  mode="$(sed -n '1p' "$dir/completion-mode")"
+  case "$mode" in hook|prompt) ;; *) die "invalid completion mode for worker '$worker'" ;; esac
+  turn=$((turn + 1))
   printf '%s\n' "$turn" >"$dir/turn"
   result_file="$dir/turn-$turn.md"
   done_file="$dir/turn-$turn.done"
-  message="$(full_prompt "$prompt" "$result_file" "$done_file")"
+  message="$(full_prompt "$prompt" "$result_file" "$done_file" "$mode")"
 
   zellij_cmd action write-chars --pane-id "$pane" -- "$message"
   case "$prompt" in
@@ -154,7 +168,6 @@ peek_worker() {
 
 wait_worker() {
   local worker="$1" timeout="${2:-1800}" dir turn done_file result_file pane elapsed
-  local snap prev_snap="" stable=0 idle_after="${ZDEL_IDLE_AFTER:-12}"
   case "$timeout" in *[!0-9]*|'') die "timeout must be a non-negative integer" ;; esac
   dir="$(worker_dir "$worker")"
   turn="$(current_turn "$worker")"
@@ -172,20 +185,6 @@ wait_worker() {
     fi
     sleep 2
     elapsed=$((elapsed + 2))
-    # TUI agents (codex, claude) redraw a spinner/timer every second while working,
-    # so an unchanged screen means the worker is idle even if it skipped the sentinel.
-    snap="$(zellij_cmd action dump-screen --pane-id "$pane" --full 2>/dev/null | cksum || true)"
-    if [ "$snap" = "$prev_snap" ]; then
-      stable=$((stable + 2))
-      if [ "$stable" -ge "$idle_after" ] && [ ! -f "$done_file" ]; then
-        printf "zdel: '%s' pane idle %ss without sentinel (turn %s) -- worker likely answered in chat, left a prompt unsubmitted, or hit a dialog; recover the text below via peek, resubmit with key, or re-request the file with send\n" "$worker" "$stable" "$turn" >&2
-        peek_worker "$worker" 40
-        return 3
-      fi
-    else
-      stable=0
-      prev_snap="$snap"
-    fi
   done
 
   printf "worker '%s' turn %s done\n" "$worker" "$turn"
@@ -248,14 +247,6 @@ self_test() {
   send_worker "$worker" "follow-up" >/dev/null
   wait_all_workers 10 "$worker" | grep -q '^turn-2-ok$' || die "self-test turn 2 mismatch"
   stop_worker "$worker" >/dev/null
-  trap - EXIT
-
-  local idle_worker="zdel-idle-test-$$" idle_rc=0
-  trap 'stop_worker "$idle_worker" >/dev/null 2>&1 || true' EXIT
-  start_worker "$idle_worker" "idle test" bash -c 'printf "chat-only-answer\n"; sleep 300' >/dev/null
-  wait_worker "$idle_worker" 60 >/dev/null 2>&1 || idle_rc=$?
-  [ "$idle_rc" -eq 3 ] || die "self-test idle detection expected rc 3, got $idle_rc"
-  stop_worker "$idle_worker" >/dev/null
   trap - EXIT
   printf 'zdel self-test passed\n'
 }

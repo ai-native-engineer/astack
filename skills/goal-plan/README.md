@@ -8,7 +8,8 @@ agent instructions live in `SKILL.md` and `references/`.
 `goal-plan` keeps long-running work resumable with the smallest durable set that
 works:
 
-- `AGENTS.md` holds the objective, proof, constraints, and loop protocol.
+- `AGENTS.md` holds repository and harness rules that remain active throughout the workspace.
+- `GOAL.md` holds the objective, proof, constraints, and loop protocol.
 - `CLAUDE.md` is a thin `@AGENTS.md` entrypoint for Claude Code.
 - `progress.tsv` records plan state, evidence, checkpoints, and next actions.
 - git commits preserve each accepted or discarded work pass.
@@ -34,5 +35,5 @@ Later refinements also used the following source packs:
 - [Harness design for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps) — planner, generator, and evaluator contracts.
 - [Trustworthy third-party evaluations](https://openai.com/index/trustworthy-third-party-evaluations-foundations/) — explicit budgets, attempts, scoring, limitations, and comparable evidence.
 
-These sources inform the design; `SKILL.md`, generated `AGENTS.md`, and the
+These sources inform the design; `SKILL.md`, generated `AGENTS.md`/`GOAL.md`, and the
 helper scripts remain the operational source of truth.

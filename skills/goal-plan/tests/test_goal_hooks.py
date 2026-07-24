@@ -29,10 +29,13 @@ class GoalHookTests(unittest.TestCase):
             )
 
             agents = (target / "AGENTS.md").read_text(encoding="utf-8")
+            goal = (target / "GOAL.md").read_text(encoding="utf-8")
             claude = json.loads((target / ".claude" / "settings.json").read_text(encoding="utf-8"))
             codex = json.loads((target / ".codex" / "hooks.json").read_text(encoding="utf-8"))
 
-            self.assertIn(proof, agents)
+            self.assertNotIn(proof, agents)
+            self.assertIn(proof, goal)
+            self.assertIn("run: /goal @GOAL.md", result.stdout)
             self.assertIn("wrote Stop hook", result.stdout)
             for config in (claude, codex):
                 command = config["hooks"]["Stop"][0]["hooks"][0]["command"]
@@ -112,6 +115,29 @@ class GoalHookTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("invalid hook config JSON", result.stderr)
             self.assertFalse((target / "AGENTS.md").exists())
+            self.assertFalse((target / "GOAL.md").exists())
+
+    def test_scaffold_preserves_existing_agents_and_separates_goal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "goal"
+            target.mkdir()
+            agents_path = target / "AGENTS.md"
+            agents_path.write_text("# Repository Rules\n\nKeep this rule.\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [sys.executable, str(INIT), str(target), "--goal", "ship it"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            self.assertEqual(agents_path.read_text(encoding="utf-8"),
+                             "# Repository Rules\n\nKeep this rule.\n")
+            self.assertFalse((target / "AGENTS.md.bak").exists())
+            self.assertIn("ship it", (target / "GOAL.md").read_text(encoding="utf-8"))
+            self.assertEqual((target / "CLAUDE.md").read_text(encoding="utf-8"), "@AGENTS.md\n")
+            self.assertIn("kept existing", result.stdout)
+            self.assertIn("run: /goal @GOAL.md", result.stdout)
 
 
 if __name__ == "__main__":

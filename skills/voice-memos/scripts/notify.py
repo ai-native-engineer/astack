@@ -8,22 +8,33 @@ Discord, Telegram으로 요약 결과를 전송합니다.
   TELEGRAM_CHAT_ID: Telegram chat ID
 """
 
+import hashlib
 import json
 import os
 import urllib.error
 import urllib.request
+from contextlib import nullcontext
 from pathlib import Path
 
 from config import (
     CALL_SUMMARY_SUFFIX,
     CALL_TRANSCRIPT_SUFFIX,
     ENV_FILE,
+    PipelineError,
     TRANSCRIPTS_DIR,
+    analysis_path_for,
+    atomic_write_text,
     iter_transcript_files,
+    recording_lock,
+    run_path_for,
+    source_sha256,
     strip_process_markers,
+    stt_mode,
     summary_path_for,
     transcript_path_for,
+    validate_run_document,
 )
+from review import ContextValidationError, effective_privacy
 
 NOTIFIED_MARKER = "<!-- notified -->"
 
@@ -60,7 +71,7 @@ def extract_summary_from_transcript(filepath: Path) -> str | None:
     return snippet if snippet else None
 
 
-def send_discord(webhook_url: str, title: str, summary: str):
+def send_discord(webhook_url: str, title: str, summary: str) -> bool:
     """Discord webhook으로 메시지를 전송합니다."""
     if len(summary) > 2048:
         summary = summary[:2045] + "..."
@@ -83,13 +94,16 @@ def send_discord(webhook_url: str, title: str, summary: str):
         headers={"Content-Type": "application/json"},
     )
     try:
-        urllib.request.urlopen(req)
-        print(f"  {title} → Discord")
-    except urllib.error.URLError as error:
-        print(f"  [ERROR] Discord: {error}")
+        with urllib.request.urlopen(req):
+            pass
+        print("  summary sent → Discord")
+        return True
+    except urllib.error.URLError:
+        print("  [ERROR] DiscordDeliveryError")
+        return False
 
 
-def send_telegram(token: str, chat_id: str, title: str, summary: str):
+def send_telegram(token: str, chat_id: str, title: str, summary: str) -> bool:
     """Telegram bot으로 메시지를 전송합니다."""
     text = f"*{title}*\n\n{summary}"
     if len(text) > 4096:
@@ -110,10 +124,13 @@ def send_telegram(token: str, chat_id: str, title: str, summary: str):
         headers={"Content-Type": "application/json"},
     )
     try:
-        urllib.request.urlopen(req)
-        print(f"  {title} → Telegram")
-    except urllib.error.URLError as error:
-        print(f"  [ERROR] Telegram: {error}")
+        with urllib.request.urlopen(req):
+            pass
+        print("  summary sent → Telegram")
+        return True
+    except urllib.error.URLError:
+        print("  [ERROR] TelegramDeliveryError")
+        return False
 
 
 def format_title(filepath: Path) -> str:
@@ -127,7 +144,7 @@ def format_title(filepath: Path) -> str:
     try:
         from datetime import datetime
 
-        time_part = filepath.parent.name
+        time_part = filepath.parent.name.split("-", 1)[0]
         date_part = filepath.parent.parent.name
         dt = datetime.strptime(f"{date_part} {time_part}", "%Y%m%d %H%M%S")
         return dt.strftime(f"%Y년 %m월 %d일 %H시 %M분 %S초 {suffix}")
@@ -147,10 +164,63 @@ def mark_notified(filepath: Path):
     """파일에 알림 전송 마커를 추가합니다."""
     content = filepath.read_text(encoding="utf-8")
     if NOTIFIED_MARKER not in content:
-        filepath.write_text(content.rstrip() + f"\n{NOTIFIED_MARKER}\n", encoding="utf-8")
+        atomic_write_text(filepath, content.rstrip() + f"\n{NOTIFIED_MARKER}\n")
 
 
-def notify_from_paths(
+def _strict_delivery_metadata(transcript_path: Path | None) -> dict | None | bool:
+    if transcript_path is None:
+        return None
+    run_path = run_path_for(transcript_path)
+    try:
+        if not run_path.exists():
+            return (
+                False
+                if analysis_path_for(transcript_path).exists()
+                or stt_mode() != "legacy"
+                else None
+            )
+        metadata = json.loads(run_path.read_text(encoding="utf-8"))
+        validate_run_document(metadata)
+        source = metadata.get("source")
+        recording_id = source.get("audio_sha256") if isinstance(source, dict) else None
+        if (
+            not isinstance(recording_id, str)
+            or len(recording_id) != 64
+            or any(char not in "0123456789abcdef" for char in recording_id)
+            or metadata.get("recording_id") != recording_id
+        ):
+            return False
+        summary_path = summary_path_for(transcript_path)
+        if not summary_path.exists():
+            return False
+        summary_body_sha256 = hashlib.sha256(
+            strip_process_markers(summary_path.read_text(encoding="utf-8")).encode(
+                "utf-8"
+            )
+        ).hexdigest()
+        if (
+            metadata.get("result") != "processed"
+            or metadata.get("mode") == "shadow"
+            or metadata.get("review_state") != "finalizable"
+            or metadata.get("summary_state") != "fresh"
+            or metadata.get("summary_parent_sha256") != source_sha256(transcript_path)
+            or metadata.get("summary_body_sha256") != summary_body_sha256
+            or not metadata.get("summary_generator_fingerprint")
+            or effective_privacy(recording_id, metadata) != "standard"
+        ):
+            return False
+        return metadata
+    except (
+        OSError,
+        UnicodeError,
+        ValueError,
+        ContextValidationError,
+        PipelineError,
+    ):
+        return False
+
+
+def _notify_from_paths_unlocked(
     transcript_path: Path | None,
     summary_path: Path | None,
     force: bool = False,
@@ -184,14 +254,12 @@ def notify_from_paths(
 
     discord_url = os.environ.get("DISCORD_WEBHOOK_URL")
     if discord_url:
-        send_discord(discord_url, title, summary)
-        sent = True
+        sent = send_discord(discord_url, title, summary) or sent
 
     telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID")
     if telegram_token and telegram_chat_id:
-        send_telegram(telegram_token, telegram_chat_id, title, summary)
-        sent = True
+        sent = send_telegram(telegram_token, telegram_chat_id, title, summary) or sent
 
     if not sent:
         print("  [SKIP] Discord/Telegram 설정 없음")
@@ -199,6 +267,24 @@ def notify_from_paths(
 
     mark_notified(marker_target)
     return True
+
+
+def notify_from_paths(
+    transcript_path: Path | None,
+    summary_path: Path | None,
+    force: bool = False,
+):
+    metadata = _strict_delivery_metadata(transcript_path)
+    if metadata is False:
+        print("  notification skipped: artifact not finalizable")
+        return False
+    source = metadata.get("source") if isinstance(metadata, dict) else None
+    recording_id = source.get("audio_sha256") if isinstance(source, dict) else None
+    lock = recording_lock(recording_id) if recording_id is not None else nullcontext()
+    with lock:
+        if isinstance(metadata, dict) and _strict_delivery_metadata(transcript_path) is False:
+            return False
+        return _notify_from_paths_unlocked(transcript_path, summary_path, force=force)
 
 
 def resolve_input_paths(filepath: Path) -> tuple[Path | None, Path | None]:

@@ -1,68 +1,130 @@
 #!/usr/bin/env python3
-"""화자 타임라인(argmax diarize RTTM)을 전사본에 붙여 화자 라벨 뷰를 만든다.
-   apple : apple-stt JSON(문장 단위) + RTTM  → 깨끗한 텍스트 / 굵은 화자
-   argmax: argmax JSON(단어 단위)   + RTTM  → whisper 텍스트 / 정밀 화자
-usage:
-   diar_views.py apple  apple.json  diar.rttm
-   diar_views.py argmax argmax.json diar.rttm
+"""Merge Apple transcript ranges with Argmax diarization without replacing text.
+
+Usage: diar_views.py <apple-json> <diar-rttm> [source-offset-seconds]
+
+An Apple range that overlaps more than one speaker is labelled ``mixed``. Text is
+never split heuristically or reassigned to the dominant speaker.
 """
-import json, sys
-from collections import defaultdict
 
-mode, tr_path, rttm_path = sys.argv[1], sys.argv[2], sys.argv[3]
+from __future__ import annotations
 
-# RTTM: 파일명에 공백이 있어도 깨지지 않게 뒤 고정 필드(음수 인덱스)로 파싱
-turns = []
-for line in open(rttm_path):
-    p = line.split()
-    if len(p) < 9 or p[0] != "SPEAKER":
-        continue
-    st, dur, spk = float(p[-7]), float(p[-6]), p[-3]
-    turns.append((st, st + dur, spk))
+import json
+import math
+import sys
+from pathlib import Path
 
 
-def speaker_of(s, e):
-    ov = defaultdict(float)
-    for ts, te, spk in turns:
-        o = min(e, te) - max(s, ts)
-        if o > 0:
-            ov[spk] += o
-    return max(ov, key=ov.get) if ov else "?"
+def load_turns(path: Path) -> list[tuple[float, float, str]]:
+    turns: list[tuple[float, float, str]] = []
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        fields = line.split()
+        if not fields or fields[0] != "SPEAKER":
+            continue
+        if len(fields) < 9:
+            raise ValueError(f"invalid RTTM line {line_number}: expected at least 9 fields")
+        try:
+            start = float(fields[-7])
+            duration = float(fields[-6])
+        except ValueError as exc:
+            raise ValueError(f"invalid RTTM time at line {line_number}") from exc
+        if start < 0 or duration <= 0:
+            raise ValueError(f"invalid RTTM range at line {line_number}")
+        turns.append((start, start + duration, fields[-3]))
+    return sorted(turns)
 
 
-def hhmmss(t):
-    m, s = divmod(int(t), 60)
-    return f"{m:02d}:{s:02d}"
+def load_segments(path: Path) -> list[tuple[float, float, str]]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    raw_segments = payload.get("segments", []) if isinstance(payload, dict) else payload
+    if not isinstance(raw_segments, list):
+        raise ValueError("Apple JSON must be a segment array or an object with segments")
+
+    segments: list[tuple[float, float, str]] = []
+    for index, item in enumerate(raw_segments):
+        if not isinstance(item, dict):
+            raise ValueError(f"invalid Apple segment at index {index}")
+        start = float(item.get("start", 0.0))
+        end = float(item.get("end", start))
+        text = str(item.get("text", "")).strip()
+        if start < 0 or end < start:
+            raise ValueError(f"invalid Apple range at index {index}")
+        if text:
+            segments.append((start, end, text))
+    return segments
 
 
-doc = json.load(open(tr_path))
+def speaker_label(start: float, end: float, turns: list[tuple[float, float, str]]) -> str:
+    speakers = {
+        speaker
+        for turn_start, turn_end, speaker in turns
+        if min(end, turn_end) - max(start, turn_start) > 0
+    }
+    if not speakers:
+        return "?"
+    if len(speakers) > 1:
+        return "mixed"
+    return next(iter(speakers))
 
-# 전사 단위 추출: apple=문장 세그먼트, argmax=단어
-units = []  # (start, end, text)
-if mode == "apple":
-    for seg in doc:
-        a = seg.get("start", 0.0)
-        units.append((a, seg.get("end", a), seg.get("text", "").strip()))
-elif mode == "argmax":
-    for seg in doc.get("segments", []):
-        for w in seg.get("words", []):
-            t = w.get("word", "").strip()
-            if t and not t.startswith("<|"):  # 특수토큰 제외
-                units.append((w.get("start", 0.0), w.get("end", 0.0), t))
-else:
-    sys.exit("mode must be apple|argmax")
 
-# 화자 배정 후 연속 동일 화자 묶기
-rows, cur, start, buf = [], None, None, []
-for a, b, text in units:
-    spk = speaker_of(a, b)
-    if spk != cur:
-        if buf:
-            rows.append(f"**[{cur}]** ({hhmmss(start)}) " + " ".join(buf))
-        cur, start, buf = spk, a, [text]
-    else:
-        buf.append(text)
-if buf:
-    rows.append(f"**[{cur}]** ({hhmmss(start)}) " + " ".join(buf))
+def timestamp(seconds: float) -> str:
+    minutes, whole_seconds = divmod(max(0, int(seconds)), 60)
+    return f"{minutes:02d}:{whole_seconds:02d}"
 
-print("\n\n".join(rows))
+
+def render(
+    segments: list[tuple[float, float, str]],
+    turns: list[tuple[float, float, str]],
+    source_offset: float = 0.0,
+) -> str:
+    rows: list[str] = []
+    current_label: str | None = None
+    current_start = 0.0
+    buffer: list[str] = []
+
+    for start, end, text in segments:
+        label = speaker_label(start, end, turns)
+        if label != current_label:
+            if buffer:
+                rows.append(
+                    f"**[{current_label}]** ({timestamp(current_start + source_offset)}) "
+                    + " ".join(buffer)
+                )
+            current_label = label
+            current_start = start
+            buffer = [text]
+        else:
+            buffer.append(text)
+
+    if buffer:
+        rows.append(
+            f"**[{current_label}]** ({timestamp(current_start + source_offset)}) "
+            + " ".join(buffer)
+        )
+    return "\n\n".join(rows)
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) not in (3, 4):
+        print(
+            "usage: diar_views.py <apple-json> <diar-rttm> [source-offset-seconds]",
+            file=sys.stderr,
+        )
+        return 64
+    try:
+        source_offset = float(argv[3]) if len(argv) == 4 else 0.0
+        if not math.isfinite(source_offset) or source_offset < 0:
+            raise ValueError("source offset must be nonnegative seconds")
+        output = render(
+            load_segments(Path(argv[1])), load_turns(Path(argv[2])), source_offset
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"diarization merge failed: {exc}", file=sys.stderr)
+        return 65
+    if output:
+        print(output)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

@@ -4,7 +4,7 @@
 # (1) 이름/설명 + (2) 토픽을 병합하고, 후보가 부족할 때만 README 검색으로 채운다.
 # 검색 근거/라이선스/활성도를 기본으로 보여주고, 기여 이슈 수는 요청할 때만 보강한다.
 #
-# Usage: explore.sh "<주제>" [--language L] [--license L] [--min-stars N] [--sort stars|updated|forks] [--limit N] [--issues] [--json|--html]
+# Usage: explore.sh "<주제>" [--language L] [--license L] [--min-stars N] [--sort stars|updated|forks] [--limit N] [--issues|--no-issues] [--json|--html]
 #   <주제>          분야/키워드 (예: "marketing", "vector database", "legal", "음악"). 따옴표로 다단어 묶기
 #   --language L    레포 주 언어 필터 (python, typescript, rust, go ...)
 #   --license L     라이선스 필터 (mit, apache-2.0, gpl-3.0 ...)
@@ -12,6 +12,7 @@
 #   --sort S        stars(기본) | updated | forks
 #   --limit N       표시할 레포 수 (기본 20). 검색은 언어/토픽 양쪽에서 각 N건 → 병합 후 상위 N
 #   --issues        기여 가능성(GFI/HW) 보강 (레포당 gh 호출 2회)
+#   --no-issues     호환용 no-op (기여 가능성 보강 안 함)
 #   --json          원시 JSON
 #   --html          HTML 리포트 생성 후 open
 set -euo pipefail
@@ -32,7 +33,7 @@ while [ $# -gt 0 ]; do
     --sort) shift; SORT="${1:?--sort needs a value}" ;;
     --limit) shift; LIMIT="${1:?--limit needs a value}" ;;
     --issues) WITH_ISSUES=1 ;;
-    --no-issues) WITH_ISSUES=0 ;; # 이전 호출 호환
+    --no-issues) WITH_ISSUES=0 ;;
     --json) OUT=json ;;
     --html) OUT=html ;;
     -*) echo "unknown option: $1" >&2; exit 1 ;;
@@ -42,7 +43,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$TOPIC" ]; then
-  echo 'Usage: explore.sh "<주제>" [--language L] [--license L] [--min-stars N] [--sort stars|updated|forks] [--limit N] [--issues] [--json|--html]' >&2
+  echo 'Usage: explore.sh "<주제>" [--language L] [--license L] [--min-stars N] [--sort stars|updated|forks] [--limit N] [--issues|--no-issues] [--json|--html]' >&2
   exit 1
 fi
 
@@ -69,11 +70,24 @@ common=(--archived=false --include-forks false --sort "$SORT" --limit "$LIMIT"
 [ "$MIN_STARS" -gt 0 ] && common+=(--stars ">=$MIN_STARS")
 
 # 이름/설명과 토픽은 고신호 후보, README는 후보가 부족할 때만 쓰는 저신호 fallback이다.
-DIRECT=$(gh search repos "${common[@]}" --match name,description -- "$TOPIC" 2>/dev/null || echo '[]')
+SEARCH_OK=0
+run_search() {
+  local output_var="$1" label="$2" output
+  shift 2
+  if output=$("$@" 2>&1); then
+    printf -v "$output_var" '%s' "$output"
+    SEARCH_OK=$((SEARCH_OK + 1))
+  else
+    printf -v "$output_var" '[]'
+    printf 'warning: %s search failed: %s\n' "$label" "$output" >&2
+  fi
+}
+
+run_search DIRECT "name/description" gh search repos "${common[@]}" --match name,description -- "$TOPIC"
 DIRECT=$(echo "$DIRECT" | jq -c 'map(. + {matched_by:["name/description"], match_rank:3})')
 TP='[]'
 if [ -n "$TOPIC_SLUG" ]; then
-  TP=$(gh search repos --topic "$TOPIC_SLUG" "${common[@]}" 2>/dev/null || echo '[]')
+  run_search TP "topic" gh search repos --topic "$TOPIC_SLUG" "${common[@]}"
   TP=$(echo "$TP" | jq -c 'map(. + {matched_by:["topic"], match_rank:2})')
 fi
 
@@ -95,12 +109,17 @@ merge_repos() {
 
 REPOS=$(merge_repos "$DIRECT" "$TP" '[]')
 if [ "$(echo "$REPOS" | jq 'length')" -lt "$LIMIT" ]; then
-  README=$(gh search repos "${common[@]}" --match readme -- "$TOPIC" 2>/dev/null || echo '[]')
+  run_search README "README" gh search repos "${common[@]}" --match readme -- "$TOPIC"
   README=$(echo "$README" | jq -c 'map(. + {matched_by:["readme"], match_rank:1})')
   REPOS=$(merge_repos "$DIRECT" "$TP" "$README")
 fi
 
-# 기여 가능성 보강 (기본 on): good first issue / help wanted 열린 이슈 수를 병렬 조회
+if [ "$SEARCH_OK" -eq 0 ]; then
+  echo "error: all repository searches failed" >&2
+  exit 1
+fi
+
+# 기여 가능성 보강 (--issues): good first issue / help wanted 열린 이슈 수를 병렬 조회
 # (macOS BSD xargs -I {} 255B 한계 → -P N -n 1 sh -c '... "$1" ...' _ 위치인자 패턴)
 if [ "$WITH_ISSUES" = 1 ] && [ "$(echo "$REPOS" | jq 'length')" -gt 0 ]; then
   TSV=$(echo "$REPOS" | jq -r '.[].fullName' | xargs -P 10 -n 1 sh -c '

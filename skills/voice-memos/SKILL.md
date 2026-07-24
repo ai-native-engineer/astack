@@ -8,7 +8,7 @@ description: "Apple Voice Memos, 에이닷 통화 녹음, Apple Notes, Caret MCP
 
 음성 메모와 개인 노트를 한 곳에서 다룬다. 네 종류의 소스를 통합하며, 각 소스의 처리 규칙·자동화·필드 경로는 `references/` 아래 별도 문서에 분리되어 있다. 이 SKILL.md는 인덱스 + 공통 워크플로우 역할이다.
 
-전사→요약→알림 파이프라인 코드의 원본도 이 스킬의 `scripts/`다. launchd 워처가 새 녹음을 감지해 `scripts/run.sh`를 자동 실행한다 — 구성·진단·재시작은 `references/watcher.md`.
+전사 -> 검토 대기/요약 -> 알림 파이프라인 코드의 원본도 이 스킬의 `scripts/`다. launchd 워처가 새 녹음을 감지해 `scripts/run.sh`를 자동 실행한다. 설치 기본값은 `legacy`이며 strict `shadow`·`review`는 Gate 1 통과 전까지 활성화하지 않는다. 구성, 진단, 재시작은 `references/watcher.md`를 읽는다.
 
 ## 데이터 소스 인덱스
 
@@ -24,9 +24,11 @@ description: "Apple Voice Memos, 에이닷 통화 녹음, Apple Notes, Caret MCP
 ## 경로
 
 - 데이터 루트: `VOICE_MEMOS_DATA_DIR`. 미설정 시 `~/Library/Mobile Documents/com~apple~CloudDocs/voice-memos`
-- Apple Voice Memos 산출물(transcript/summary): 데이터 루트의 `transcripts/YYYYMMDD/HHMMSS/transcript.md` + `summary.md`
-- 에이닷 `.m4a` 산출물: `~/Library/Mobile Documents/com~apple~CloudDocs/녹음/<원본>.transcript.md` + `<원본>.summary.md`
-- 단어장: 데이터 루트의 `corrections.json`
+- Apple Voice Memos `legacy` 산출물: 데이터 루트의 `transcripts/YYYYMMDD/HHMMSS/transcript.md` + `summary.md`
+- Apple Voice Memos strict 산출물: `transcripts/YYYYMMDD/HHMMSS-<recording-id-8>/` 아래 `analysis.json`, `raw.md`, `run.json`; `review`만 `transcript.md`를 추가하고 finalizable일 때 `summary.md`를 만든다.
+- 에이닷 `.m4a` 산출물: `legacy`는 원본 옆 `<원본>.transcript.md`/`<원본>.summary.md`; strict는 `<원본>.analysis.json`/`<원본>.run.json`을 추가하고 `review`만 transcript를 쓴다.
+- 녹음별 strict context: `~/.config/voice-memos/recordings/<audio-sha256>.json`
+- 검토 결정/저장 용어: 로컬 `~/.voice-memos/state/review.sqlite3`
 - 워처 로그: `~/.voice-memos/logs/watcher.log`
 
 모든 상대 명령은 현재 로드된 `voice-memos` 스킬 루트를 작업 디렉터리로 삼아 실행한다.
@@ -55,20 +57,20 @@ python3 scripts/search.py --recent 5 --no-preview --count
 
 ### "음성 메모 처리해줘"
 
-워처가 보통 이미 자동 처리했다 — `search.py --recent`로 transcript/summary 존재부터 확인한다. 수동 처리가 필요할 때:
+워처가 보통 이미 기본 `legacy`로 자동 처리했다. `search.py --recent`로 transcript/summary 존재부터 확인한다. 수동 처리가 필요할 때:
 
-1. `bash scripts/run.sh --skip-notify` — 전사(음성 메모+통화)→요약 일괄. 개별 실행은 `references/voice-memos.md` 1절, 3절
-2. LLM이 직접 요약할 때: **Caret MCP 사전 보강** — `caret_search_knowledge` / `caret_search_notes` 병렬 호출 후 `caret_get_note`로 관련 노트 전문 확보 (`references/caret.md`) → `references/voice-memos.md` 3절 템플릿으로 `summary.md` 저장
+1. `bash scripts/run.sh --skip-notify` - 음성 메모와 통화 녹음을 순차 처리한다. 개별 실행은 `references/voice-memos.md` 1절, 3절을 읽는다.
+2. LLM이 직접 요약할 때는 `caret_search_knowledge` / `caret_search_notes`를 병렬 호출하고 `caret_get_note`로 관련 노트 전문을 확보한 뒤 `references/voice-memos.md` 3절 템플릿으로 `summary.md`를 저장한다.
 
 ### "화자 분리해줘" / "누가 말한 건지 알고 싶어"
 
-해당 음성 메모의 transcript 디렉토리(`transcripts/YYYYMMDD/HHMMSS/`)를 확인한 뒤:
+해당 음성 메모의 transcript 디렉토리를 확인한 뒤 실행한다.
 
 ```bash
-bash scripts/diarize.sh <audio.m4a> <transcript_dir> [apple|argmax|both] [start] [end]
+bash scripts/diarize.sh <audio.m4a> <transcript_dir> [start] [end]
 ```
 
-출력: 기존 `transcript_dir/diarized.md` (transcript.md·summary.md와 같은 폴더).
+출력은 `transcript_dir/diarized.md`다. Apple 텍스트가 정본이고 Argmax는 `diarize`만 실행한다. 여러 화자가 한 Apple 범위에 겹치면 `mixed`로 둔다.
 
 ### "전사만 해줘"
 
@@ -115,8 +117,7 @@ python3 scripts/notify.py
 ### "전사가 안 됐어" / "알림이 안 와" / 워처 점검
 
 launchd 워처 구성·로그 판독·FDA 권한 진단·재시작 절차는 `references/watcher.md`.
-Telegram 에러 알림을 붙여주면 마지막 `[ERROR]` 단계부터 본다. `apple-stt 0/N`은 새 전사 대상 없음이나
-무음 파일 누적일 수 있으므로, 요약 단계의 `Fatal error in message reader`가 있으면 먼저 모델/SDK/CLI 경로를 확인한다.
+Telegram 에러 알림을 붙여주면 마지막 `[ERROR]` 단계부터 본다. 전사 단계의 `processed=0`은 새 대상 없음일 수 있으므로, 요약 단계에 오류가 있으면 먼저 model/SDK/CLI 경로를 확인한다.
 
 ### "음성 메모 제목 바꿔줘" / "앱 안 이름 바꿔줘"
 
@@ -126,22 +127,23 @@ Voice Memos 앱 안에서 보이는 표시 이름만 변경 (원본 .m4a 파일�
 
 - **응답 언어**: 한국어. 영어·일본어 원문 인용은 원문 유지.
 - **화자 분리 한계**: Voice Memos 전사본에는 화자 라벨이 없다. 사용자의 발언·의사결정·심리를 추론·요약하기 전에 어느 발언이 본인 것인지 사용자에게 먼저 확인한다. 알려진 사용자 호칭이 등장해도 그 문장이 사용자의 **발화**인지 사용자**에 대한 언급**인지 구분한다. 상세 절차는 `references/voice-memos.md` 3절.
-- **원본 보존**: Voice Memos 원본, 에이닷 통화 녹음(.txt/.m4a), Apple Notes는 변형하지 않는다. 파생 위치는 소스별로 다르다. Voice Memos 산출물은 `voice-memos/transcripts/`, 에이닷 `.m4a` 산출물은 원본 옆 `<원본>.transcript.md`/`<원본>.summary.md`, Notes는 `mode=ro` 직접 쿼리.
-- **Caret 사전 보강 필수**: 요약·교정에 들어가기 전에 Caret MCP 검색을 건너뛰지 않는다. 관련 지식이 없는 경우에만 생략 가능. 검색 결과의 `summary` 필드만으로 판단하지 말고 `caret_get_note`로 전문을 확보한다.
+- **원본 보존**: Voice Memos 원본, 에이닷 통화 녹음(.txt/.m4a), Apple Notes는 변형하지 않는다. 파생 위치는 소스별로 다르다. Voice Memos 산출물은 `voice-memos/transcripts/`, 에이닷 `.m4a` 산출물은 원본 옆 `.analysis.json`/`.run.json`/`.transcript.md`/`.summary.md`, Notes는 `mode=ro` 직접 쿼리.
+- **Caret 사전 보강 필수**: LLM이 채팅에서 직접 요약·검토할 때 Caret MCP 검색을 건너뛰지 않는다. 자동 `summarize.py`는 Caret을 호출하지 않는다. 관련 지식이 없는 경우에만 생략 가능하며, 검색 결과의 `summary` 필드만으로 판단하지 말고 `caret_get_note`로 전문을 확보한다.
 
 ## scripts/ 인덱스
 
 | 스크립트 | 역할 | 상세 |
 |----------|------|------|
-| `run.sh` | 워처 진입점: 전사→통화 전사→요약→알림 순차 실행 | `references/watcher.md` |
-| `extract.py` | apple-stt로 음성 메모 전사 → transcript.md | `references/voice-memos.md` 1절 |
+| `run.sh` | 워처 진입점: 전사 -> 통화 전사 -> 요약 -> 알림. review pending은 요약·최종 알림을 보류 | `references/watcher.md` |
+| `extract.py` | apple-stt로 음성 메모 evidence/transcript 생성 | `references/voice-memos.md` 1절 |
 | `transcribe_calls.py` | 에이닷 통화 .m4a 전사 | `references/call-recordings.md` |
-| `correct.py` | 단어장 일괄 치환 (수동 도구, 파이프라인 미포함) | `references/voice-memos.md` 2절 |
+| `correct.py` | 전역 치환을 거부하고 review 명령을 안내하는 호환 shim | `references/voice-memos.md` 2절 |
+| `review.py` | context metadata, 불확실 구간 검토, SQLite decision/term event | `references/voice-memos.md` 2절 |
 | `summarize.py` | claude-agent-sdk 요약·제목 생성 | `references/voice-memos.md` 3절 |
 | `notify.py` | Discord/Telegram 전송 | `references/voice-memos.md` 5절 |
 | `config.py` | 파이프라인 공통 경로 정의 | — |
 | `search.py` | 3개 raw 소스 통합 검색 | 본 문서 "공통 검색 명령" |
 | `vm_notes.py` | Apple Notes 저수준 모듈 (search.py가 사용) | `references/apple-notes.md` |
-| `caret_to_md.py` | Caret get_note 결과 (>10K) JSON→md | `references/caret.md` |
+| `caret_to_md.py` | Caret get_note 결과 (>10K) JSON -> md | `references/caret.md` |
 | `check_fda.py`, `verify_fda.sh` | 워처 FDA 권한 진단 | `references/watcher.md` |
-| `trigger_tsrp.sh`, `transcribe_visible.swift`, `click_transcription.swift`, `stt_fallback.swift` | (폐기, 폴백 보관) 구 tsrp/UI 전사 | `references/voice-memos.md` 6절 |
+| `trigger_tsrp.sh`, `transcribe_visible.swift`, `click_transcription.swift`, `stt_fallback.swift` | 비실행 legacy reference. runner/문서 명령에서 호출 금지 | `references/voice-memos.md` 6절 |

@@ -8,4 +8,4 @@ Shared source for strong-coordinator and persistent-worker orchestration across 
 - [AI Builder Club open-agent-teams](https://github.com/AI-Builder-Club/skills/tree/main/skills/open-agent-teams): result files and race-safe completion sentinels.
 - [Zellij CLI](https://zellij.dev/documentation/zellij-commands): pane creation and pane-ID actions.
 
-Runtime behavior lives in `SKILL.md` and `references/`. `scripts/zdel` is the Zellij adapter and includes an in-session self-test; the notify sentinel scripts are covered by `tests/test-notify.sh`.
+Runtime behavior lives in `SKILL.md` and `references/`. `scripts/zdel` is the Zellij adapter and includes an in-session self-test; its notify hook is covered by `tests/test-notify.sh`.

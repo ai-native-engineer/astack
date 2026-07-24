@@ -190,9 +190,123 @@ def main():
         )
         try:
             tts_clone.cmd_chunk(chunk)
-            raise AssertionError("chunk should not reuse an existing project")
+            raise AssertionError("chunk should reject mismatched resume settings")
         except SystemExit as exc:
-            assert "use regen/join or a new --proj" in str(exc)
+            assert "settings differ" in str(exc)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        proj = Path(tmp) / "resume-project"
+        chunks = proj / "chunks"
+        chunks.mkdir(parents=True)
+        source = {"mode": "preset", "preset_voice": "Aiden"}
+        manifest = {
+            "model": tts_clone.DEFAULT_CUSTOM_MODEL,
+            "source": source,
+            "gap": 0.3,
+            "lang": "ko",
+            "gen_extra": ["--lang_code", "ko"],
+            "segments": ["one", "two", "three"],
+        }
+        (proj / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        (chunks / "norm_0001.wav").write_bytes(b"done")
+        (chunks / "seg_0002_000.wav").write_bytes(b"raw")
+        seen = {"generated": [], "normalized": [], "joined": 0}
+        original_gen = tts_clone.gen_one
+        original_normalize = tts_clone._normalize
+        original_join = tts_clone.cmd_join
+
+        def fake_gen(model, gen_source, text, out_dir, prefix, extra=None):
+            seen["generated"].append(prefix)
+            raw = Path(out_dir) / f"{prefix}_000.wav"
+            raw.write_bytes(b"generated")
+            return raw
+
+        def fake_normalize(raw, norm, gap):
+            seen["normalized"].append((Path(raw).name, Path(norm).name, gap))
+            Path(norm).write_bytes(b"normalized")
+
+        def fake_join(args):
+            seen["joined"] += 1
+
+        tts_clone.gen_one = fake_gen
+        tts_clone._normalize = fake_normalize
+        tts_clone.cmd_join = fake_join
+        try:
+            chunk = SimpleNamespace(
+                voice=None, voice_dir=None, proj=str(proj),
+                preset_voice="Aiden", instruct=None, instruct_file=None,
+                text="one\ntwo\nthree", text_file=None, model=None,
+                gap=0.3, lang="ko", duration_multiplier=None, speed=None,
+                ddpm_steps=None, temperature=None, top_p=None, top_k=None,
+                repetition_penalty=None,
+            )
+            tts_clone.cmd_chunk(chunk)
+        finally:
+            tts_clone.gen_one = original_gen
+            tts_clone._normalize = original_normalize
+            tts_clone.cmd_join = original_join
+
+        assert seen["generated"] == ["seg_0003"]
+        assert seen["normalized"] == [
+            ("seg_0002_000.wav", "norm_0002.wav", 0.3),
+            ("seg_0003_000.wav", "norm_0003.wav", 0.3),
+        ]
+        assert seen["joined"] == 1
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        ref = root / "ref.wav"
+        ref.write_bytes(b"RIFF")
+        sibling_text = root / "ref.txt"
+        sibling_text.write_text("current voice text", encoding="utf-8")
+        source = tts_clone.source_from_manifest({
+            "ref_audio": str(ref),
+            "ref_text": "original manifest text",
+        })
+        assert source["ref_text"] == "original manifest text"
+        assert "ref_text_file" not in source
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        store = root / "voices"
+        store.mkdir()
+        outside = root / "outside"
+        outside.mkdir()
+        outside_ref = outside / "ref.wav"
+        outside_ref.write_bytes(b"RIFF")
+        outside_ref.chmod(0o644)
+        outside_text = outside / "ref.txt"
+        outside_text.write_text("outside", encoding="utf-8")
+        outside_text.chmod(0o644)
+
+        linked_voice = store / "linked"
+        linked_voice.symlink_to(outside, target_is_directory=True)
+        try:
+            tts_clone.load_voice(SimpleNamespace(voice="linked", voice_dir=str(store)))
+            raise AssertionError("voice directory symlink should be rejected")
+        except SystemExit as exc:
+            assert "unsafe voice symlink" in str(exc)
+
+        for filename, target in (("ref.wav", outside_ref), ("ref.txt", outside_text)):
+            voice = store / f"linked-{filename[-3:]}"
+            voice.mkdir()
+            (voice / "ref.wav").write_bytes(b"RIFF")
+            (voice / "ref.txt").write_text("local", encoding="utf-8")
+            (voice / filename).unlink()
+            (voice / filename).symlink_to(target)
+            try:
+                tts_clone.load_voice(
+                    SimpleNamespace(voice=voice.name, voice_dir=str(store))
+                )
+                raise AssertionError(f"{filename} symlink should be rejected")
+            except SystemExit as exc:
+                assert "unsafe voice symlink" in str(exc)
+
+        assert stat.S_IMODE(outside_ref.stat().st_mode) == 0o644
+        assert stat.S_IMODE(outside_text.stat().st_mode) == 0o644
+        tts_clone.cmd_voices(SimpleNamespace(voice_dir=str(store)))
+        assert stat.S_IMODE(outside_ref.stat().st_mode) == 0o644
+        assert stat.S_IMODE(outside_text.stat().st_mode) == 0o644
 
     with tempfile.TemporaryDirectory() as tmp:
         proj = Path(tmp)
@@ -221,6 +335,19 @@ def main():
         old_ref, old_txt = voice / "ref.wav", voice / "ref.txt"
         old_ref.write_bytes(b"old audio")
         old_txt.write_text("old text\n", encoding="utf-8")
+        prep = SimpleNamespace(
+            ref_text="new text", ref_text_file=None, voice="sample",
+            voice_dir=tmp, media="missing.wav", ss=None, dur=None, lang="ko",
+            replace=False,
+        )
+        try:
+            tts_clone.cmd_prep(prep)
+            raise AssertionError("prep should protect an existing voice by default")
+        except SystemExit as exc:
+            assert "use --replace" in str(exc)
+        assert old_ref.read_bytes() == b"old audio"
+        assert old_txt.read_text(encoding="utf-8") == "old text\n"
+
         original_run = tts_clone.run
         tts_clone.run = lambda *args, **kwargs: (_ for _ in ()).throw(
             subprocess.CalledProcessError(1, args[0])
@@ -229,6 +356,7 @@ def main():
             prep = SimpleNamespace(
                 ref_text="new text", ref_text_file=None, voice="sample",
                 voice_dir=tmp, media="missing.wav", ss=None, dur=None, lang="ko",
+                replace=True,
             )
             try:
                 tts_clone.cmd_prep(prep)
@@ -239,6 +367,48 @@ def main():
             assert old_txt.read_text(encoding="utf-8") == "old text\n"
         finally:
             tts_clone.run = original_run
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        dest = root / "sample"
+        dest.mkdir()
+        (dest / "ref.wav").write_bytes(b"old audio")
+        (dest / "ref.txt").write_text("old text\n", encoding="utf-8")
+        prepared = root / "prepared"
+        prepared.mkdir()
+        (prepared / "ref.wav").write_bytes(b"new audio")
+        (prepared / "ref.txt").write_text("new text\n", encoding="utf-8")
+
+        original_replace = tts_clone.os.replace
+        calls = 0
+
+        def fail_install(src, dst):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("injected install failure")
+            return original_replace(src, dst)
+
+        tts_clone.os.replace = fail_install
+        try:
+            try:
+                tts_clone._replace_voice_dir(prepared, dest)
+                raise AssertionError("voice replacement should propagate install failure")
+            except OSError as exc:
+                assert "injected install failure" in str(exc)
+        finally:
+            tts_clone.os.replace = original_replace
+
+        assert (dest / "ref.wav").read_bytes() == b"old audio"
+        assert (dest / "ref.txt").read_text(encoding="utf-8") == "old text\n"
+
+        prepared = root / "prepared-success"
+        prepared.mkdir()
+        (prepared / "ref.wav").write_bytes(b"new audio")
+        (prepared / "ref.txt").write_text("new text\n", encoding="utf-8")
+        tts_clone._replace_voice_dir(prepared, dest)
+        assert (dest / "ref.wav").read_bytes() == b"new audio"
+        assert (dest / "ref.txt").read_text(encoding="utf-8") == "new text\n"
 
     with tempfile.TemporaryDirectory() as tmp:
         proj = Path(tmp) / "private-project"

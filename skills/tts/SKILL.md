@@ -11,9 +11,10 @@ compatibility: "macOS on Apple Silicon. Requires Python 3, ffmpeg, and mlx-audio
 - 기본 엔진은 Qwen3-TTS Base이며, 모델을 받은 뒤 로컬에서 실행한다.
 - 음성 레퍼런스는 스킬에 넣지 않고 로컬 `~/.local/share/tts/voices/<name>/ref.wav + ref.txt`에 둔다.
 - 기본 음성은 `~/.config/tts/config.json`의 `default_voice`로 정한다. 미설정 별칭은 `default`다.
-- `prep --voice <name>`은 새 음성을 로컬 voice store에 저장한다. `TTS_VOICE_DIR` 또는 `--voice-dir`로 위치를 바꿀 수 있다.
+- `prep --voice <name>`은 새 음성을 로컬 voice store에 저장한다. 같은 이름이 있으면 중단하며, 명시적인 `--replace`에서만 두 레퍼런스 파일을 함께 교체한다. `TTS_VOICE_DIR` 또는 `--voice-dir`로 위치를 바꿀 수 있다.
 - 등록 음성 복제는 `--voice`, 프리셋 화자는 `--preset-voice`, 자연어 음성 설계는 `--instruct`를 쓴다.
 - 긴 작업은 `chunk`, 짧은 문장은 `full`을 쓴다. `chunk`는 한 줄을 한 청크로 처리한다.
+- 같은 대본과 설정으로 `chunk --proj`를 다시 실행하면 완료된 청크를 건너뛰고 중단 지점부터 이어간다. 대본이나 설정이 다르면 새 프로젝트를 쓴다.
 - 민감한 대본·전사·음성 지시는 각각 `--text-file`, `--ref-text-file`, `--instruct-file`로 전달한다. 생성 자식 프로세스에는 내용이 표준입력으로 넘어가 프로세스 인자와 실행 로그에 남지 않는다.
 
 음성 등록, 발화 전처리, 튜닝, 복구 작업 전에는 `references/voice-clone.md`를 읽는다.
@@ -41,6 +42,6 @@ python3 "$S" regen --proj /tmp/tts-XXXX --seg 3 --duration-multiplier 1.08
 - 원본 최종본: `--out`
 - 편집용 48kHz mono 정규화본: `--loudnorm-out`
 
-음성 폴더와 작업 프로젝트는 `700`, 개인정보가 든 파일은 `600` 권한으로 저장한다. `manifest.json`에는 재생성용 대본 청크와 음성 설정이 남으며 외부 서버로 업로드하지 않는다.
+드라이버가 생성·관리하는 음성 폴더와 작업 프로젝트는 `700`, 레퍼런스·manifest·생성 WAV는 `600` 권한으로 저장한다. 입력 미디어·대본·지시 파일은 읽기만 하며 권한을 바꾸지 않는다. `manifest.json`에는 재생성용 대본 청크와 음성 설정이 남으며 외부 서버로 업로드하지 않는다.
 
 빠른 비복제 안내 음성만 필요하면 macOS `say`를 쓴다.

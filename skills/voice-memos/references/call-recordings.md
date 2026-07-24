@@ -3,7 +3,7 @@
 SK텔레콤 에이닷이 통화 녹음을 iCloud Drive에 올리는 소스. 파일이 두 형태다:
 
 - **`.txt`** — 에이닷 자동 전사본. 화자 라벨(`상대방`/`나`)과 자체 요약(`[통화요약]`)이 포함된 완성 텍스트라 추가 처리 없이 search 인덱싱만 한다.
-- **`.m4a`** — 통화 원본 오디오. 워처의 `transcribe_calls.py`가 apple-stt로 자동 전사한다(아래 절 참조).
+- **`.m4a`** — 통화 원본 오디오. 워처의 `transcribe_calls.py`가 apple-stt로 자동 전사한다(아래 절 참조). 설치 기본값은 `legacy`다.
 
 ## 위치
 
@@ -45,14 +45,17 @@ SK텔레콤 에이닷이 통화 녹음을 iCloud Drive에 올리는 소스. 파�
 워처 `run.sh`의 2단계. `scripts/transcribe_calls.py`가 통화 .m4a를 apple-stt로 전사한다. Voice Memos와 달리 통화 m4a에는 tsrp atom이 없어 `extract.py`가 못 다루므로 별도 경로다.
 
 - iCloud placeholder(dataless) 파일이면 `brctl download`로 받아 크기 안정화까지 대기 후 전사.
-- 산출물: 원본 옆 `<원본>.transcript.md` + `<원본>.summary.md`. 전사 파일은 `extract.py`와 동일한 `## 전사 내용` 마커 포맷. 제목은 `YYYY-MM-DD HH:MM:SS <상대>님과의 통화`, 화자 라벨 없음.
-- 이후 `summarize.py`(요약)·`notify.py`(알림)가 그대로 이어받는다.
+- `legacy` 산출물: 원본 옆 `<원본>.transcript.md` + `<원본>.summary.md`. 전사 파일은 `extract.py`와 동일한 `## 전사 내용` 마커 포맷이다. 제목은 `YYYY-MM-DD HH:MM:SS <상대>님과의 통화`이며 화자 라벨은 없다.
+- strict 산출물: 원본 옆 `<원본>.analysis.json`과 `<원본>.run.json`. `shadow`는 transcript를 쓰지 않고, `review`만 `<원본>.transcript.md`를 만든다. strict analysis가 미지원이거나 검증에 실패하면 legacy로 fallback하지 않는다.
+- Voice Memos와 같은 SHA-256 recording ID, strict sidecar, context pack, privacy, per-recording lock 계약을 사용한다. sidecar는 `~/.config/voice-memos/recordings/<audio-sha256>.json`에 둔다.
+- 이후 `summarize.py`(요약)·`notify.py`(알림)가 그대로 이어받지만 `review_pending`이면 provisional 요약/알림을 만들지 않고, `privacy: local`이면 Claude를 호출하지 않는다.
+- strict `shadow`·`review`는 Gate 1 미통과 상태라 설치 launchd에서 활성화하지 않는다.
 - 같은 통화에 .txt가 있든 없든 .m4a를 전사한다. 따라서 search 결과에 같은 통화가 `[에이닷]` 원본 .txt와 `[에이닷]` 파생 `.transcript.md`로 중복 노출될 수 있다.
 
 ## 통합 원칙
 
-- **iCloud 원본을 변형하지 않는다.** .txt·.m4a 원본은 수정하지 않고, 파생 전사/요약 파일만 같은 `녹음/` 폴더에 `.transcript.md`/`.summary.md`로 둔다.
-- .txt에는 `correct.py`(단어장 교정)를 적용하지 않고 search.py 인덱싱만 한다.
+- **iCloud 원본을 변형하지 않는다.** .txt·.m4a 원본은 수정하지 않고, 파생 `.analysis.json`/`.run.json`/`.transcript.md`/`.summary.md`만 같은 `녹음/` 폴더에 둔다.
+- `.txt`는 search.py 인덱싱만 한다. 폐기된 `correct.py` 전역 치환은 `.txt`와 파생 transcript 어디에도 적용하지 않는다.
 - `search.py` 라벨: `[에이닷]`. 미리보기는 `[통화요약]` 섹션 전체를 들여쓰기로 표시. 섹션이 없으면 `[녹음 내용]` 첫 80자.
 
 ## 검색 동작

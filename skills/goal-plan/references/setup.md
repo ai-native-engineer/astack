@@ -32,15 +32,15 @@ This fills the generated Proof and installs the same `scripts/stop_gate.py` comm
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/goal-plan/scripts/init_goal_plan.py --worktree <tag> --goal "<one measurable end state>"
 ```
 
-This adds a timestamped worktree under `~/.agents/goals/<YYMMDD-HHMMSS-tag>` on the target repo's `goal/<tag>` branch, extends `AGENTS.md`, writes `CLAUDE.md` as `@AGENTS.md`, seeds `progress.tsv`, and prints the path.
+This adds a timestamped worktree under `~/.agents/goals/<YYMMDD-HHMMSS-tag>` on the target repo's `goal/<tag>` branch, preserves the repo's `AGENTS.md`, writes the goal contract to `GOAL.md`, writes `CLAUDE.md` as `@AGENTS.md`, seeds `progress.tsv`, and prints the path.
 
-If `AGENTS.md` already exists, it is copied to `AGENTS.md.bak` before the goal block is appended or replaced. If `CLAUDE.md` already exists, it is copied to `CLAUDE.md.bak` before the thin `@AGENTS.md` entrypoint is written.
+If `AGENTS.md` does not exist, the generator creates a minimal harness file that can hold repo-wide and goal-workspace rules. If `GOAL.md` or `CLAUDE.md` already exists and changes, it is copied to a `.bak` file before replacement.
 
 Replace every `TBD`, commit the plan, then stop. Hand off:
 
 ```bash
 !cd <printed worktree path>
-/goal @AGENTS.md
+/goal @GOAL.md
 ```
 
 The ledger lives on the `goal/<tag>` branch, so removing the external worktree later does not lose it.
@@ -82,7 +82,7 @@ After the plan commit, answer with:
 
 ```bash
 !cd <printed workspace path>
-/goal @AGENTS.md
+/goal @GOAL.md
 ```
 
 Do not run the loop, proof, or target edits during setup.

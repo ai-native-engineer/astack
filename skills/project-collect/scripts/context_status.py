@@ -5,14 +5,18 @@
 소스별 수집 현황을 표로 출력한다. --source 로 특정 소스의 anchor(증분 기준점)만 조회.
 표준 라이브러리만 사용 (의존성 0).
 
-  python3 context_status.py [dir]            # 기본: 01-context/company(없으면 context), 현황 표
-  python3 context_status.py 01-context/company --source slack   # slack anchor만 출력
+  python3 context_status.py [dir]                     # 현황 표
+  python3 context_status.py --resolve-dir --root DIR  # 프로젝트의 출력 경로
+  python3 context_status.py [dir] --source slack      # slack anchor만 출력
 """
 import argparse
+import contextlib
 import glob
+import io
 import os
 import re
 import sys
+import tempfile
 
 
 def parse_frontmatter(text):
@@ -63,26 +67,130 @@ def load(path):
     return meta
 
 
-def main():
+def resolve_context_dir(root):
+    """프로젝트 root에서 유일한 context 출력 디렉터리를 절대 경로로 반환한다."""
+    root = os.path.realpath(os.path.abspath(root))
+    if os.path.isdir(os.path.join(root, ".obsidian")):
+        raise ValueError(
+            f"OBSIDIAN_VAULT context archive disabled: {root}; "
+            "use the vault ingest workflow"
+        )
+    current = os.path.join(root, "01-context", "company")
+    legacy = os.path.join(root, "context")
+    current_exists = os.path.isdir(current)
+    legacy_exists = os.path.isdir(legacy)
+    if current_exists and legacy_exists:
+        raise ValueError(f"CONFLICT both context directories exist: {current} and {legacy}")
+    if legacy_exists:
+        return legacy
+    return current
+
+
+def self_check_resolver():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = os.path.join(tmp, "explicit root")
+        os.makedirs(root)
+        root = os.path.realpath(root)
+        current = os.path.join(root, "01-context", "company")
+        legacy = os.path.join(root, "context")
+
+        assert resolve_context_dir(root) == current  # neither: new default
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = main(["--resolve-dir", "--root", root])
+        assert result == 0 and output.getvalue().strip() == current
+
+        os.makedirs(current)
+        assert resolve_context_dir(root) == current  # new only
+        os.rmdir(current)
+        os.rmdir(os.path.dirname(current))
+
+        os.makedirs(legacy)
+        assert resolve_context_dir(root) == legacy  # legacy only
+
+        os.makedirs(current)
+        try:
+            resolve_context_dir(root)
+        except ValueError as exc:
+            assert str(exc).startswith("CONFLICT "), exc
+        else:
+            raise AssertionError("both context directories must conflict")
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors):
+            result = main(["--resolve-dir", "--root", root])
+        assert result != 0 and errors.getvalue().startswith("CONFLICT ")
+
+        os.rmdir(current)
+        os.rmdir(os.path.dirname(current))
+        os.rmdir(legacy)
+        assert resolve_context_dir(root).startswith(os.path.realpath(root) + os.sep)
+
+        os.makedirs(current)
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors):
+            result = main(["--root", root])
+        assert result == 1 and errors.getvalue().startswith("(no .md in ")
+
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = main(["--root", root, "--source", "slack"])
+        assert result == 0 and output.getvalue() == "\n", (result, output.getvalue())
+
+        obsidian_root = os.path.join(tmp, "obsidian vault")
+        os.makedirs(os.path.join(obsidian_root, ".obsidian"))
+        try:
+            resolve_context_dir(obsidian_root)
+        except ValueError as exc:
+            assert str(exc).startswith("OBSIDIAN_VAULT "), exc
+        else:
+            raise AssertionError("Obsidian vaults must not resolve an internal context directory")
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors):
+            result = main(["--resolve-dir", "--root", obsidian_root])
+        assert result != 0 and errors.getvalue().startswith("OBSIDIAN_VAULT ")
+
+    print("ok")
+    return 0
+
+
+def main(argv=None):
     ap = argparse.ArgumentParser(description="context/ 아카이브 수집 현황 뷰어")
     ap.add_argument("dir", nargs="?", default=None,
-                    help="아카이브 폴더 (기본: 01-context/company 있으면 그걸, 없으면 레거시 context)")
+                    help="아카이브 폴더 (생략하면 프로젝트 root에서 해소)")
+    ap.add_argument("--root", default=".", help="프로젝트 root (기본: 현재 디렉터리)")
+    ap.add_argument("--resolve-dir", action="store_true",
+                    help="선택한 아카이브 폴더의 절대 경로만 출력")
+    ap.add_argument("--self-check-resolver", action="store_true",
+                    help="임시 디렉터리에서 resolver 계약을 검사")
     ap.add_argument("--source", help="이 소스의 anchor(증분 기준점)만 출력")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
-    if args.dir is None:
-        # 하위호환: 신규 규약(01-context/company) 우선, 없으면 레거시(context)
-        for cand in ("01-context/company", "context"):
-            if os.path.isdir(cand):
-                args.dir = cand
-                break
+    if args.self_check_resolver:
+        return self_check_resolver()
+
+    try:
+        if args.dir is None:
+            archive_dir = resolve_context_dir(args.root)
         else:
-            args.dir = "01-context/company"
+            archive_dir = args.dir
+            if not os.path.isabs(archive_dir):
+                archive_dir = os.path.join(args.root, archive_dir)
+            archive_dir = os.path.realpath(os.path.abspath(archive_dir))
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
 
-    files = sorted(glob.glob(os.path.join(args.dir, "*.md")))
+    if args.resolve_dir:
+        print(archive_dir)
+        return 0
+
+    files = sorted(glob.glob(os.path.join(archive_dir, "*.md")))
     if not files:
-        print(f"(no .md in {args.dir})", file=sys.stderr)
-        sys.exit(1)
+        if args.source:
+            print("")
+            return 0
+        print(f"(no .md in {archive_dir})", file=sys.stderr)
+        return 1
     rows = [load(f) for f in files]
 
     # --source: 해당 소스의 anchor만 (가장 최근 수집본 기준). 재수집 증분에 사용.
@@ -90,7 +198,7 @@ def main():
         cand = [r for r in rows if r.get("source") == args.source and r.get("anchor")]
         cand.sort(key=lambda r: r.get("collected_last", ""), reverse=True)
         print(cand[0]["anchor"] if cand else "")
-        return
+        return 0
 
     for r in rows:
         rs, re_ = r.get("range_start", ""), r.get("range_end", "")
@@ -114,7 +222,8 @@ def main():
         print(flag + line)
     if any(r.get("_nometa") for r in rows):
         print("\n* = frontmatter 없음 (본문 best-effort). 다음 머지 때 frontmatter가 얹힘.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

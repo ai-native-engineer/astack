@@ -10,7 +10,7 @@ Two data stores, on purpose:
     finished output.wav to a directory or .wav path you want to keep.
 
 Subcommands:
-  prep   <media|wav> --voice NAME [--ref-text T | --ref-text-file F]
+  prep   <media|wav> --voice NAME [--replace] [--ref-text T | --ref-text-file F]
          Extract a clean reference clip (loudnorm, 24k mono) and store it in
          the local voice store. Uses apple-stt when reference text is omitted.
   voices List registered voices in the store.
@@ -213,6 +213,35 @@ def _private_file(path):
     return path
 
 
+def _replace_voice_dir(prepared, dest):
+    """Install a complete voice directory, restoring the previous one on failure."""
+    prepared, dest = Path(prepared), Path(dest)
+    backup_root = Path(tempfile.mkdtemp(prefix=".tts-backup-", dir=dest.parent))
+    backup = backup_root / "previous"
+    installed = False
+    try:
+        if dest.exists() or dest.is_symlink():
+            os.replace(dest, backup)
+        try:
+            os.replace(prepared, dest)
+            installed = True
+        except OSError as exc:
+            if backup.exists() or backup.is_symlink():
+                try:
+                    os.replace(backup, dest)
+                except OSError as restore_exc:
+                    sys.exit(
+                        f"[tts] voice replacement failed; previous voice preserved at "
+                        f"'{backup}' but could not be restored: {restore_exc}"
+                    )
+            raise exc
+    finally:
+        if prepared.exists():
+            shutil.rmtree(prepared, ignore_errors=True)
+        if installed or not (backup.exists() or backup.is_symlink()):
+            shutil.rmtree(backup_root, ignore_errors=True)
+
+
 def ffprobe_dur(p):
     out = run(
         [FFPROBE, "-v", "error", "-show_entries", "format=duration",
@@ -234,6 +263,20 @@ def voice_path(args):
     return voice_store(args) / name
 
 
+def _validate_voice_paths(store, *paths):
+    store = Path(store)
+    if store.is_symlink():
+        sys.exit(f"[tts] unsafe voice store symlink: {store}")
+    root = store.resolve()
+    for path in map(Path, paths):
+        if path.is_symlink():
+            sys.exit(f"[tts] unsafe voice symlink: {path}")
+        try:
+            path.resolve().relative_to(root)
+        except ValueError:
+            sys.exit(f"[tts] voice path escapes store '{store}': {path}")
+
+
 def find_apple_stt():
     found = shutil.which("apple-stt")
     local = Path("~/scripts/apple-stt").expanduser()
@@ -253,12 +296,14 @@ def resolve_proj(args):
 
 
 def load_voice(args):
+    store = voice_store(args)
     dest = voice_path(args)
     ref, txt = dest / "ref.wav", dest / "ref.txt"
+    _validate_voice_paths(store, dest, ref, txt)
     if not ref.exists() or not txt.exists():
-        sys.exit(f"[tts] voice '{args.voice}' not found in {voice_store(args)} "
+        sys.exit(f"[tts] voice '{args.voice}' not found in {store} "
                  f"— run `prep --voice {args.voice}` first")
-    _private_dir(dest.parent)
+    _private_dir(store)
     _private_dir(dest)
     _private_file(ref)
     _private_file(txt)
@@ -325,10 +370,10 @@ def source_from_manifest(man):
         ref_audio = Path(man["ref_audio"]).expanduser()
         source = {"mode": "clone", "ref_audio": str(ref_audio)}
         ref_text_file = ref_audio.with_name("ref.txt")
-        if ref_text_file.exists():
+        if man.get("ref_text"):
+            source["ref_text"] = man["ref_text"]
+        elif ref_text_file.exists():
             source["ref_text_file"] = str(ref_text_file)
-        elif man.get("ref_text"):
-            source["ref_text"] = man["ref_text"]  # legacy manifest fallback
         return source
     sys.exit("[tts] chunk manifest has no generation source")
 
@@ -679,10 +724,17 @@ def cmd_prep(args):
     if one == "":
         sys.exit("[tts] reference text is empty")
 
+    store = voice_store(args)
     dest = voice_path(args)
-    store = _private_dir(dest.parent)
-    with tempfile.TemporaryDirectory(prefix=".tts-prep-", dir=store) as tmp:
-        tmp = Path(tmp)
+    _validate_voice_paths(store, dest, dest / "ref.wav", dest / "ref.txt")
+    if (dest.exists() or dest.is_symlink()) and not getattr(args, "replace", False):
+        sys.exit(
+            f"[tts] voice '{args.voice}' already exists at {dest} — "
+            "use --replace to overwrite it"
+        )
+    store = _private_dir(store)
+    tmp = Path(tempfile.mkdtemp(prefix=".tts-prep-", dir=store))
+    try:
         ref, txt = tmp / "ref.wav", tmp / "ref.txt"
         af = "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=24000"
         cmd = [FFMPEG, "-y"]
@@ -707,11 +759,13 @@ def cmd_prep(args):
         if not one:
             sys.exit("[tts] reference text is empty")
         txt.write_text(one + "\n", encoding="utf-8")
-        _private_dir(dest)
-        os.replace(ref, dest / "ref.wav")
-        os.replace(txt, dest / "ref.txt")
-        _private_file(dest / "ref.wav")
-        _private_file(dest / "ref.txt")
+        _private_dir(tmp)
+        _private_file(ref)
+        _private_file(txt)
+        _replace_voice_dir(tmp, dest)
+    finally:
+        if tmp.exists():
+            shutil.rmtree(tmp, ignore_errors=True)
     print(f"[tts] voice '{args.voice}' stored: {dest} ({duration:.1f}s)")
 
 
@@ -719,16 +773,27 @@ def cmd_voices(args):
     store = voice_store(args)
     if not store.exists():
         print(f"[tts] no voices yet ({store})"); return
+    _validate_voice_paths(store)
     _private_dir(store)
     print(f"[tts] voice store: {store}")
     for d in sorted(store.iterdir()):
-        if (d / "ref.wav").exists():
+        ref, txt = d / "ref.wav", d / "ref.txt"
+        if d.is_symlink():
+            print(f"[tts] WARN: skipping unsafe voice symlink: {d}", file=sys.stderr)
+            continue
+        if ref.exists():
+            try:
+                _validate_voice_paths(store, d, ref, txt)
+            except SystemExit as exc:
+                reason = str(exc).removeprefix("[tts] ")
+                print(f"[tts] WARN: skipping {d.name}: {reason}", file=sys.stderr)
+                continue
             _private_dir(d)
-            _private_file(d / "ref.wav")
-            if (d / "ref.txt").exists():
-                _private_file(d / "ref.txt")
-            has_text = "yes" if (d / "ref.txt").exists() else "no"
-            print(f"  {d.name:16} {ffprobe_dur(d/'ref.wav'):5.1f}s  ref_text={has_text}")
+            _private_file(ref)
+            if txt.exists():
+                _private_file(txt)
+            has_text = "yes" if txt.exists() else "no"
+            print(f"  {d.name:16} {ffprobe_dur(ref):5.1f}s  ref_text={has_text}")
 
 
 def cmd_full(args):
@@ -755,9 +820,6 @@ def cmd_chunk(args):
     model = model_for_source(args, source)
     proj = resolve_proj(args)
     chunks = proj / "chunks"
-    if (proj / "manifest.json").exists() or (chunks.exists() and any(chunks.iterdir())):
-        sys.exit(f"[tts] chunk project already exists: {proj} — use regen/join or a new --proj")
-    _private_dir(chunks)
     segs = [ln.strip() for ln in _read_text(args).splitlines() if ln.strip()]
     if not segs:
         sys.exit("[tts] text has no non-empty lines (one sentence per line)")
@@ -765,13 +827,35 @@ def cmd_chunk(args):
     manifest = {"model": model, "source": source,
                 "gap": args.gap, "lang": args.lang, "gen_extra": gen_extra,
                 "segments": segs}
-    write_manifest(proj, manifest)
+    manifest_path = proj / "manifest.json"
+    if manifest_path.exists():
+        existing = load_manifest(proj)
+        mismatched = [key for key, value in manifest.items() if existing.get(key) != value]
+        if mismatched:
+            sys.exit(
+                f"[tts] chunk project settings differ ({', '.join(mismatched)}): {proj} "
+                "— rerun the original command or use a new --proj"
+            )
+    elif chunks.exists() and any(chunks.iterdir()):
+        sys.exit(f"[tts] chunk files exist without a manifest: {proj} — use a new --proj")
+    else:
+        write_manifest(proj, manifest)
+    _private_dir(chunks)
     for i, seg in enumerate(segs, 1):
         idx = f"{i:04d}"
+        raw = chunks / f"seg_{idx}_000.wav"
+        norm = chunks / f"norm_{idx}.wav"
+        if norm.exists():
+            _private_file(norm)
+            print(f">>> chunk {idx} already complete; skipping")
+            continue
         print(f">>> chunk {idx} ({len(seg)} chars)")
-        raw = gen_one(model, source, seg + "\n\n", chunks, f"seg_{idx}",
-                      extra=gen_extra)
-        _normalize(raw, chunks / f"norm_{idx}.wav", args.gap)
+        if raw.exists():
+            _private_file(raw)
+        else:
+            raw = gen_one(model, source, seg + "\n\n", chunks, f"seg_{idx}",
+                          extra=gen_extra)
+        _normalize(raw, norm, args.gap)
     cmd_join(args)
 
 
@@ -907,6 +991,8 @@ def main():
     p = sub.add_parser("prep"); p.add_argument("media")
     p.add_argument("--voice", required=True); p.add_argument("--ss", type=float)
     p.add_argument("--dur", type=float); p.add_argument("--lang", default="ko")
+    p.add_argument("--replace", action="store_true",
+                   help="replace an existing voice after preparing both reference files")
     ref_text = p.add_mutually_exclusive_group()
     ref_text.add_argument("--ref-text")
     ref_text.add_argument("--ref-text-file")

@@ -1,0 +1,52 @@
+{
+  "capabilities": {
+    "alternatives": true,
+    "audio_time_range": true,
+    "confidence": true
+  },
+  "context": {
+    "dropped": [],
+    "fingerprint": "bccba97727f96c00088e312955948fbdb81316791e250a478536ad42d425bebb",
+    "selected": [
+      "샘플"
+    ]
+  },
+  "engine": "apple-speech-transcriber",
+  "engine_version": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "locale": "ko-KR",
+  "offset_unit": "utf8_bytes",
+  "review_confidence_method": {
+    "name": "lower_quantile",
+    "quantile": 0.1,
+    "version": 1
+  },
+  "schema_version": 1,
+  "segments": [
+    {
+      "alternatives": [
+        {
+          "confidence": 0.785,
+          "end": 1.68,
+          "start": 0,
+          "text": "샘플 전문"
+        }
+      ],
+      "confidence_spans": [
+        {
+          "confidence": 0.976,
+          "end_byte": 13,
+          "start_byte": 0
+        }
+      ],
+      "end": 1.68,
+      "id": "s0001",
+      "review_confidence": 0.976,
+      "start": 0,
+      "text": "샘플 전사"
+    }
+  ],
+  "source": {
+    "audio_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "duration_ms": 570217
+  }
+}

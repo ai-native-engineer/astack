@@ -33,9 +33,9 @@ star는 인기도 신호일 뿐 관련도나 유지보수 품질의 단독 기�
 | 기여 통계 | `stats.sh [username]` |
 
 ```bash
-"$SC/explore.sh" "vector database" --language python
-"$SC/explore.sh" "developer tools" --license mit --html
-"$SC/explore.sh" "rust cli" --issues
+${CLAUDE_PLUGIN_ROOT}/skills/oss-explore/scripts/explore.sh "vector database" --language python
+${CLAUDE_PLUGIN_ROOT}/skills/oss-explore/scripts/explore.sh "developer tools" --license mit --html
+${CLAUDE_PLUGIN_ROOT}/skills/oss-explore/scripts/explore.sh "rust cli" --issues
 ```
 
 추천/비교 결과에는 각 후보의 `선정 이유`, `라이선스`, `최근 활동`, `적합한 용도`, `주의점`을 남긴다. 검색 결과를 그대로 나열하지 말고 요청 목적에 맞는 shortlist를 만든다.

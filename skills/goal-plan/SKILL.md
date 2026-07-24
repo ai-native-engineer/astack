@@ -1,36 +1,38 @@
 ---
 name: goal-plan
-description: "Create and maintain a lightweight /goal plan for long-running agent work: AGENTS.md goal instructions plus progress.tsv plan/progress scoreboard. Use when the user asks for a goal plan, goal workspace, goal harness, /goal setup, durable progress tracking, completion conditions, or resumable long-running task state. Do NOT use for short one-shot tasks that do not need persistent state."
+description: "Create and maintain a lightweight /goal plan for long-running agent work: GOAL.md completion instructions, AGENTS.md harness rules, and a progress.tsv scoreboard. Use when the user asks for a goal plan, goal workspace, goal harness, /goal setup, durable progress tracking, completion conditions, or resumable long-running task state. Do NOT use for short one-shot tasks that do not need persistent state."
 ---
 
 # Goal Plan
 
 Set up a durable workspace for a long-running `/goal` loop, then track progress through it. This skill has two distinct phases:
 
-- **Setup phase**: create or extend `AGENTS.md`, create `CLAUDE.md` and `progress.tsv`, optionally add runtime Stop-hook configs, commit the plan, then stop and hand the user ready-to-run `!cd <workspace>` and `/goal @AGENTS.md` start commands. Do not start progress rows, edit target files, or run the Proof in setup phase.
-- **Loop phase**: starts only after the user invokes `/goal @AGENTS.md` or an active goal continuation is present. Then follow `progress.tsv`, work, verify, and commit each step.
+- **Setup phase**: preserve or create `AGENTS.md`, create `GOAL.md`, `CLAUDE.md`, and `progress.tsv`, optionally add runtime Stop-hook configs, commit the plan, then stop and hand the user ready-to-run `!cd <workspace>` and `/goal @GOAL.md` start commands. Do not start progress rows, edit target files, or run the Proof in setup phase.
+- **Loop phase**: starts only after the user invokes `/goal @GOAL.md` or an active goal continuation is present. Then follow `progress.tsv`, work, verify, and commit each step.
 
 The durable record is two files plus git:
 
-- `AGENTS.md`: the repo guidance plus the instructions and loop protocol the goal runs on. Start with `/goal @AGENTS.md`.
+- `GOAL.md`: the objective, Proof, boundaries, and loop protocol. Start with `/goal @GOAL.md`.
 - `progress.tsv`: the plan and progress table. Edit it only through `goal_log.py`, never by hand.
 - git: each loop step ends in a commit, so the commit history is the durable, resumable record of what was tried and kept.
 
-`CLAUDE.md` is a thin Claude Code entrypoint that contains only `@AGENTS.md`.
+`AGENTS.md` is the separate repository and harness instruction surface. Preserve existing content; when absent, create the minimal harness template. Do not duplicate the Goal or Proof there.
 
-Stop-hook configs enforce the Proof command; `AGENTS.md` remains the single source of truth for completion.
+`CLAUDE.md` is a thin Claude Code entrypoint that contains only `@AGENTS.md`; the goal is loaded explicitly by `/goal @GOAL.md`.
 
-`templates/AGENTS.md.tmpl` is script input. Do not read it during ordinary setup; `init_goal_plan.py` copies and fills it. Open it only when changing or verifying the scaffold.
+Stop-hook configs enforce the Proof command; `GOAL.md` remains the single source of truth for completion.
+
+`templates/AGENTS.md.tmpl` and `templates/GOAL.md.tmpl` are script inputs. Do not read them during ordinary setup; `init_goal_plan.py` copies the harness template and fills the goal template. Open them only when changing or verifying the scaffold.
 
 Read `references/setup.md` when creating a plan. Read `references/progress-ledger.md` in loop phase or when changing the ledger contract. Read the Claude Code or Codex runtime reference before installing Stop hooks.
 
 ## Setup: explore, interview, scaffold, then stop
 
-AGENTS.md goal instructions need more than a one-line goal. Before scaffolding, inspect the repo enough to propose concrete defaults, then run at least one interview round with the user. Ask only what changes the run, use the host's structured clarification UI when available, and fill the Context section from the repo, not the user.
+GOAL.md needs more than a one-line goal. Before scaffolding, inspect the repo enough to propose concrete defaults, then run at least one interview round with the user. Ask only what changes the run, use the host's structured clarification UI when available, and fill the Context section from the repo, not the user.
 
 When the user asks to turn a rough operations/TODO list into a Codex `/goal`, especially with phrases like "until it works" or "isolated environment", do not hand off a vague goal. Convert the list into acceptance criteria, a deterministic proof command, explicit scope/out-of-scope boundaries, reversible-change constraints, and a progress row for each major subsystem. If the user chooses real infrastructure scope, keep the goal repo isolated but constrain real host changes to narrow, reversible user-level canaries unless they explicitly approve broader actions.
 
-If the user later corrects the goal scope, rewrite both `AGENTS.md` and `progress.tsv` to match the corrected scope, remove stale acceptance criteria/rows/phrases from the prior scope, verify with a content search, and commit the rewrite. Do not leave old risky domains (for example security/network/production ops) as active proof requirements after the user moved them out of scope.
+If the user later corrects the goal scope, rewrite both `GOAL.md` and `progress.tsv` to match the corrected scope, remove stale acceptance criteria/rows/phrases from the prior scope, verify with a content search, and commit the rewrite. Do not leave old risky domains (for example security/network/production ops) as active proof requirements after the user moved them out of scope.
 
 For service-boilerplate or harness goals where the user asks for spec-driven development, use the user's named spec system instead of inventing a generic `SPEC.md`. In particular, if they say GitHub Spec Kit, encode Spec Kit as the source of truth: `specify-cli` install/verification via `uv`, `specify init`, and the `constitution -> specify -> plan -> tasks -> implement` flow. Note command naming differences: most slash-command agents use `/speckit.*`, while Codex CLI in skills mode uses `$speckit-*`. A local `SPEC.md` may only be a thin compatibility note around Spec Kit outputs, not the primary spec system.
 
@@ -103,7 +105,7 @@ The `progress.tsv` schema is documented in `references/progress-ledger.md`. The 
 
 ## When to add more
 
-Two files plus git is the floor, not a cap. Add Stop hooks, subagents, workflows, or extra files only when the work needs them: executable fast checks, real parallelism, adversarial verification, repeated triage, or scale. Keep slow, flaky, costly, destructive, or human-only checks in the final Proof instead of a Stop hook. For a goal with many distinct acceptance tests, add an `## Acceptance Criteria` section to `AGENTS.md` instead of overloading each `done_when`.
+Two goal-state files plus git is the floor, not a cap. Add Stop hooks, subagents, workflows, or extra files only when the work needs them: executable fast checks, real parallelism, adversarial verification, repeated triage, or scale. Keep slow, flaky, costly, destructive, or human-only checks in the final Proof instead of a Stop hook. For a goal with many distinct acceptance tests, add an `## Acceptance Criteria` section to `GOAL.md` instead of overloading each `done_when`.
 
 Use plain `/goal` for one-off long-running work with a single condition; pair with `/loop` for work that repeats (triage, periodic checks), and use a scheduled routine for work that must outlive the session. Avoid `/goal` for one-line edits, vague finish lines ("improve X"), or a condition gameable without real progress.
 
