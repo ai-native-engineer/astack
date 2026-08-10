@@ -71,8 +71,15 @@ for skill in "${SKILLS[@]}"; do
     "$source/" "$stage/skills/$skill/"
 done
 
+youtube_helpers="$SOURCE_ROOT/youtube/youtube-digest/scripts"
+for helper in extract_transcript.sh srt-to-md.sh; do
+  [[ -f "$youtube_helpers/$helper" ]] || { echo "error: missing crawl helper: $youtube_helpers/$helper" >&2; exit 1; }
+  rsync -a "$youtube_helpers/$helper" "$stage/skills/crawl/scripts/$helper"
+done
+
 find "$stage/skills" -type f \( -name 'SKILL.md' -o -path '*/references/*.md' \) -exec sed -i.bak \
-  's|~/.agents/skills/shared/|${CLAUDE_PLUGIN_ROOT}/skills/|g' {} +
+  -e 's|\$HOME/.agents/skills/shared/|${CLAUDE_PLUGIN_ROOT}/skills/|g' \
+  -e 's|~/.agents/skills/shared/|${CLAUDE_PLUGIN_ROOT}/skills/|g' {} +
 find "$stage/skills" -type f -name '*.bak' -delete
 privacy_hits="$(rg --pcre2 -n --hidden \
   '(?<![A-Za-z0-9-])(sk-|ghp_|gho_|github_pat_|xox[bp]-)[A-Za-z0-9_-]{8,}|/Users/[^/[:space:]]+' \

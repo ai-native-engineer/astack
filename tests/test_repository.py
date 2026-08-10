@@ -35,6 +35,33 @@ def main() -> None:
         assert name and name.group(1).strip() == skill_dir.name, f"name mismatch: {skill_md}"
         assert re.search(r"^description:\s*\S", metadata, re.MULTILINE), f"missing description: {skill_md}"
 
+    for helper in ("extract_transcript.sh", "srt-to-md.sh"):
+        assert (SKILLS / "crawl" / "scripts" / helper).is_file(), f"missing bundled crawl helper: {helper}"
+
+    forbidden_paths = {
+        "/Users/": "user-specific absolute path",
+        "$HOME/.agents/skills/shared/": "untranslated shared-skill path",
+        "~/.agents/skills/shared/": "untranslated shared-skill path",
+        "skills/shared/": "working-directory-dependent shared-skill path",
+        "$HOME/Dev/": "user-specific development path",
+        "~/Dev/": "user-specific development path",
+        "~/scripts/": "user-specific scripts path",
+        "/opt/homebrew/bin/python3": "hardcoded Python path",
+        'Path.home() / ".local/bin/crwl"': "hardcoded crwl path",
+    }
+    path_violations = []
+    for path in SKILLS.rglob("*"):
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        for needle, reason in forbidden_paths.items():
+            if needle in text:
+                path_violations.append(f"{path.relative_to(ROOT)}: {reason} ({needle})")
+    assert not path_violations, "non-portable paths:\n" + "\n".join(path_violations)
+
     tracked = subprocess.check_output(
         ["git", "-C", str(ROOT), "ls-files", "-z"], text=True
     ).split("\0")
@@ -50,9 +77,14 @@ def main() -> None:
     codex_plugin = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
     codex_marketplace = json.loads((ROOT / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
     assert plugin["name"] == "astack"
-    assert plugin["version"] == codex_plugin["version"] == "0.2.0"
+    assert plugin["version"] == codex_plugin["version"] == "0.2.1"
     assert marketplace["name"] == "astack"
-    assert any(item.get("name") == "astack" and item.get("source") == "./" for item in marketplace["plugins"])
+    assert any(
+        item.get("name") == "astack"
+        and item.get("source") == "./"
+        and item.get("version") == plugin["version"]
+        for item in marketplace["plugins"]
+    )
     assert codex_plugin["skills"] == "./skills/"
     assert any(item.get("name") == "astack" for item in codex_marketplace["plugins"])
 

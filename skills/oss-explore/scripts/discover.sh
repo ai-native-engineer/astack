@@ -21,6 +21,7 @@
 #   --summary         발굴 결과를 언어별(레포수/이슈수)로 집계 (이슈 목록 대신)
 #   --json            원시 JSON 출력
 set -euo pipefail
+command -v jq >/dev/null 2>&1 || { echo "error: jq is required; install jq and add it to PATH" >&2; exit 69; }
 
 LANG_FILTER=""
 TOPIC=""
@@ -59,13 +60,21 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+case "$LIMIT" in ''|*[!0-9]*) echo "error: --limit must be an integer from 1 to 1000" >&2; exit 1 ;; esac
+[ "$LIMIT" -ge 1 ] && [ "$LIMIT" -le 1000 ] || { echo "error: --limit must be an integer from 1 to 1000" >&2; exit 1; }
+case "$MIN_STARS" in ''|*[!0-9]*) echo "error: --min-stars must be a non-negative integer" >&2; exit 1 ;; esac
+case "$MAX_AGE" in ''|*[!0-9]*) echo "error: --max-age must be a non-negative integer" >&2; exit 1 ;; esac
+case "$TOP" in ''|*[!0-9]*) echo "error: --top must be a positive integer" >&2; exit 1 ;; esac
+[ "$TOP" -ge 1 ] || { echo "error: --top must be a positive integer" >&2; exit 1; }
+case "$SORT" in recent|comments-asc) ;; *) echo "error: --sort must be recent or comments-asc" >&2; exit 1 ;; esac
+
 # --hot: 이슈가 아니라 "기여 기회(good first issue)가 많은 활성 레포"를 star순으로.
 # gh search repos 의 네이티브 qualifier(--good-first-issues)를 쓴다 — 이슈를 다 긁어 세는 것보다 가볍다.
 if [ "$HOT" = 1 ]; then
-  hargs=(--good-first-issues ">=$HOT_MIN" --sort stars --limit "$LIMIT" --json fullName,stargazersCount,description,url,updatedAt)
+  hargs=(--good-first-issues ">=$HOT_MIN" --archived=false --visibility public --include-forks false --sort stars --limit "$LIMIT" --json fullName,stargazersCount,description,url,updatedAt)
   [ -n "$LANG_FILTER" ] && hargs+=(--language "$LANG_FILTER")
   [ "$MIN_STARS" -gt 0 ] && hargs+=(--stars ">=$MIN_STARS")
-  HRESULT=$(gh search repos "${hargs[@]}" 2>/dev/null | jq --arg lang "$LANG_FILTER" --argjson min "$HOT_MIN" '
+  HRESULT=$(gh search repos "${hargs[@]}" | jq --arg lang "$LANG_FILTER" --argjson min "$HOT_MIN" '
     { type: "discover-hot", query: { language: $lang, min_good_first_issues: $min },
       count: length,
       repos: [ .[] | { repo: .fullName, stars: .stargazersCount, description: (.description // ""), url, updated: (.updatedAt[0:10]) } ] }')
@@ -98,9 +107,8 @@ fi
 # query 조립: created:>= 를 항상 맨 앞에 둔다.
 # (gh search 는 query가 '-'로 시작하면 플래그로 오인 → created: 로 시작해 leading-dash를 원천 차단)
 build_query() {
-  local q=""
-  [ -n "$TOPIC" ] && q="$TOPIC "
-  q="${q}created:>=$SINCE"
+  local q="created:>=$SINCE"
+  [ -n "$TOPIC" ] && q="$q $TOPIC"
   [ "$INCLUDE_LINKED" = 0 ] && q="$q -linked:pr"
   [ "$STALE_OK" = 0 ] && q="$q -label:blocked -label:wontfix -label:stale"
   printf '%s' "$q"
@@ -109,9 +117,9 @@ QUERY=$(build_query)
 
 search_label() {
   local label="$1"
-  local args=(--state open --limit "$LIMIT" --json repository,title,url,labels,updatedAt,commentsCount)
+  local args=(--state open --archived=false --visibility public --limit "$LIMIT" --json repository,title,url,labels,updatedAt,commentsCount)
   [ -n "$LANG_FILTER" ] && args+=(--language "$LANG_FILTER")
-  gh search issues "$QUERY" --label "$label" "${args[@]}" 2>/dev/null || echo '[]'
+  gh search issues "$QUERY" --label "$label" "${args[@]}"
 }
 
 # 발굴: --curated 면 awesome-for-beginners 검증 레포 시드(레포별 등재 라벨), 아니면 비기너 라벨 사전 검색
@@ -120,21 +128,50 @@ if [ "$CURATED" = 1 ]; then
   CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oss-explore"
   mkdir -p "$CACHE_DIR"
   DATA="$CACHE_DIR/awesome-for-beginners.json"
-  # 6시간 캐시 (raw fetch 실패 시 gh api contents base64 폴백)
-  if [ ! -f "$DATA" ] || find "$DATA" -mmin +360 2>/dev/null | grep -q .; then
-    curl -fsSL https://raw.githubusercontent.com/MunGell/awesome-for-beginners/main/data.json -o "$DATA" 2>/dev/null \
-      || gh api repos/MunGell/awesome-for-beginners/contents/data.json --jq '.content' 2>/dev/null | base64 -d > "$DATA"
+  cache_valid() {
+    jq -e '(.repositories | type) == "array"' "$1" >/dev/null 2>&1
+  }
+  refresh_cache() {
+    local tmp
+    tmp=$(mktemp "$CACHE_DIR/awesome-for-beginners.json.XXXXXX")
+    if curl -fsSL https://raw.githubusercontent.com/MunGell/awesome-for-beginners/main/data.json -o "$tmp" 2>/dev/null \
+      && cache_valid "$tmp"; then
+      mv "$tmp" "$DATA"
+      return
+    fi
+    if gh api repos/MunGell/awesome-for-beginners/contents/data.json --jq '.content' 2>/dev/null | base64 -d > "$tmp" \
+      && cache_valid "$tmp"; then
+      mv "$tmp" "$DATA"
+      return
+    fi
+    rm -f "$tmp"
+    return 1
+  }
+  # 6시간 캐시. 새 데이터는 검증한 뒤에만 원자적으로 교체한다.
+  NEEDS_REFRESH=0
+  cache_valid "$DATA" || NEEDS_REFRESH=1
+  if [ "$NEEDS_REFRESH" = 0 ] && find "$DATA" -mmin +360 -print -quit 2>/dev/null | grep -q .; then
+    NEEDS_REFRESH=1
+  fi
+  if [ "$NEEDS_REFRESH" = 1 ] && ! refresh_cache; then
+    if cache_valid "$DATA"; then
+      echo "warning: awesome-for-beginners cache refresh failed; using the existing valid cache" >&2
+    else
+      echo "error: could not refresh a valid awesome-for-beginners cache; check network access and GitHub authentication, then rerun" >&2
+      exit 1
+    fi
   fi
   REPO_LIMIT="$LIMIT"; [ "$REPO_LIMIT" -gt 40 ] && REPO_LIMIT=40
   # --language 로 technologies[] 필터 → "owner/repo<TAB>레포별 등재 라벨"
-  REPOS_TSV=$(jq -r --arg lang "$LANG_FILTER" '
-    .repositories[]
-    | select(($lang == "") or ((.technologies // []) | map(ascii_downcase) | index($lang | ascii_downcase) != null))
-    | "\((.link | sub("https?://github.com/"; "") | sub("/$"; "")))\t\(.label)"' "$DATA" 2>/dev/null | head -n "$REPO_LIMIT")
+  REPOS_TSV=$(jq -r --arg lang "$LANG_FILTER" --argjson limit "$REPO_LIMIT" '
+    [ .repositories[]
+      | select(($lang == "") or ((.technologies // []) | map(ascii_downcase) | index($lang | ascii_downcase) != null))
+      | "\((.link | sub("https?://github.com/"; "") | sub("/$"; "")))\t\(.label)" ]
+    | .[:$limit][]' "$DATA")
   while IFS=$'\t' read -r repo label; do
     [ -n "$repo" ] && [ -n "$label" ] || continue
-    part=$(gh search issues "created:>=$SINCE -linked:pr -label:blocked" --repo "$repo" --label "$label" --state open --limit 5 \
-      --json repository,title,url,labels,updatedAt,commentsCount 2>/dev/null || echo '[]')
+    part=$(gh search issues "$QUERY" --repo "$repo" --label "$label" --state open --archived=false --visibility public --limit 5 \
+      --json repository,title,url,labels,updatedAt,commentsCount)
     ALL=$(jq -c -n --argjson a "$ALL" --argjson b "${part:-[]}" '$a + $b')
   done <<< "$REPOS_TSV"
 else
@@ -160,9 +197,12 @@ case "$SORT" in
 esac
 
 # star 하한이 주어지면: unique 레포 star 병렬 보강 → 필터 → star 내림차순
-if [ "$MIN_STARS" -gt 0 ]; then
+if [ "$MIN_STARS" -gt 0 ] && jq -e 'length > 0' <<<"$ISSUES" >/dev/null; then
   STARTSV=$(echo "$ISSUES" | jq -r '[.[].repo] | unique | .[]' | xargs -P 10 -n 1 sh -c '
-    gh repo view "$1" --json stargazerCount --jq "[\"$1\", (.stargazerCount|tostring)] | @tsv" 2>/dev/null' _)
+    if ! gh repo view "$1" --json stargazerCount --jq "[\"$1\", (.stargazerCount|tostring)] | @tsv"; then
+      echo "error: gh repo view failed for $1 while resolving --min-stars; check repository access and GitHub authentication" >&2
+      exit 1
+    fi' _)
   STARMAP=$(echo "$STARTSV" | jq -R 'split("\t") | select(length==2) | {(.[0]): (.[1]|tonumber)}' | jq -s 'add // {}')
   ISSUES=$(echo "$ISSUES" | jq --argjson m "$STARMAP" --argjson min "$MIN_STARS" '
     map(.stars = ($m[.repo] // 0)) | map(select(.stars >= $min)) | sort_by(-.stars)')
@@ -170,9 +210,15 @@ fi
 
 # --summary: 이슈 목록 대신 "언어별(레포수/이슈수)" 집계로 — repo primaryLanguage 보강 후 group
 if [ "$SUMMARY" = 1 ]; then
-  LANGTSV=$(echo "$ISSUES" | jq -r '[.[].repo] | unique | .[]' | xargs -P 10 -n 1 sh -c '
-    gh repo view "$1" --json primaryLanguage --jq "[\"$1\", (.primaryLanguage.name // \"Unknown\")] | @tsv" 2>/dev/null' _)
-  LANGMAP=$(echo "$LANGTSV" | jq -R 'split("\t") | select(length==2) | {(.[0]): .[1]}' | jq -s 'add // {}')
+  LANGMAP='{}'
+  if jq -e 'length > 0' <<<"$ISSUES" >/dev/null; then
+    LANGTSV=$(echo "$ISSUES" | jq -r '[.[].repo] | unique | .[]' | xargs -P 10 -n 1 sh -c '
+      if ! gh repo view "$1" --json primaryLanguage --jq "[\"$1\", (.primaryLanguage.name // \"Unknown\")] | @tsv"; then
+        echo "error: gh repo view failed for $1 while generating --summary; check repository access and GitHub authentication" >&2
+        exit 1
+      fi' _)
+    LANGMAP=$(echo "$LANGTSV" | jq -R 'split("\t") | select(length==2) | {(.[0]): .[1]}' | jq -s 'add // {}')
+  fi
   SUMRESULT=$(echo "$ISSUES" | jq --argjson m "$LANGMAP" '
     map(.lang = ($m[.repo] // "Unknown"))
     | { type: "discover-summary", total_issues: length,

@@ -309,7 +309,10 @@ def video_output_options(
     return opts
 
 
-def audio_output_options(audio_streams: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
+def audio_output_options(
+    audio_streams: list[dict[str, Any]],
+    requested_bitrate: str = "auto",
+) -> tuple[list[str], list[str]]:
     opts: list[str] = []
     warnings: list[str] = []
 
@@ -325,7 +328,12 @@ def audio_output_options(audio_streams: list[dict[str, Any]]) -> tuple[list[str]
 
         opts += [f"-c:a:{index}", encoder]
 
-        bit_rate = bitrate_k(stream, multiplier=1.0)
+        if requested_bitrate == "auto":
+            bit_rate = bitrate_k(stream, multiplier=1.0)
+        elif requested_bitrate == "none":
+            bit_rate = None
+        else:
+            bit_rate = requested_bitrate
         if bit_rate and encoder in {"aac", "libmp3lame"}:
             opts += [f"-b:a:{index}", bit_rate]
 
@@ -450,6 +458,11 @@ def run_self_test() -> int:
         assert abs(actual.end - want.end) < 0.001, (actual, want)
     graph = build_filter_graph(segments[:2], 2)
     assert "concat=n=2:v=1:a=2[v][a0][a1]" in graph
+    audio = [
+        {"codec_name": "aac", "bit_rate": "128000", "sample_rate": "48000", "channels": 2}
+    ]
+    fixed_audio_opts, _ = audio_output_options(audio, "160k")
+    assert fixed_audio_opts[fixed_audio_opts.index("-b:a:0") + 1] == "160k"
     print("self_test: ok")
     return 0
 

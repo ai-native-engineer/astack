@@ -6,7 +6,7 @@ description: "Free local web/documentation crawler that converts URLs and sites 
 
 # Crawl
 
-공식 `crwl` CLI(crawl4ai, `~/.local/bin/crwl`) + 이 스킬의 `scripts/`로 웹페이지·문서를 마크다운으로 변환.
+PATH에서 확인되는 공식 `crwl` CLI(crawl4ai) + 이 스킬의 `scripts/`로 웹페이지·문서를 마크다운으로 변환.
 **권위 소스: `crwl crawl --help`, `crwl examples`, 각 스크립트 `--help`.** 여기엔 모드 선택과 비자명한 함정만 둔다. 스크립트 작성·crawl4ai API는 주제별 reference:
 - `references/crawl4ai-api.md` — 코어(CLI·발견/추출 분리·deep-crawl·seeding·마크다운·캡처·정제·실측 함정)
 - `references/crawl4ai-robustness.md` — 안 되는 사이트 대응(봇 차단·동적/무한스크롤·Shadow DOM·로그인 세션·프록시·지역위장·동시성)
@@ -20,7 +20,8 @@ description: "Free local web/documentation crawler that converts URLs and sites 
 | 한 페이지 → md | `crwl crawl <url> -o md` (stdout, 저장은 `-O f.md`) |
 | 섹션 deep-crawl → **한 파일 합본** | `crwl crawl <url> -o md --deep-crawl bfs --max-pages N`. 페이지가 `# <URL>` 구분선으로 이어 붙는다(읽기·grep용). 단 인라인 `--deep-crawl`은 URL 범위가 안 막혀 도메인 전역으로 샌다 → 범위 제한은 `-C cfg.json`(아래 "CLI deep-crawl 범위 제한" 절) |
 | 섹션 → **페이지별 파일** 미러 + 크롬 정화(+`--assets` 이미지) | `scripts/crawl-mirror.py`. AI에 먹일/사람이 볼 깔끔한 문서 아카이브용 ⬇ 주력 |
-| 미러의 소유 호스트 PDF 원본 수집 | `scripts/pdf-mirror.py` (`--host` 필수, 외부 인용 PDF 제외) |
+| 미러의 소유 호스트 PDF 원본 수집 | `scripts/pdf-mirror.py` (`--host` 필수, 100MB 초과 로컬 보관은 `--oversize-dir`) |
+| 대형 생성 Markdown을 순서 보존 조각으로 분할 | `scripts/split-markdown.py` |
 | 저장된 미러의 자막 fold·대용량 문서 검증 | `scripts/verify-mirror.py` |
 
 ⚠ `crwl crawl`의 기본 출력은 마크다운이 **아니다** — `-o`를 빼면 stdout이든 `-O` 파일이든 html 포함 JSON 덤프가 나온다(`.md` 확장자도 무시됨). `-O`는 경로만 정하고 포맷은 `-o`가 정한다. 마크다운은 항상 `-o md`(본문만은 `-o md-fit`)로 명시한다. (`crawl-mirror.py`는 포맷을 자체 처리하므로 예외.)

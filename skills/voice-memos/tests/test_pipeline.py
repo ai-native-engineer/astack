@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 import config  # noqa: E402
 import extract  # noqa: E402
 import review  # noqa: E402
+import search  # noqa: E402
 import transcribe_calls  # noqa: E402
 
 
@@ -346,6 +348,15 @@ else:
         self.assertEqual(refreshed.status, config.OutcomeStatus.PROCESSED)
         self.assertEqual(len(log.read_text(encoding="utf-8").splitlines()), 2)
 
+    def test_call_search_supports_legacy_and_date_only_filenames(self):
+        legacy = Path("홍길동_01012345678_20260726_235600.txt")
+        current = Path("윤형준님_260726.txt")
+
+        self.assertEqual(search.call_to_datetime(legacy).isoformat(), "2026-07-26T23:56:00")
+        self.assertEqual(search.call_display_name(legacy), "홍길동")
+        self.assertEqual(search.call_to_datetime(current).isoformat(), "2026-07-26T00:00:00")
+        self.assertEqual(search.call_display_name(current), "윤형준님")
+
     def test_unsettled_audio_is_deferred(self):
         source = self.audio("20260722 123456-one.m4a", b"first")
         with self.voice_memo_environment(self.fake_stt(), "review"):
@@ -404,6 +415,27 @@ else:
         self.assertEqual(status, 1)
         self.assertEqual(process.call_count, 2)
 
+    def test_recently_deleted_voice_memos_are_not_discovered(self):
+        active = self.audio("20260727 120000-active.m4a", b"active")
+        deleted = self.audio("20260727 120001-deleted.m4a", b"deleted")
+        pending = self.audio("20260727 120002-pending.m4a", b"pending")
+        database = self.root / "CloudRecordings.db"
+        with sqlite3.connect(database) as db:
+            db.execute(
+                "CREATE TABLE ZCLOUDRECORDING "
+                "(ZPATH TEXT, ZEVICTIONDATE REAL, ZDURATION REAL, ZLOCALDURATION REAL)"
+            )
+            db.executemany(
+                "INSERT INTO ZCLOUDRECORDING VALUES (?, ?, ?, ?)",
+                [
+                    (active.name, None, 1.0, 1.0),
+                    (deleted.name, 1.0, 1.0, 1.0),
+                    (pending.name, None, 10.0, 0.0),
+                ],
+            )
+
+        self.assertEqual(extract._recording_files(self.root), [active])
+
     def test_atomic_write_keeps_previous_artifact_on_rename_failure(self):
         target = self.root / "artifact.md"
         target.write_text("old", encoding="utf-8")
@@ -429,6 +461,13 @@ exit 0
         fake_python.chmod(0o755)
         env = {
             **os.environ,
+            # run.sh는 종료 코드가 0이 아니면 cleanup 에서 Telegram 알림을 쏜다.
+            # --skip-notify 는 이 경로를 막지 않고 게이트는 아래 두 변수뿐이라,
+            # 셸에 토큰이 export 돼 있으면 테스트 실패가 실제 발송이 된다.
+            "VOICE_MEMOS_CONFIG_FILE": str(self.root / "absent.env"),
+            "TELEGRAM_BOT_TOKEN": "",
+            "TELEGRAM_CHAT_ID": "",
+            "VOICE_MEMOS_CURL": "/usr/bin/true",
             "VOICE_MEMOS_RUNTIME_DIR": str(runtime),
             "VOICE_MEMOS_PYTHON": str(fake_python),
             "VOICE_MEMOS_UV": "/usr/bin/true",
@@ -465,6 +504,13 @@ exit 0
         fake_python.chmod(0o755)
         env = {
             **os.environ,
+            # run.sh는 종료 코드가 0이 아니면 cleanup 에서 Telegram 알림을 쏜다.
+            # --skip-notify 는 이 경로를 막지 않고 게이트는 아래 두 변수뿐이라,
+            # 셸에 토큰이 export 돼 있으면 테스트 실패가 실제 발송이 된다.
+            "VOICE_MEMOS_CONFIG_FILE": str(self.root / "absent.env"),
+            "TELEGRAM_BOT_TOKEN": "",
+            "TELEGRAM_CHAT_ID": "",
+            "VOICE_MEMOS_CURL": "/usr/bin/true",
             "VOICE_MEMOS_RUNTIME_DIR": str(runtime),
             "VOICE_MEMOS_PYTHON": str(fake_python),
             "VOICE_MEMOS_UV": "/usr/bin/true",
@@ -500,6 +546,13 @@ exit 0
         )
         env = {
             **os.environ,
+            # run.sh는 종료 코드가 0이 아니면 cleanup 에서 Telegram 알림을 쏜다.
+            # --skip-notify 는 이 경로를 막지 않고 게이트는 아래 두 변수뿐이라,
+            # 셸에 토큰이 export 돼 있으면 테스트 실패가 실제 발송이 된다.
+            "VOICE_MEMOS_CONFIG_FILE": str(self.root / "absent.env"),
+            "TELEGRAM_BOT_TOKEN": "",
+            "TELEGRAM_CHAT_ID": "",
+            "VOICE_MEMOS_CURL": "/usr/bin/true",
             "VOICE_MEMOS_RUNTIME_DIR": str(runtime),
             "VOICE_MEMOS_PYTHON": "/usr/bin/true",
             "VOICE_MEMOS_UV": "/usr/bin/true",

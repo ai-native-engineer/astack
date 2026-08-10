@@ -22,6 +22,17 @@ case "${OSS_EXPLORE_TEST_CASE:-nonlatin}: $*" in
   "partial:"*" --topic "*)
     printf '%s\n' '[{"fullName":"demo/topic","stargazersCount":5,"forksCount":1,"description":"topic","url":"https://example.com/topic","homepage":"","updatedAt":"2026-07-22T00:00:00Z","pushedAt":"2026-07-22T00:00:00Z","language":"Shell","license":{"name":"MIT License"},"openIssuesCount":1}]'
     ;;
+  "issues-fail:"*" search issues "*)
+    echo "API unavailable" >&2
+    exit 42
+    ;;
+  "stderr-success:"*" --match name,description "*)
+    echo "rate-limit notice" >&2
+    printf '%s\n' '[{"fullName":"demo/clean","stargazersCount":1,"forksCount":0,"description":"clean","url":"https://example.com/clean","homepage":"","updatedAt":"2026-08-10T00:00:00Z","pushedAt":"2026-08-10T00:00:00Z","language":"Shell","license":{"name":"MIT License"},"openIssuesCount":0}]'
+    ;;
+  "updated:"*" --match name,description "*)
+    printf '%s\n' '[{"fullName":"demo/recent-update","stargazersCount":1,"forksCount":0,"description":"updated","url":"https://example.com/recent-update","homepage":"","updatedAt":"2026-08-10T00:00:00Z","pushedAt":"2026-01-01T00:00:00Z","language":"Shell","license":{"name":"MIT License"},"openIssuesCount":0},{"fullName":"demo/recent-push","stargazersCount":1,"forksCount":0,"description":"pushed","url":"https://example.com/recent-push","homepage":"","updatedAt":"2026-08-01T00:00:00Z","pushedAt":"2026-08-09T00:00:00Z","language":"Shell","license":{"name":"MIT License"},"openIssuesCount":0}]'
+    ;;
   "merge:"*" --match name,description "*)
     printf '%s\n' '[{"fullName":"demo/shared","stargazersCount":20,"forksCount":2,"description":"shared","url":"https://example.com/shared","homepage":"","updatedAt":"2026-07-22T00:00:00Z","pushedAt":"2026-07-22T00:00:00Z","language":"Shell","license":{"name":"MIT License"},"openIssuesCount":1},{"fullName":"demo/direct","stargazersCount":10,"forksCount":1,"description":"direct","url":"https://example.com/direct","homepage":"","updatedAt":"2026-07-22T00:00:00Z","pushedAt":"2026-07-22T00:00:00Z","language":"Shell","license":{"name":"MIT License"},"openIssuesCount":1}]'
     ;;
@@ -70,6 +81,7 @@ echo "$RESULT" | jq -e '
 ' >/dev/null
 [ ! -e "$MARKER" ]
 grep -q -- '--license mit' "$LOG"
+grep -q -- '--visibility public' "$LOG"
 ! grep -q -- '--topic' "$LOG"
 
 : > "$LOG"
@@ -83,14 +95,32 @@ grep -q -- '--topic vector-database' "$LOG"
 : > "$LOG"
 rm -f "$MARKER"
 RESULT=$(run_explore issues "rust cli" --limit 1 --issues --json)
-echo "$RESULT" | jq -e '.query.with_issues and .repos[0].gfi == 2 and .repos[0].hw == 2' >/dev/null
+echo "$RESULT" | jq -e '.query.with_issues and .issue_lookup_failures == 0 and .repos[0].gfi == 2 and .repos[0].hw == 2' >/dev/null
 [ -e "$MARKER" ]
+
+ERR="$TMP/issues-fail.err"
+RESULT=$(run_explore issues-fail "rust cli" --limit 1 --issues --json 2>"$ERR")
+echo "$RESULT" | jq -e '.issue_lookup_failures == 1 and .repos[0].gfi == null and .repos[0].hw == null' >/dev/null
+echo "$RESULT" | python3 "$ROOT/scripts/render_html.py" | grep -q '조회 실패 1곳은 ?로 표시했습니다'
+grep -q 'warning: issue lookup failed for 1 repository' "$ERR"
+grep -q 'gh auth status or gh api rate_limit' "$ERR"
+run_explore issues-fail "rust cli" --limit 1 --issues 2>/dev/null | grep -q '| ? | ? |'
 
 : > "$LOG"
 ERR="$TMP/partial.err"
 RESULT=$(run_explore partial "vector" --limit 1 --json 2>"$ERR")
 echo "$RESULT" | jq -e '.repos[0].repo == "demo/topic"' >/dev/null
-grep -q 'warning: name/description search failed: auth failed' "$ERR"
+grep -q 'auth failed' "$ERR"
+grep -q 'warning: name/description search failed' "$ERR"
+
+: > "$LOG"
+ERR="$TMP/stderr-success.err"
+RESULT=$(run_explore stderr-success "clean" --limit 1 --json 2>"$ERR")
+echo "$RESULT" | jq -e '.repos[0].repo == "demo/clean"' >/dev/null
+grep -q 'rate-limit notice' "$ERR"
+
+RESULT=$(run_explore updated "tool" --sort updated --limit 2 --json)
+echo "$RESULT" | jq -e '.repos[0].repo == "demo/recent-update"' >/dev/null
 
 if run_explore all-fail "vector" --limit 1 --json >"$TMP/all.out" 2>"$TMP/all.err"; then
   echo "all failed searches should exit non-zero" >&2

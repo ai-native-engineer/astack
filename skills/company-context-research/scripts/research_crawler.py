@@ -11,6 +11,7 @@ import sys
 import time
 import json
 import os
+import shutil
 from collections import deque, defaultdict
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
@@ -52,6 +53,13 @@ PRUNE_SUBSTRINGS = (
 TARGET_KEYWORDS = []
 
 # --- Helper Functions ---
+def crwl_binary() -> str:
+    path = shutil.which("crwl")
+    if not path:
+        raise SystemExit("crwl not found; install crawl4ai and add crwl to PATH")
+    return path
+
+
 def base_domain(host: str) -> str:
     host = host.lower().strip(".")
     if host.endswith(".co.kr") or host.endswith(".or.kr") or host.endswith(".go.kr"):
@@ -408,7 +416,7 @@ def crawl_mode(seeds, keywords, max_pages, max_hops, out_root, download=False, d
         out_file = pages_dir / path_slug(url)
         out_file.parent.mkdir(parents=True, exist_ok=True)
         
-        cmd = [str(Path.home() / ".local/bin/crwl"), "crawl", url, "-o", "md-fit", "-O", str(out_file)]
+        cmd = [crwl_binary(), "crawl", url, "-o", "md-fit", "-O", str(out_file)]
         proc = subprocess.run(cmd, capture_output=True, text=True)
         ok = proc.returncode == 0
         note = (proc.stderr or proc.stdout).strip()
@@ -528,7 +536,7 @@ def mirror_mode(tsv_path: Path, out_root: Path, limit: int = 20):
             continue
         dest = out_root / path_slug(url)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        cmd = [str(Path.home() / ".local/bin/crwl"), "crawl", url, "-o", "md-fit", "-O", str(dest)]
+        cmd = [crwl_binary(), "crawl", url, "-o", "md-fit", "-O", str(dest)]
         subprocess.run(cmd, check=False)
         print(f"Mirrored {url} -> {dest}")
         mirrored += 1

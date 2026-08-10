@@ -71,10 +71,10 @@ anchor를 못 구하는 소스는 빈 문자열로 두고, 머지 시 기존 본
 
 ```bash
 # 전체 소스 현황 표
-python3 "$HOME/.agents/skills/shared/project-collect/scripts/context_status.py" "$OUT_DIR"
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/project-collect/scripts/context_status.py" "$OUT_DIR"
 
 # 특정 소스의 anchor만 (재수집 증분 검색에 그대로 사용)
-python3 "$HOME/.agents/skills/shared/project-collect/scripts/context_status.py" "$OUT_DIR" --source slack
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/project-collect/scripts/context_status.py" "$OUT_DIR" --source slack
 ```
 
 아카이브가 아직 없거나 해당 소스의 anchor가 없으면 `--source`는 빈 줄과 exit 0을 반환한다. 기존(frontmatter 없는) 아카이브는 스크립트가 파일명·본문 헤더에서 best-effort로 파싱해 `*`로 표시한다. 다음 머지 때 위 frontmatter를 얹으면 정식 관리로 전환된다.

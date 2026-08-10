@@ -13,12 +13,13 @@ macOS Vision 프레임워크 기반, 로컬 처리.
 ## PDF OCR → `ocrmypdf` + Apple OCR 플러그인 (권장)
 
 ```bash
-ocrmypdf --plugin ocrmypdf_appleocr -l kor input.pdf output.pdf
+ocrmypdf --ocr-engine appleocr -l kor input.pdf output.pdf
 ```
 
 - 병렬 처리, PDF에 **투명 텍스트 레이어**를 직접 생성 (텍스트 선택/검색 가능).
-- `gs`(Ghostscript)가 `git status`로 alias돼 최적화 경고가 뜨지만 OCR 자체는 정상 동작.
 - 설치: `uv tool install ocrmypdf --with "ocrmypdf-appleocr @ git+https://github.com/mkyt/OCRmyPDF-AppleOCR.git"`
+- 위 방식으로 설치하면 AppleOCR 플러그인이 자동 등록된다. 이 경우 `--plugin ocrmypdf_appleocr`를 추가로 넘기면 중복 등록 오류가 날 수 있으므로 `--ocr-engine appleocr`만 지정한다.
+- `gs`(Ghostscript)가 없으면 PDF/A 후처리에서 실패하므로 `brew install ghostscript` 후 `command -v gs`로 확인한다.
 
 ## 이미지 OCR → `apple-ocr`
 

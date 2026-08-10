@@ -278,9 +278,7 @@ def _validate_voice_paths(store, *paths):
 
 
 def find_apple_stt():
-    found = shutil.which("apple-stt")
-    local = Path("~/scripts/apple-stt").expanduser()
-    return found or (str(local) if local.is_file() and os.access(local, os.X_OK) else None)
+    return shutil.which("apple-stt")
 
 
 def resolve_proj(args):

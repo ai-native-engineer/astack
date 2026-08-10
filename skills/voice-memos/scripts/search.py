@@ -16,11 +16,14 @@ import vm_notes
 from config import CALL_RECORDINGS_DIR, TRANSCRIPTS_DIR
 
 # 에이닷 통화 녹음 폴더의 원본 .txt와 파생 .transcript.md를 검색 대상으로 본다.
-# 날짜 정렬/필터링은 파일명 끝의 `_YYYYMMDD_HHMMSS` suffix만 사용한다.
+# 날짜 정렬/필터링은 파일명 끝의 `_YYYYMMDD_HHMMSS` 또는 `_YYMMDD` suffix를 사용한다.
 CALL_TEXT_SUFFIX = ".txt"
 CALL_TRANSCRIPT_SUFFIX = ".transcript.md"
 CALL_DATETIME_SUFFIX_RE = re.compile(
     r"^(?P<prefix>.+)_(?P<date>\d{8})_(?P<time>\d{6})(?P<suffix>\.txt|\.transcript\.md)$"
+)
+CALL_DATE_SUFFIX_RE = re.compile(
+    r"^(?P<prefix>.+)_(?P<date>\d{6})(?P<suffix>\.txt)$"
 )
 CALL_TRAILING_PHONE_RE = re.compile(r"^(?P<contact>.+)_(?P<phone>\d{7,11})$")
 
@@ -98,19 +101,26 @@ def is_call_transcript(path: Path) -> bool:
 def call_to_datetime(path: Path) -> datetime | None:
     """통화 녹음 파일명에서 datetime을 파싱합니다."""
     match = CALL_DATETIME_SUFFIX_RE.match(path.name)
-    if not match:
-        return None
-    try:
-        return datetime.strptime(
-            f"{match.group('date')} {match.group('time')}", "%Y%m%d %H%M%S"
-        )
-    except ValueError:
-        return None
+    if match:
+        try:
+            return datetime.strptime(
+                f"{match.group('date')} {match.group('time')}", "%Y%m%d %H%M%S"
+            )
+        except ValueError:
+            return None
+
+    match = CALL_DATE_SUFFIX_RE.match(path.name)
+    if match:
+        try:
+            return datetime.strptime(match.group("date"), "%y%m%d")
+        except ValueError:
+            return None
+    return None
 
 
 def call_display_name(path: Path) -> str:
     """에이닷 통화 녹음 파일명에서 표시명을 추출합니다."""
-    match = CALL_DATETIME_SUFFIX_RE.match(path.name)
+    match = CALL_DATETIME_SUFFIX_RE.match(path.name) or CALL_DATE_SUFFIX_RE.match(path.name)
     if not match:
         return path.stem
     prefix = match.group("prefix")
@@ -264,7 +274,9 @@ def format_result(
     """
     dt = file_to_datetime(filepath)
     date_str = (
-        dt.strftime("%Y-%m-%d %H:%M:%S")
+        dt.strftime("%Y-%m-%d")
+        if dt and is_call_recording(filepath) and CALL_DATE_SUFFIX_RE.match(filepath.name)
+        else dt.strftime("%Y-%m-%d %H:%M:%S")
         if dt
         else (
             str(filepath)

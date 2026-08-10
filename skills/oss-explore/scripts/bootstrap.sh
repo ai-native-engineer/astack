@@ -13,22 +13,29 @@ REPO=""
 BRANCH=""
 DIR="."
 DRY=0
+POSITIONAL=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --dir) shift; DIR="${1:?--dir needs a value}" ;;
     --dry) DRY=1 ;;
     -*) echo "unknown option: $1" >&2; exit 1 ;;
-    *) if [ -z "$REPO" ]; then REPO="$1"; else BRANCH="$1"; fi ;;
+    *) POSITIONAL+=("$1") ;;
   esac
   shift
 done
+
+[ ${#POSITIONAL[@]} -le 2 ] || { echo "error: expected <owner/repo> and optional [branch]" >&2; exit 1; }
+REPO="${POSITIONAL[0]:-}"
+BRANCH="${POSITIONAL[1]:-}"
 
 if [ -z "$REPO" ]; then
   echo "Usage: bootstrap.sh <owner/repo> [branch] [--dir DIR] [--dry]" >&2
   exit 1
 fi
+[[ "$REPO" =~ ^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+$ ]] || { echo "error: repo must be owner/name" >&2; exit 1; }
 [ -z "$BRANCH" ] && BRANCH="contrib/$(date +%Y%m%d)"
-DEST="$(basename "$REPO")"
+git check-ref-format --branch "$BRANCH" >/dev/null 2>&1 || { echo "error: invalid branch name: $BRANCH" >&2; exit 1; }
+DEST="${REPO##*/}"
 
 if [ "$DRY" = 1 ]; then
   cat <<EOF
@@ -42,6 +49,7 @@ EOF
   exit 0
 fi
 
+[ -d "$DIR" ] || { echo "error: directory does not exist: $DIR" >&2; exit 1; }
 cd "$DIR"
 gh repo fork "$REPO" --clone
 cd "$DEST"

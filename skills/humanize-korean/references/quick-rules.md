@@ -10,6 +10,21 @@
 
 ---
 
+## 목차
+
+- A. 번역투 (Translation-ese)
+- B. 영어 인용·용어 과다
+- C. 구조적 AI 패턴
+- D. AI 특유의 관용구 (Signature Phrases)
+- E. 리듬·종결어미
+- F. 과도한 수식·중복
+- G. Hedging
+- H. 접속사 남발
+- I. 형식명사·의존명사
+- J. 시각 장식
+- 자체검증 체크리스트 (monolith 윤문 후 자가 점검)
+- 등급 기준 (자가 채점)
+
 ## A. 번역투 (Translation-ese)
 
 | ID | 패턴 | 심각도 | 처방 |

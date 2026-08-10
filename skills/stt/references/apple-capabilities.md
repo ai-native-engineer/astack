@@ -5,7 +5,7 @@
 
 ## Source provenance
 
-- 승격 소스: `~/Dev/3-tool/stt/bench-project-20260712/apple-stt.swift`
+- 배포 정본: `native/apple-stt.swift`
 - 설치 바이너리 SHA-256: `acc95555dc63bb9b43893158ca659076aa73b78acc5088ba19c9369d3024a8ec`
 - 기존 평문, timestamp, SRT, legacy JSON 옵션을 유지한다.
 - 의도된 차이: context stable dedupe/cap 100, `--vocab-file` replacement,

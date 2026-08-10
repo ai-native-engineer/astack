@@ -19,7 +19,6 @@ Apply this after the common communication contract when the selected channel is 
 
 - Show the room name and final body before sending.
 - Do not add an assistant signature to the body.
-- Use the channel skill's own send options for signatures or no-signature behavior.
 - If the target room is ambiguous, search/list rooms and confirm the exact room before sending.
 
 ## Useful Shapes

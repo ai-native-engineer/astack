@@ -11,11 +11,12 @@
 #   --min-stars N   star 하한 (양산/장난성 레포 제거)
 #   --sort S        stars(기본) | updated | forks
 #   --limit N       표시할 레포 수 (기본 20). 검색은 언어/토픽 양쪽에서 각 N건 → 병합 후 상위 N
-#   --issues        기여 가능성(GFI/HW) 보강 (레포당 gh 호출 2회)
+#   --issues        기여 가능성(GFI/HW) 보강 (레포당 gh 호출 2회, 라벨별 최대 50건)
 #   --no-issues     호환용 no-op (기여 가능성 보강 안 함)
 #   --json          원시 JSON
 #   --html          HTML 리포트 생성 후 open
 set -euo pipefail
+command -v jq >/dev/null 2>&1 || { echo "error: jq is required; install jq and add it to PATH" >&2; exit 69; }
 
 TOPIC=""
 LANG_FILTER=""
@@ -24,6 +25,7 @@ MIN_STARS=0
 SORT=stars
 LIMIT=20
 WITH_ISSUES=0
+ISSUE_LOOKUP_FAILURES=0
 OUT=md
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -63,7 +65,7 @@ TOPIC_SLUG=$(printf '%s' "$TOPIC" | tr '[:upper:]' '[:lower:]' | tr ' _.' '---' 
 TOPIC_SLUG="${TOPIC_SLUG#-}"; TOPIC_SLUG="${TOPIC_SLUG%-}"
 
 # 공통 검색 인자 (archived 제외 + 정렬 + 필드)
-common=(--archived=false --include-forks false --sort "$SORT" --limit "$LIMIT"
+common=(--archived=false --visibility public --include-forks false --sort "$SORT" --limit "$LIMIT"
   --json fullName,stargazersCount,forksCount,description,url,homepage,updatedAt,pushedAt,language,license,openIssuesCount)
 [ -n "$LANG_FILTER" ] && common+=(--language "$LANG_FILTER")
 [ -n "$LICENSE_FILTER" ] && common+=(--license "$LICENSE_FILTER")
@@ -74,12 +76,12 @@ SEARCH_OK=0
 run_search() {
   local output_var="$1" label="$2" output
   shift 2
-  if output=$("$@" 2>&1); then
+  if output=$("$@"); then
     printf -v "$output_var" '%s' "$output"
     SEARCH_OK=$((SEARCH_OK + 1))
   else
     printf -v "$output_var" '[]'
-    printf 'warning: %s search failed: %s\n' "$label" "$output" >&2
+    printf 'warning: %s search failed\n' "$label" >&2
   fi
 }
 
@@ -92,7 +94,7 @@ if [ -n "$TOPIC_SLUG" ]; then
 fi
 
 case "$SORT" in
-  updated) SORTKEY="pushedAt" ;;
+  updated) SORTKEY="updatedAt" ;;
   forks)   SORTKEY="forksCount" ;;
   *)       SORTKEY="stargazersCount" ;;
 esac
@@ -124,11 +126,14 @@ fi
 if [ "$WITH_ISSUES" = 1 ] && [ "$(echo "$REPOS" | jq 'length')" -gt 0 ]; then
   TSV=$(echo "$REPOS" | jq -r '.[].fullName' | xargs -P 10 -n 1 sh -c '
     repo="$1"
-    gfi=$(gh search issues --repo "$repo" --label "good first issue" --state open --limit 50 --json url 2>/dev/null | jq length 2>/dev/null || echo 0)
-    hw=$(gh search issues --repo "$repo" --label "help wanted" --state open --limit 50 --json url 2>/dev/null | jq length 2>/dev/null || echo 0)
-    printf "%s\t%s\t%s\n" "$repo" "${gfi:-0}" "${hw:-0}"' _)
-  MAP=$(echo "$TSV" | jq -R 'split("\t") | select(length==3) | {(.[0]): {gfi:(.[1]|tonumber), hw:(.[2]|tonumber)}}' | jq -s 'add // {}')
-  REPOS=$(echo "$REPOS" | jq --argjson m "$MAP" 'map(. + ($m[.fullName] // {gfi:0, hw:0}))')
+    failed=0
+    if result=$(gh search issues --repo "$repo" --visibility public --label "good first issue" --state open --limit 50 --json url 2>/dev/null) && gfi=$(printf "%s" "$result" | jq -er length 2>/dev/null); then :; else gfi=null; failed=1; fi
+    if result=$(gh search issues --repo "$repo" --visibility public --label "help wanted" --state open --limit 50 --json url 2>/dev/null) && hw=$(printf "%s" "$result" | jq -er length 2>/dev/null); then :; else hw=null; failed=1; fi
+    printf "%s\t%s\t%s\t%s\n" "$repo" "$gfi" "$hw" "$failed"' _)
+  ISSUE_LOOKUP_FAILURES=$(printf '%s\n' "$TSV" | awk -F '\t' '$4 == 1 { n++ } END { print n + 0 }')
+  MAP=$(echo "$TSV" | jq -R 'split("\t") | select(length==4) | {(.[0]): {gfi:(if .[1] == "null" then null else .[1]|tonumber end), hw:(if .[2] == "null" then null else .[2]|tonumber end)}}' | jq -s 'add // {}')
+  REPOS=$(echo "$REPOS" | jq --argjson m "$MAP" 'map(. + ($m[.fullName] // {gfi:null, hw:null}))')
+  [ "$ISSUE_LOOKUP_FAILURES" -eq 0 ] || printf 'warning: issue lookup failed for %s repository(s); GFI/HW are shown as ?. Check gh auth status or gh api rate_limit.\n' "$ISSUE_LOOKUP_FAILURES" >&2
 fi
 
 RESULT=$(echo "$REPOS" | jq \
@@ -138,9 +143,11 @@ RESULT=$(echo "$REPOS" | jq \
   --argjson min "$MIN_STARS" \
   --arg sort "$SORT" \
   --argjson iss "$WITH_ISSUES" \
+  --argjson issue_failures "$ISSUE_LOOKUP_FAILURES" \
   --arg gen "$(date '+%Y-%m-%d %H:%M')" '
   { type: "explore", generated: $gen,
     query: { topic: $topic, language: $lang, license: $license, min_stars: $min, sort: $sort, with_issues: ($iss == 1) },
+    issue_lookup_failures: $issue_failures,
     count: length,
     repos: [ .[] | {
       repo: .fullName,
@@ -176,12 +183,12 @@ case "$OUT" in
         + (if .query.license != "" then " · license=\(.query.license)" else "" end)
         + (if .query.min_stars > 0 then " · ★≥\(.query.min_stars)" else "" end)
         + " · sort=\(.query.sort)\n",
-      (if .query.with_issues then "_GFI=good first issue · HW=help wanted (열린 이슈 수, 0이면 기여 진입점 적음)_\n" else empty end),
+      (if .query.with_issues then "_GFI=good first issue · HW=help wanted (레포/라벨별 최대 50건 조회)_\n" else empty end),
       (if .count == 0 then "_해당 주제로 발견된 레포가 없습니다. 키워드를 바꾸거나 --min-stars를 낮춰보세요._"
        elif .query.with_issues then
         ( "| 레포 | ★ | 언어 | 최근푸시 | 라이선스 | 검색 근거 | GFI | HW | 설명 |",
           "|---|---|---|---|---|---|---|---|---|",
-          (.repos[] | "| [\(.repo)](\(.url)) | \(.stars) | \(.language) | \(.pushed) | \(.license) | \(.matched_by | join(", ")) | \(.gfi) | \(.hw) | \((.description)[0:55] | gsub("\\|";"/")) |") )
+          (.repos[] | "| [\(.repo)](\(.url)) | \(.stars) | \(.language) | \(.pushed) | \(.license) | \(.matched_by | join(", ")) | \(.gfi // "?") | \(.hw // "?") | \((.description)[0:55] | gsub("\\|";"/")) |") )
        else
         ( "| 레포 | ★ | 언어 | 최근푸시 | 라이선스 | 검색 근거 | 설명 |",
           "|---|---|---|---|---|---|---|",

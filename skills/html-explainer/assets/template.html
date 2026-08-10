@@ -12,6 +12,9 @@
     --border: #d9dee5; --accent: #2563eb; --green: #16803c; --red: #c2362f;
     --amber: #92600a; --gray-soft: #eef1f4; --code-bg: #eef1f4;
     --c-green: #16a34a; --c-amber: #d97706; --c-red: #dc2626;
+    /* 깊이는 그림자(투명도라 배경을 안 탄다), 구조 구분선만 --border */
+    --shadow-border: 0 0 0 1px oklch(0 0 0 / .06), 0 1px 2px -1px oklch(0 0 0 / .06), 0 2px 4px 0 oklch(0 0 0 / .04);
+    --img-outline: oklch(0 0 0 / .1);
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -19,6 +22,8 @@
       --border: #2d343d; --accent: #6ea2ff; --green: #4ade80; --red: #f87171;
       --amber: #fbbf24; --gray-soft: #1e242c; --code-bg: #232931;
       --c-green: #4ade80; --c-amber: #fbbf24; --c-red: #f87171;
+      --shadow-border: 0 0 0 1px oklch(1 0 0 / .08);
+      --img-outline: oklch(1 0 0 / .1);
     }
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -30,9 +35,12 @@
   h1 { font-size: 26px; margin-bottom: 6px; }
   .sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
   h2 { font-size: 19px; margin: 52px 0 6px; display: flex; align-items: center; gap: 8px; }
-  h2 iconify-icon { font-size: 20px; color: var(--accent); flex: none; }
+  h2 iconify-icon { font-size: 1.05em; color: var(--accent); flex: none; }
   .h2sub { color: var(--muted); font-size: 13.5px; margin-bottom: 16px; }
   code { background: var(--code-bg); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; font-family: "SF Mono", Menlo, monospace; }
+
+  /* 이미지 — 아웃라인은 순수 흑/백만(팔레트 near-black은 가장자리에 때처럼 보인다) */
+  img { max-width: 100%; height: auto; border-radius: 10px; outline: 1px solid var(--img-outline); outline-offset: -1px; }
 
   /* 범례 */
   .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 14px; font-size: 12.5px; }
@@ -41,7 +49,7 @@
   .dot.dashed { background: none; border: 2px dashed currentColor; }
 
   /* Mermaid 다이어그램 컨테이너 */
-  .diagram { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; overflow-x: auto; }
+  .diagram { background: var(--card); box-shadow: var(--shadow-border); border-radius: 14px; padding: 18px; overflow-x: auto; }
   .diagram svg { max-width: 100%; height: auto; }
   .diagram .err { color: var(--red); font-size: 13px; font-family: "SF Mono", Menlo, monospace; white-space: pre-wrap; }
 
@@ -51,16 +59,16 @@
     border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 10px 0;
     font-size: 13px; color: var(--muted); display: flex; gap: 10px; align-items: flex-start;
   }
-  .side iconify-icon { font-size: 18px; flex: none; margin-top: 3px; }
+  .side iconify-icon { font-size: 1.15em; flex: none; margin-top: 3px; }
   .side.warn { border-left-color: var(--red); } .side.warn iconify-icon { color: var(--red); }
   .side.note { border-left-color: var(--accent); } .side.note iconify-icon { color: var(--accent); }
   .side b { color: var(--text); }
 
   /* ECharts 컨테이너 — 명시적 height 필수 */
-  .chart { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 10px; height: 320px; }
+  .chart { background: var(--card); box-shadow: var(--shadow-border); border-radius: 14px; padding: 10px; height: 320px; }
 
   /* 파일 트리 / 코드 블록 */
-  .tree { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 24px;
+  .tree { background: var(--card); box-shadow: var(--shadow-border); border-radius: 14px; padding: 20px 24px;
           font-family: "SF Mono", Menlo, monospace; font-size: 12.5px; line-height: 1.9; overflow-x: auto; white-space: pre; }
   .tree .c { color: var(--muted); }
   .tree .new { color: var(--accent); font-weight: 700; }
@@ -68,7 +76,7 @@
   .tree .opt { color: var(--red); }
 
   /* 비교 표 */
-  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; background: var(--card); border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; background: var(--card); box-shadow: var(--shadow-border); border-radius: 12px; overflow: hidden; }
   th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
   th { background: var(--gray-soft); font-size: 12.5px; }
   tr:last-child td { border-bottom: none; }

@@ -11,7 +11,10 @@
 """
 import argparse, fnmatch, glob, os, re, sys
 
-IDS = re.compile(r'(?:youtube\.com/(?:watch\?v=|embed/)|youtu\.be/)([A-Za-z0-9_-]{11})')
+IDS = re.compile(
+    r'(?:youtube(?:-nocookie)?\.com/(?:watch\?(?:[^#\s)]*&)?v=|embed/|live/|shorts/)|youtu\.be/)'
+    r'([A-Za-z0-9_-]{11})'
+)
 SKIP_FILES = {"README.md", "README.ko.md", "AGENTS.md", "CLAUDE.md", "MEMORY.md"}
 
 
@@ -24,7 +27,24 @@ def cache_captionless(out, vid):
     return "captions: none" in t or len(t) < 500
 
 
+def self_test():
+    vid = "abcdefghijk"
+    forms = [
+        f"https://www.youtube.com/watch?list=x&v={vid}",
+        f"https://www.youtube.com/embed/{vid}",
+        f"https://www.youtube.com/live/{vid}",
+        f"https://www.youtube.com/shorts/{vid}",
+        f"https://www.youtube-nocookie.com/embed/{vid}",
+        f"https://youtu.be/{vid}",
+    ]
+    assert all(IDS.search(url).group(1) == vid for url in forms)
+    print("self-test ok")
+
+
 def main():
+    if sys.argv[1:] == ["--self-test"]:
+        self_test()
+        return
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
     ap.add_argument("--exclude", action="append", default=[], help="검사 제외 글롭(전사 제외 트리와 동일하게)")

@@ -10,6 +10,10 @@ from pathlib import Path
 SHARED_ROOT = Path(__file__).resolve().parents[2]
 REQUIRED = "../communication/references/work-message-contract.md"
 CHANNEL_SKILLS = ["agent-slack", "agent-discord", "kakaotalk", "gog", "imessage"]
+PACKAGED_PLUGIN = any(
+    (SHARED_ROOT.parent / manifest).is_file()
+    for manifest in (".claude-plugin/plugin.json", ".codex-plugin/plugin.json")
+)
 
 
 def main() -> int:
@@ -18,6 +22,9 @@ def main() -> int:
     for name in CHANNEL_SKILLS:
         skill_path = SHARED_ROOT / name / "SKILL.md"
         if not skill_path.exists():
+            if PACKAGED_PLUGIN:
+                print(f"SKIP {name}: optional transport not bundled")
+                continue
             missing.append(f"{name}: SKILL.md not found")
             continue
 

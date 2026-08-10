@@ -32,12 +32,12 @@ description: "Collects project context from Slack, Notion, Google Workspace, Obs
 
 메타데이터는 아카이브 맨 위 **YAML frontmatter**가 단일 소스다 (스키마·소스별 anchor·머지 절차 전부: `references/archive-schema.md`).
 
-- **증분 기준점(anchor)**: 재수집 전 `python3 "$HOME/.agents/skills/shared/project-collect/scripts/context_status.py" "$OUT_DIR" --source <소스>`로 기존 anchor를 읽어 그 이후만 검색한다. slack=마지막 ts(`--oldest`), gmail=마지막 날짜(`after:`) 등. 빈 줄이면 anchor가 없는 것이므로 본문 항목과 dedupe한다.
+- **증분 기준점(anchor)**: 재수집 전 `python3 "${CLAUDE_PLUGIN_ROOT}/skills/project-collect/scripts/context_status.py" "$OUT_DIR" --source <소스>`로 기존 anchor를 읽어 그 이후만 검색한다. slack=마지막 ts(`--oldest`), gmail=마지막 날짜(`after:`) 등. 빈 줄이면 anchor가 없는 것이므로 본문 항목과 dedupe한다.
 - **풀 리스캔 예외**: 사용자가 "처음부터 끝까지 수집해줘" 류로 명시 요청할 때만 anchor를 무시하고 전 범위 재검색. 이때도 새 파일을 만들지 않고 기존 항목과 dedupe하며 같은 아카이브에 머지한다.
 - **본문 증분**: 기존 항목 보존, 직전 수집 이후 신규 항목만 시간순 제자리에 dedupe(같은 ts·내용 제외)해 끼워 넣는다.
 - **frontmatter 갱신**: `collected_last`=오늘, `range_end`=새 최신 항목일, `anchor`=새 마지막 키, `items` 갱신. `collected_first`·`range_start`는 불변.
 - **결정·인물**: 새 사실 추가, 기존 줄 보존, 충돌하는 옛 결정만 최신으로 교체(옛 값 `→ 변경`).
-- 현황 한눈: `python3 "$HOME/.agents/skills/shared/project-collect/scripts/context_status.py" "$OUT_DIR"`.
+- 현황 한눈: `python3 "${CLAUDE_PLUGIN_ROOT}/skills/project-collect/scripts/context_status.py" "$OUT_DIR"`.
 
 ## 관련성 게이트 (저장 전 필수)
 
@@ -58,7 +58,7 @@ description: "Collects project context from Slack, Notion, Google Workspace, Obs
 1. 프로젝트 루트로 이동한 뒤 어떤 `mkdir`·파일 쓰기보다 먼저 경로를 한 번 확정한다. resolver가 `CONFLICT` 또는 `OBSIDIAN_VAULT`로 실패하면 쓰지 않고 중단한다.
    ```bash
    PROJECT_ROOT="$(pwd -P)"
-   OUT_DIR="$(python3 "$HOME/.agents/skills/shared/project-collect/scripts/context_status.py" --resolve-dir --root "$PROJECT_ROOT")" || exit 1
+   OUT_DIR="$(python3 "${CLAUDE_PLUGIN_ROOT}/skills/project-collect/scripts/context_status.py" --resolve-dir --root "$PROJECT_ROOT")" || exit 1
    mkdir -p "$OUT_DIR/attachments" || exit 1
    ```
 2. 날짜 확보: `date +%y%m%d`, `date +%Y-%m-%d`.

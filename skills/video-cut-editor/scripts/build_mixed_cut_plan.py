@@ -48,67 +48,75 @@ def marker_intervals(marker_plan: dict[str, Any]) -> list[dict[str, Any]]:
     return sorted(intervals, key=lambda item: float(item["start"]))
 
 
-def subtract_intervals(
-    speech_segments: list[dict[str, Any]],
-    cuts: list[tuple[float, float]],
-) -> list[tuple[float, float]]:
-    kept: list[tuple[float, float]] = []
-    for segment in speech_segments:
-        parts = [(float(segment["start"]), float(segment["end"]))]
-        for cut_start, cut_end in cuts:
-            next_parts = []
-            for start, end in parts:
-                if cut_end <= start or cut_start >= end:
-                    next_parts.append((start, end))
-                    continue
-                if cut_start > start:
-                    next_parts.append((start, min(cut_start, end)))
-                if cut_end < end:
-                    next_parts.append((max(cut_end, start), end))
-            parts = next_parts
-        kept.extend((start, end) for start, end in parts if end - start > 0.001)
-    return sorted(kept)
-
-
-def complement(duration: float, kept: list[tuple[float, float]]) -> list[tuple[float, float]]:
-    removals = []
-    cursor = 0.0
-    for start, end in kept:
-        start = max(0.0, min(duration, start))
-        end = max(0.0, min(duration, end))
-        if start > cursor + 0.001:
-            removals.append((cursor, start))
-        cursor = max(cursor, end)
-    if cursor < duration - 0.001:
-        removals.append((cursor, duration))
-    return [(round(start, 6), round(end, 6)) for start, end in removals if end - start > 0.001]
-
-
-def marker_tuples(markers: list[dict[str, Any]]) -> list[tuple[float, float]]:
-    return [(float(item["start"]), float(item["end"])) for item in markers]
-
-
-def removal_reason(start: float, end: float, markers: list[dict[str, Any]]) -> str:
-    hits = [
-        item
-        for item in markers
-        if float(item["end"]) > start + 0.001 and float(item["start"]) < end - 0.001
-    ]
-    if not hits:
-        return "silence"
-
-    reasons = []
-    seen = set()
-    marker_start = min(float(item["start"]) for item in hits)
-    marker_end = max(float(item["end"]) for item in hits)
-    for item in hits:
-        reason = str(item["reason"])
-        if reason in seen:
+def silence_intervals(
+    speech_data: dict[str, Any],
+    duration: float,
+    min_duration: float,
+    padding: float,
+) -> list[dict[str, Any]]:
+    removals: list[dict[str, Any]] = []
+    for item in speech_data.get("silencedetect", {}).get("silences", []):
+        raw_start = max(0.0, min(duration, float(item["start"])))
+        raw_end = max(0.0, min(duration, float(item["end"])))
+        raw_duration = raw_end - raw_start
+        if raw_duration + 0.001 < min_duration:
             continue
-        seen.add(reason)
-        reasons.append(reason)
-    prefix = "marker+silence" if start < marker_start - 0.001 or end > marker_end + 0.001 else "marker"
-    return f"{prefix}: {'; '.join(reasons)}"
+        start = 0.0 if raw_start <= 0.001 else raw_start + padding
+        end = duration if raw_end >= duration - 0.001 else raw_end - padding
+        if end <= start + 0.001:
+            continue
+        removals.append(
+            {
+                "start": round(start, 6),
+                "end": round(end, 6),
+                "reason": "silence",
+                "silence_sources": [
+                    {
+                        "start": round(raw_start, 6),
+                        "end": round(raw_end, 6),
+                        "duration": round(raw_duration, 6),
+                    }
+                ],
+            }
+        )
+    return removals
+
+
+def merge_removals(
+    markers: list[dict[str, Any]], silences: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    tagged = [
+        {**item, "marker_reasons": [str(item["reason"])], "silence_sources": []}
+        for item in markers
+    ] + [
+        {**item, "marker_reasons": [], "silence_sources": list(item["silence_sources"])}
+        for item in silences
+    ]
+    merged: list[dict[str, Any]] = []
+    for item in sorted(tagged, key=lambda value: (float(value["start"]), float(value["end"]))):
+        if not merged or float(item["start"]) > float(merged[-1]["end"]) + 0.001:
+            merged.append(dict(item))
+            continue
+        current = merged[-1]
+        current["end"] = max(float(current["end"]), float(item["end"]))
+        current["marker_reasons"].extend(item["marker_reasons"])
+        current["silence_sources"].extend(item["silence_sources"])
+
+    output: list[dict[str, Any]] = []
+    for item in merged:
+        marker_reasons = list(dict.fromkeys(item.pop("marker_reasons")))
+        silence_sources = item.get("silence_sources", [])
+        if marker_reasons and silence_sources:
+            item["reason"] = f"marker+silence: {'; '.join(marker_reasons)}"
+        elif marker_reasons:
+            item["reason"] = "; ".join(marker_reasons)
+            item.pop("silence_sources", None)
+        else:
+            item["reason"] = "silence"
+        item["start"] = round(float(item["start"]), 6)
+        item["end"] = round(float(item["end"]), 6)
+        output.append(item)
+    return output
 
 
 def build_plan(
@@ -117,6 +125,8 @@ def build_plan(
     output_plan_path: Path,
     final_output: Path | None,
     allow_draft: bool,
+    min_silence_duration: float,
+    silence_padding: float,
 ) -> dict[str, Any]:
     marker_plan_path = marker_plan_path.expanduser().resolve()
     marker_plan = load_json(marker_plan_path)
@@ -128,8 +138,8 @@ def build_plan(
     speech_data = load_json(speech_json_path)
     duration = float(speech_data["duration"])
     markers = marker_intervals(marker_plan)
-    kept = subtract_intervals(speech_data.get("speech_segments", []), marker_tuples(markers))
-    removals = complement(duration, kept)
+    silences = silence_intervals(speech_data, duration, min_silence_duration, silence_padding)
+    removals = merge_removals(markers, silences)
     final_output = final_output.expanduser().resolve() if final_output else source.with_name(f"{source.stem}.edited{source.suffix}")
 
     return {
@@ -137,10 +147,12 @@ def build_plan(
         "output": str(final_output),
         "status": "reviewed",
         "duration": round(duration, 6),
-        "remove_intervals": [
-            {"start": start, "end": end, "reason": removal_reason(start, end, markers)}
-            for start, end in removals
-        ],
+        "silence_policy": {
+            "source": "ffmpeg_silencedetect",
+            "min_duration": min_silence_duration,
+            "padding": silence_padding,
+        },
+        "remove_intervals": removals,
         "evidence": {
             "marker_plan": str(marker_plan_path),
             "speech": str(speech_json_path),
@@ -149,7 +161,7 @@ def build_plan(
         },
         "render_notes": [
             "Marker intervals were reviewed before silence removal.",
-            "Final removals are the complement of speech after reviewed marker cuts.",
+            "Only explicit long silences from ffmpeg silencedetect were removed.",
             "Times are original source seconds; render once from original.",
         ],
     }
@@ -158,17 +170,22 @@ def build_plan(
 def run_self_test() -> int:
     from audit_cut_plan import audit_plan
 
-    speech = [{"start": 1.0, "end": 5.0}, {"start": 7.0, "end": 9.0}]
-    kept = subtract_intervals(speech, [(2.0, 3.0), (8.0, 8.5)])
-    assert kept == [(1.0, 2.0), (3.0, 5.0), (7.0, 8.0), (8.5, 9.0)], kept
-    assert complement(10.0, kept) == [(0.0, 1.0), (2.0, 3.0), (5.0, 7.0), (8.0, 8.5), (9.0, 10.0)]
+    speech_data = {
+        "silencedetect": {
+            "silences": [
+                {"start": 0.0, "end": 0.4},
+                {"start": 5.0, "end": 7.0},
+                {"start": 9.0, "end": 10.0},
+            ]
+        }
+    }
+    silences = silence_intervals(speech_data, 10.0, 1.0, 0.3)
+    assert [(item["start"], item["end"]) for item in silences] == [(5.3, 6.7), (9.3, 10.0)]
     markers = [{"start": 10.0, "end": 27.0, "reason": "cut_before_marker: marker 1 at 15.0s"}]
-    assert removal_reason(10.0, 27.0, markers) == "marker: cut_before_marker: marker 1 at 15.0s"
-    assert removal_reason(9.0, 27.0, markers).startswith("marker+silence: cut_before_marker")
-    assert removal_reason(1.0, 2.0, markers) == "silence"
+    assert merge_removals(markers, [])[0]["reason"] == "cut_before_marker: marker 1 at 15.0s"
     mixed = {
         "remove_intervals": [
-            {"start": 10.0, "end": 27.0, "reason": removal_reason(10.0, 27.0, markers)}
+            {"start": 10.0, "end": 27.0, "reason": "cut_before_marker: marker 1 at 15.0s"}
         ]
     }
     findings = audit_plan(mixed, Path("/tmp/mixed-cut-plan.json"), 4.0)
@@ -183,6 +200,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--speech-json", type=Path)
     parser.add_argument("--output-plan", type=Path)
     parser.add_argument("--final-output", type=Path)
+    parser.add_argument("--min-silence-duration", type=float, default=1.0)
+    parser.add_argument("--silence-padding", type=float, default=0.30)
     parser.add_argument("--allow-draft", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     return parser.parse_args()
@@ -194,9 +213,21 @@ def main() -> int:
         return run_self_test()
     if not args.marker_plan:
         return fail("--marker-plan is required")
+    if args.min_silence_duration < 0.8:
+        return fail("--min-silence-duration must be >= 0.8")
+    if args.silence_padding < 0:
+        return fail("--silence-padding must be >= 0")
     output_plan = args.output_plan or args.marker_plan.expanduser().resolve().with_name("cut-plan.json")
     try:
-        plan = build_plan(args.marker_plan, args.speech_json, output_plan, args.final_output, args.allow_draft)
+        plan = build_plan(
+            args.marker_plan,
+            args.speech_json,
+            output_plan,
+            args.final_output,
+            args.allow_draft,
+            args.min_silence_duration,
+            args.silence_padding,
+        )
     except Exception as exc:
         return fail(str(exc))
     write_json(output_plan.expanduser().resolve(), plan)

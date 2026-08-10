@@ -31,6 +31,10 @@ def bar_rows(items, label_key, value_key, unit=""):
 
 def render_contributions(d):
     s = d.get("summary", {})
+    limit_note = (f"<p class='muted'>GitHub 검색 상한 {s.get('search_limit')}건에 도달해 일부 기여가 빠질 수 있습니다.</p>"
+                  if s.get("limit_reached") else "")
+    metadata_note = (f"<p class='muted'>레포 메타데이터 조회 실패 {s.get('metadata_lookup_failures')}건: 별 수와 설명 일부를 확인할 수 없습니다.</p>"
+                     if s.get("metadata_lookup_failures") else "")
     cards = f"""
     <div class='cards'>
       <div class='card'><div class='num'>{s.get('merged_prs', 0)}</div><div class='lbl'>머지된 PR</div></div>
@@ -43,7 +47,7 @@ def render_contributions(d):
         rows = "\n".join(
             f"<tr><td><a href='{esc(r['url'])}' target='_blank'>{esc(r['repo'])}</a></td>"
             f"<td class='c'>{r['prs']}</td>"
-            f"<td class='c'><span class='star'>★ {r['stars']:,}</span></td>"
+            f"<td class='c'><span class='star'>★ {esc('?' if r.get('stars') is None else format(r['stars'], ','))}</span></td>"
             f"<td class='desc'>{esc(r.get('description', ''))}</td></tr>"
             for r in ext
         )
@@ -73,6 +77,8 @@ def render_contributions(d):
 
     body = f"""
     {cards}
+    {limit_note}
+    {metadata_note}
     <h2>순수 외부 OSS 기여 <span class='dim'>(star 순)</span></h2>
     {external}
     <h2>소속 조직 <span class='dim'>(팀/회사 프로젝트)</span></h2>
@@ -82,11 +88,15 @@ def render_contributions(d):
 
 def render_stats(d):
     s = d.get("summary", {})
+    limit_note = (f"<p class='muted'>GitHub 검색 상한 {s.get('search_limit')}건에 도달해 통계가 일부 기간만 반영될 수 있습니다.</p>"
+                  if s.get("limit_reached") else "")
+    language_note = (f"<p class='muted'>언어 조회 실패 {s.get('language_lookup_failures')}건은 언어별 분포에서 제외했습니다.</p>"
+                     if s.get("language_lookup_failures") else "")
     cards = f"""
     <div class='cards'>
       <div class='card'><div class='num'>{s.get('total_prs', 0)}</div><div class='lbl'>전체 PR</div></div>
       <div class='card'><div class='num'>{s.get('merged_prs', 0)}</div><div class='lbl'>머지된 PR</div></div>
-      <div class='card'><div class='num'>{s.get('merge_rate', 0)}%</div><div class='lbl'>머지율</div></div>
+      <div class='card'><div class='num'>{'계산 불가' if s.get('merge_rate') is None else str(s.get('merge_rate', 0)) + '%'}</div><div class='lbl'>머지율</div></div>
     </div>"""
     years = bar_rows(d.get("years", []), "year", "prs")
     months = bar_rows([{**m, "label": m["month"] + "월"} for m in d.get("months", [])], "label", "prs")
@@ -98,6 +108,8 @@ def render_stats(d):
         weekday_section = f"<h2>요일별 <span class='dim'>(머지 PR)</span></h2>\n<div class='chart'>{wd}</div>"
     body = f"""
     {cards}
+    {limit_note}
+    {language_note}
     <h2>연도별 <span class='dim'>(머지 PR)</span></h2>
     <div class='chart'>{years}</div>
     <h2>월별 <span class='dim'>(머지 PR)</span></h2>
@@ -112,13 +124,19 @@ def render_explore(d):
     q = d.get("query", {})
     repos = d.get("repos", [])
     with_issues = q.get("with_issues", False)
+    issue_failures = d.get("issue_lookup_failures", 0)
     contributable = [r for r in repos if (r.get("gfi") or 0) > 0 or (r.get("hw") or 0) > 0]
     total_gfi = sum(r.get("gfi") or 0 for r in repos)
+
+    def issue_cell(value, emphasize=False):
+        if value is None:
+            return "?"
+        return f"<strong>{value}</strong>" if emphasize and value > 0 else str(value)
 
     cards = [f"<div class='card'><div class='num'>{len(repos)}</div><div class='lbl'>발견된 레포</div></div>"]
     if with_issues:
         cards.append(f"<div class='card'><div class='num'>{len(contributable)}</div><div class='lbl'>기여 가능 레포</div></div>")
-        cards.append(f"<div class='card'><div class='num'>{total_gfi}</div><div class='lbl'>good first issue 합계</div></div>")
+        cards.append(f"<div class='card'><div class='num'>{total_gfi}</div><div class='lbl'>확인된 good first issue 합계</div></div>")
     cards_html = f"<div class='cards'>{''.join(cards)}</div>"
 
     if repos:
@@ -131,8 +149,8 @@ def render_explore(d):
                 f"<td class='c'>{esc(r['pushed'])}</td>"
                 f"<td class='c'>{esc(r.get('license', 'unknown'))}</td>"
                 f"<td class='c'>{esc(', '.join(r.get('matched_by', [])))}</td>"
-                f"<td class='c'>{'<strong>'+str(r['gfi'])+'</strong>' if (r.get('gfi') or 0) > 0 else 0}</td>"
-                f"<td class='c'>{r.get('hw') or 0}</td>"
+                f"<td class='c'>{issue_cell(r.get('gfi'), True)}</td>"
+                f"<td class='c'>{issue_cell(r.get('hw'))}</td>"
                 f"<td class='desc'>{esc(r.get('description', ''))}</td></tr>"
                 for r in repos
             )
@@ -160,13 +178,16 @@ def render_explore(d):
     if q.get("min_stars"):
         meta.append(f"★≥{q['min_stars']}")
     meta.append(f"sort={esc(q.get('sort', 'stars'))}")
-    hint = ("<p class='muted'>GFI=good first issue · HW=help wanted (열린 이슈 수). 굵은 GFI = 지금 기여 진입점이 있는 레포.</p>"
-            if with_issues else "")
+    hint = ""
+    if with_issues:
+        failure_note = (f" 조회 실패 {issue_failures}곳은 ?로 표시했습니다." if issue_failures else "")
+        hint = ("<p class='muted'>GFI=good first issue · HW=help wanted (레포/라벨별 최대 50건 조회). "
+                f"굵은 GFI = 지금 기여 진입점이 있는 레포.{failure_note}</p>")
     body = f"""
     {cards_html}
     <p class='gen'>{' · '.join(meta)}</p>
     {hint}
-    <h2>발견된 레포 <span class='dim'>({esc(q.get('sort', 'stars'))} 순)</span></h2>
+    <h2>발견된 레포 <span class='dim'>(관련도 우선, {esc(q.get('sort', 'stars'))} 보조 정렬)</span></h2>
     {table}"""
     return f"\"{esc(q.get('topic', ''))}\" — 오픈소스 발견", body
 

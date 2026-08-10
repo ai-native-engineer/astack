@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -52,6 +53,30 @@ from review import (
 
 LOCALE = "ko-KR"
 _TIMESTAMP_RE = re.compile(r"(\d{8})\s+(\d{6})")
+
+
+def _recording_files(directory: Path) -> list[Path]:
+    unavailable: set[str] = set()
+    database = directory / "CloudRecordings.db"
+    if database.exists():
+        try:
+            with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=1) as db:
+                unavailable = {
+                    path
+                    for (path,) in db.execute(
+                        "SELECT ZPATH FROM ZCLOUDRECORDING "
+                        "WHERE ZEVICTIONDATE IS NOT NULL "
+                        "OR (ZDURATION > 0 AND ZLOCALDURATION = 0)"
+                    )
+                }
+        except sqlite3.Error as error:
+            print(f"  [WARN] Voice Memos state unavailable: {error}", file=sys.stderr)
+    return sorted(
+        path
+        for pattern in ("*.m4a", "*.qta")
+        for path in directory.glob(pattern)
+        if path.name not in unavailable
+    )
 
 
 def _convert_to_m4a(filepath: Path) -> Path:
@@ -343,9 +368,7 @@ def main() -> None:
 
     if args.file:
         raise SystemExit(_run([Path(args.file).expanduser()], args.force))
-    files = sorted(
-        path for pattern in ("*.m4a", "*.qta") for path in RECORDINGS_DIR.glob(pattern)
-    )
+    files = _recording_files(RECORDINGS_DIR)
     raise SystemExit(_run(files, args.force))
 
 

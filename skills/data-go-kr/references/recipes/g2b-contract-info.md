@@ -4,6 +4,17 @@
 > checked: 2026-06-28 · 상태: **실호출 검증됨** (`getCntrctInfoListServc`의 `YYYYMMDDHHMM`, `getCntrctInfoListServcPPSSrch`의 `YYYYMMDD` 모두 HTTP 200, `resultCode=00` 확인)
 > 참고문서: `docs/260628-g2b-contract-info-reference-1.0.docx`
 
+## 목차
+
+- 언제 쓰나
+- Endpoint
+- 키
+- 호출 예시
+- 필수/주요 파라미터
+- 응답 핵심 필드
+- 페이징
+- 함정
+
 ## 언제 쓰나
 
 나라장터 계약현황, 계약체결 이력, 계약상세, 변경이력, 삭제이력, 물품·공사·용역·외자 계약 조회. 특정 기관·공고번호·요청번호·확정계약번호·통합계약번호 기준으로 조달 계약 정보를 확인할 때 쓴다.

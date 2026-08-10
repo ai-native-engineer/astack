@@ -18,7 +18,7 @@ Shared communication rules for work messages across channels. This is the orches
    - `references/style-profiles.md` when matching a person/team voice
    - `references/message-templates.md` when the message is a request, handoff, status update, proposal, correction, or attachment context
    - one file under `references/channel-overlays/` for channel-specific constraints
-4. Delegate transport to the channel skill:
+4. Delegate transport to the channel skill when it is installed. If it is absent, finish the draft and name the missing transport instead of pretending the send/read action ran:
    - Slack -> `agent-slack`
    - Discord -> `agent-discord`
    - KakaoTalk -> `kakaotalk`
@@ -38,7 +38,7 @@ Each direct channel skill should keep only:
 
 Do not copy the full common communication rules into channel skills.
 
-After adding or editing a channel skill, run `python3 scripts/check-channel-hooks.py` from this skill directory to verify every channel skill still points to the shared contract.
+After adding or editing a channel skill, run `python3 scripts/check-channel-hooks.py` from this skill directory to verify every installed channel skill still points to the shared contract. A packaged plugin may omit optional transports; the shared source checkout still requires all five.
 
 ## Style Profiles
 

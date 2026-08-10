@@ -8,9 +8,9 @@ SK텔레콤 에이닷이 통화 녹음을 iCloud Drive에 올리는 소스. 파�
 ## 위치
 
 - 디렉터리: `~/Library/Mobile Documents/com~apple~CloudDocs/녹음/`
-- 파일명 예시: `<이름>_<전화번호>_<YYYYMMDD>_<HHMMSS>.txt`, `<전화번호>_<YYYYMMDD>_<HHMMSS>.txt`
-  - 예: `홍길동님_01012345678_20260407_165111.txt`, `01012345678_20260407_165111.txt`
-- `search.py`는 이 디렉터리의 `.txt` 전체와 `.transcript.md`를 에이닷으로 포함하고, 날짜 정렬/필터링은 파일명 끝의 `_YYYYMMDD_HHMMSS` suffix로 처리한다.
+- 파일명은 `<이름>_<YYMMDD>.txt` 또는 `<이름>_<전화번호>_<YYYYMMDD>_<HHMMSS>.txt` 형식이다.
+  - 예: `홍길동님_260726.txt`, `홍길동님_01012345678_20260407_165111.txt`
+- `search.py`는 이 디렉터리의 `.txt` 전체와 `.transcript.md`를 에이닷으로 포함한다. 날짜 정렬/필터링은 파일명 끝의 `_YYMMDD` 또는 `_YYYYMMDD_HHMMSS` suffix를 사용하며, 시각이 없는 형식은 날짜만 표시한다.
 - `.m4a` 자동 전사(`transcribe_calls.py`)는 파일명 끝의 `_YYYYMMDD_HHMMSS.m4a` suffix가 있는 통화 녹음을 대상으로 한다.
 
 ## .txt 파일 구조
@@ -61,7 +61,7 @@ SK텔레콤 에이닷이 통화 녹음을 iCloud Drive에 올리는 소스. 파�
 ## 검색 동작
 
 - `iter_transcript_files()`가 디렉터리를 glob해서 모든 `.txt`와 `.transcript.md`를 포함.
-- `call_to_datetime()`이 파일명 끝의 `_YYYYMMDD_HHMMSS` suffix에서 날짜를 파싱.
+- `call_to_datetime()`이 파일명 끝의 `_YYMMDD` 또는 `_YYYYMMDD_HHMMSS` suffix에서 날짜를 파싱.
 - `format_result()`에서 suffix를 제거한 prefix를 표시 이름으로 사용하되, prefix 끝의 전화번호 꼬리는 제거.
 
 ## 전문 읽기

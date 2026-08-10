@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>__TITLE_HTML__</title>
+  <style>
+    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px 48px; background: #0f1115; color: #f4f6fb; }
+    main { max-width: 1480px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 5vw, 42px); }
+    h2 { margin-top: 30px; }
+    p, small { color: #aeb8ca; line-height: 1.55; }
+    video { width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; background: #000; }
+    button, input, textarea { font: inherit; }
+    button {
+      border: 1px solid #3a4250;
+      border-radius: 9px;
+      background: #242a34;
+      color: #f4f6fb;
+      padding: 9px 12px;
+      cursor: pointer;
+    }
+    button:hover, button:focus-visible, textarea:focus-visible { border-color: #8091ff; outline: none; }
+    .panel { border: 1px solid #2a303b; border-radius: 14px; background: #171a20; padding: 16px; }
+    .review-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(380px, 0.75fr); gap: 20px; align-items: start; margin-top: 20px; }
+    .viewer-column { position: sticky; top: 16px; display: grid; gap: 14px; }
+    .marker-column { min-width: 0; }
+    .marker-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .marker-head h2 { margin: 0; }
+    .marker-head span { color: #aeb8ca; font-variant-numeric: tabular-nums; }
+    .active-marker { border: 1px solid #5266da; border-radius: 12px; background: #171d33; padding: 12px 14px; margin-bottom: 10px; }
+    .active-marker small { display: block; margin-bottom: 4px; color: #aeb8ca; }
+    .active-marker strong { display: block; }
+    .active-marker span { display: block; margin-top: 3px; color: #aeb8ca; font-variant-numeric: tabular-nums; }
+    .toolbar, .summary, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .toolbar { margin-top: 12px; }
+    .summary { margin: 0; }
+    .chip { border: 1px solid #3a4250; border-radius: 999px; padding: 7px 11px; }
+    .approved { color: #7ee2a8; border-color: #245b3c; background: #11291d; }
+    .rejected { color: #ff9a9a; border-color: #663030; background: #2b1515; }
+    .pending { color: #ffd37a; border-color: #654c1d; background: #2c230f; }
+    #clock { margin-left: auto; font-variant-numeric: tabular-nums; color: #aeb8ca; }
+    #points { display: grid; gap: 12px; max-height: calc(100vh - 166px); overflow-y: auto; padding: 2px 5px 18px 2px; scroll-padding-top: 8px; }
+    .point { border: 1px solid #2a303b; border-radius: 12px; background: #15181e; padding: 14px; }
+    .point-head { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 12px; }
+    .point-head strong { display: block; }
+    .point-head small { display: block; margin-top: 3px; }
+    .point textarea {
+      width: 100%;
+      min-height: 68px;
+      margin-top: 10px;
+      resize: vertical;
+      border: 1px solid #343b47;
+      border-radius: 9px;
+      background: #0f1217;
+      color: #f4f6fb;
+      padding: 10px;
+    }
+    .point-source {
+      margin-top: 9px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: #12151b;
+      color: #aeb8ca;
+      font-variant-numeric: tabular-nums;
+      font-size: 13px;
+    }
+    .point-transcript { margin-top: 9px; display: grid; gap: 5px; }
+    .tx-line {
+      display: grid;
+      grid-template-columns: 66px 1fr;
+      gap: 9px;
+      padding: 6px 9px;
+      border-radius: 8px;
+      background: #12151b;
+      line-height: 1.5;
+    }
+    .tx-line time { color: #7d8798; font-variant-numeric: tabular-nums; font-size: 12px; }
+    .tx-before span, .tx-after span { color: #aeb8ca; }
+    .tx-span { background: #1b2233; border: 1px solid #3a4664; }
+    .tx-span span { color: #f4f6fb; }
+    .point[data-status="approved"] { border-color: #245b3c; }
+    .point[data-status="rejected"] { border-color: #663030; }
+    .point.is-current { border-color: #8091ff; box-shadow: 0 0 0 2px rgb(128 145 255 / 20%); }
+    .point button[data-action="approve"].active { background: #1f6a40; }
+    .point button[data-action="reject"].active { background: #7b2929; }
+    .full-listen { display: flex; align-items: center; gap: 9px; margin: 0; padding: 0 2px; }
+    .full-listen input { width: 20px; height: 20px; accent-color: #7ee2a8; }
+    .primary { background: #5266da; border-color: #7889ee; }
+    .result-panel h2 { margin: 0 0 12px; }
+    .result-panel p { margin-bottom: 0; }
+    @media (max-width: 960px) {
+      .review-layout { grid-template-columns: 1fr; }
+      .viewer-column { position: static; }
+      #points { max-height: none; overflow: visible; }
+    }
+    @media (max-width: 700px) {
+      .point-head { grid-template-columns: 1fr; }
+      #clock { width: 100%; margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>__TITLE_HTML__</h1>
+    <p>기술 QA 뒤 사람 청취를 기록합니다. 기본 속도는 2배속이며 각 시각 버튼은 접합부 4초 전부터 재생합니다.</p>
+
+    <div class="review-layout">
+      <div class="viewer-column">
+        <section class="panel" aria-label="영상 플레이어">
+          <video id="video" controls preload="metadata"></video>
+          <div class="toolbar">
+            <button class="primary" id="play-all" type="button">처음부터 2x 재생</button>
+            <button type="button" data-rate="1">1x</button>
+            <button type="button" data-rate="1.5">1.5x</button>
+            <button type="button" data-rate="2">2x</button>
+            <span id="clock">00:00.000</span>
+          </div>
+        </section>
+
+        <div class="summary" aria-live="polite">
+          <span class="chip approved">승인 <strong id="approved-count">0</strong></span>
+          <span class="chip rejected">반려 <strong id="rejected-count">0</strong></span>
+          <span class="chip pending">대기 <strong id="pending-count">0</strong></span>
+        </div>
+
+        <label class="full-listen">
+          <input id="full-listen" type="checkbox">
+          전체 영상을 이어서 청취했습니다.
+        </label>
+
+        <section class="panel result-panel" aria-label="검수 결과">
+          <h2>검수 결과</h2>
+          <div class="actions">
+            <button class="primary" id="download" type="button">검수 JSON 다운로드</button>
+            <button id="copy" type="button">검수 JSON 복사</button>
+            <button id="add-current" type="button">현재 시각 추가</button>
+          </div>
+          <p id="message" role="status"></p>
+        </section>
+      </div>
+
+      <section class="marker-column" aria-label="우선 검수 지점">
+        <div class="marker-head">
+          <h2>우선 검수 지점</h2>
+          <span id="point-count">0곳</span>
+        </div>
+        <div class="active-marker" id="active-marker" aria-live="polite">
+          <small id="active-marker-state">다음 검수 마커</small>
+          <strong id="active-marker-label">검수 지점을 불러오는 중입니다.</strong>
+          <span id="active-marker-time">00:00.000</span>
+        </div>
+        <div id="points"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const MEDIA_URL = __MEDIA_URL_JSON__;
+    const REVIEW_CONTEXT = __REVIEW_CONTEXT_JSON__;
+    const MEDIA_PATH = REVIEW_CONTEXT.media.path;
+    const REVIEW_TITLE = __TITLE_JSON__;
+    const STORAGE_KEY = __STORAGE_KEY_JSON__;
+    const initialPoints = __POINTS_JSON__;
+    const video = document.querySelector("#video");
+    const clock = document.querySelector("#clock");
+    const pointsRoot = document.querySelector("#points");
+    const fullListen = document.querySelector("#full-listen");
+    const message = document.querySelector("#message");
+    const activeMarkerState = document.querySelector("#active-marker-state");
+    const activeMarkerLabel = document.querySelector("#active-marker-label");
+    const activeMarkerTime = document.querySelector("#active-marker-time");
+
+    let state = loadState();
+    video.src = MEDIA_URL;
+    video.defaultPlaybackRate = 2;
+    video.playbackRate = 2;
+
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (saved && Array.isArray(saved.items)) {
+          const savedById = new Map(saved.items.map((item) => [item.id, item]));
+          const generated = initialPoints.map((point) => ({
+            ...point,
+            status: savedById.get(point.id)?.status || "pending",
+            note: savedById.get(point.id)?.note || "",
+          }));
+          const custom = saved.items.filter((item) => String(item.id).startsWith("custom-"));
+          return { full_listen: saved.full_listen === true, items: [...generated, ...custom] };
+        }
+      } catch (_) {}
+      return {
+        full_listen: false,
+        items: initialPoints.map((point) => ({ ...point, status: "pending", note: "" })),
+      };
+    }
+
+    function saveState() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
+    }
+
+    function formatTime(value) {
+      if (!Number.isFinite(value)) return "00:00.000";
+      const totalMillis = Math.round(value * 1000);
+      const minutes = Math.floor(totalMillis / 60000);
+      const seconds = Math.floor((totalMillis % 60000) / 1000);
+      const millis = totalMillis % 1000;
+      return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(millis).padStart(3, "0")}`;
+    }
+
+    function render() {
+      pointsRoot.replaceChildren();
+      for (const item of state.items) {
+        const card = document.createElement("article");
+        card.className = "point";
+        card.dataset.status = item.status;
+        card.dataset.pointId = item.id;
+
+        const head = document.createElement("div");
+        head.className = "point-head";
+        const jump = document.createElement("button");
+        jump.type = "button";
+        jump.textContent = formatTime(item.time);
+        jump.addEventListener("click", () => {
+          video.currentTime = Math.max(0, item.time - 4);
+          video.playbackRate = 2;
+          video.play();
+          updateActivePoint();
+        });
+
+        const text = document.createElement("div");
+        const title = document.createElement("strong");
+        title.textContent = item.label;
+        const reason = document.createElement("small");
+        reason.textContent = item.reason || item.kind;
+        text.append(title, reason);
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        for (const [status, label] of [["approved", "승인"], ["rejected", "반려"]]) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.dataset.action = status === "approved" ? "approve" : "reject";
+          button.textContent = label;
+          button.classList.toggle("active", item.status === status);
+          button.addEventListener("click", () => {
+            item.status = item.status === status ? "pending" : status;
+            saveState();
+            render();
+          });
+          actions.append(button);
+        }
+
+        const note = document.createElement("textarea");
+        note.name = `note-${item.id}`;
+        note.placeholder = "들리는 문제나 수정 요청을 적습니다.";
+        note.setAttribute("aria-label", `${item.label} 메모`);
+        note.value = item.note;
+        note.addEventListener("input", () => {
+          item.note = note.value;
+          saveState();
+        });
+
+        head.append(jump, text, actions);
+        card.append(head);
+
+        if (item.source) {
+          const source = document.createElement("div");
+          source.className = "point-source";
+          source.textContent = `원본 ${item.source.left_end.toFixed(3)}s → ${item.source.right_start.toFixed(3)}s (${item.source.removed.toFixed(2)}s 제거)`;
+          card.append(source);
+        }
+
+        if (Array.isArray(item.transcript) && item.transcript.length) {
+          const transcript = document.createElement("div");
+          transcript.className = "point-transcript";
+          for (const line of item.transcript) {
+            const row = document.createElement("p");
+            row.className = `tx-line tx-${line.side}`;
+            const at = document.createElement("time");
+            at.textContent = formatTime(line.start);
+            const body = document.createElement("span");
+            body.textContent = line.text;
+            row.append(at, body);
+            transcript.append(row);
+          }
+          card.append(transcript);
+        }
+
+        card.append(note);
+        pointsRoot.append(card);
+      }
+
+      fullListen.checked = state.full_listen;
+      document.querySelector("#approved-count").textContent = state.items.filter((item) => item.status === "approved").length;
+      document.querySelector("#rejected-count").textContent = state.items.filter((item) => item.status === "rejected").length;
+      document.querySelector("#pending-count").textContent = state.items.filter((item) => item.status === "pending").length;
+      document.querySelector("#point-count").textContent = `${state.items.length}곳`;
+      updateActivePoint();
+    }
+
+    function updateActivePoint() {
+      const currentTime = video.currentTime || 0;
+      const current = state.items
+        .filter((item) => currentTime >= item.time - 4 && currentTime <= item.time + 3)
+        .sort((left, right) => Math.abs(left.time - currentTime) - Math.abs(right.time - currentTime))[0];
+      const next = state.items.find((item) => item.time >= currentTime);
+      const active = current || next || state.items.at(-1);
+
+      for (const card of pointsRoot.querySelectorAll(".point")) {
+        const selected = Boolean(current && card.dataset.pointId === current.id);
+        card.classList.toggle("is-current", selected);
+        if (selected) card.setAttribute("aria-current", "true");
+        else card.removeAttribute("aria-current");
+      }
+
+      if (!active) {
+        activeMarkerState.textContent = "검수 마커 없음";
+        activeMarkerLabel.textContent = "현재 검수 지점이 없습니다.";
+        activeMarkerTime.textContent = formatTime(currentTime);
+        return;
+      }
+      activeMarkerState.textContent = current ? "현재 검수 마커" : "다음 검수 마커";
+      activeMarkerLabel.textContent = active.label;
+      activeMarkerTime.textContent = `${formatTime(active.time)} · ${active.reason || active.kind}`;
+    }
+
+    function reviewResult() {
+      const rejected = state.items.some((item) => item.status === "rejected");
+      const pending = state.items.some((item) => item.status === "pending") || !state.full_listen;
+      return {
+        schema: "video-cut-editor.listening-review.v1",
+        title: REVIEW_TITLE,
+        media: REVIEW_CONTEXT.media,
+        join_map: REVIEW_CONTEXT.join_map,
+        reviewed_at: new Date().toISOString(),
+        status: rejected ? "needs_revision" : pending ? "pending" : "approved",
+        full_listen: state.full_listen,
+        items: state.items.map(({ transcript, ...rest }) => rest),
+      };
+    }
+
+    function reviewJson() { return JSON.stringify(reviewResult(), null, 2) + "\n"; }
+
+    document.querySelector("#play-all").addEventListener("click", () => {
+      video.currentTime = 0;
+      video.playbackRate = 2;
+      video.play();
+    });
+    document.querySelectorAll("[data-rate]").forEach((button) => {
+      button.addEventListener("click", () => { video.playbackRate = Number(button.dataset.rate); });
+    });
+    video.addEventListener("timeupdate", () => {
+      clock.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}, ${video.playbackRate}x`;
+      updateActivePoint();
+    });
+    fullListen.addEventListener("change", () => {
+      state.full_listen = fullListen.checked;
+      saveState();
+    });
+    document.querySelector("#add-current").addEventListener("click", () => {
+      state.items.push({
+        id: `custom-${Date.now()}`,
+        time: video.currentTime,
+        kind: "custom",
+        label: "사용자 추가 지점",
+        reason: "재생 중 추가",
+        status: "pending",
+        note: "",
+      });
+      saveState();
+      render();
+    });
+    document.querySelector("#download").addEventListener("click", () => {
+      const blob = new Blob([reviewJson()], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${MEDIA_PATH.split("/").pop().replace(/\.[^.]+$/, "")}.listening-review.json`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      message.textContent = "검수 JSON을 다운로드했습니다.";
+    });
+    document.querySelector("#copy").addEventListener("click", async () => {
+      const value = reviewJson();
+      try {
+        await navigator.clipboard.writeText(value);
+      } catch (_) {
+        const fallback = document.createElement("textarea");
+        fallback.value = value;
+        document.body.append(fallback);
+        fallback.select();
+        document.execCommand("copy");
+        fallback.remove();
+      }
+      message.textContent = "검수 JSON을 복사했습니다.";
+    });
+
+    render();
+  </script>
+</body>
+</html>

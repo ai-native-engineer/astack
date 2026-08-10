@@ -56,6 +56,43 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def marker_evidence(plan: dict[str, Any], plan_path: Path) -> tuple[Path, float] | None:
+    raw = plan.get("evidence", {}).get("markers")
+    if not isinstance(raw, str):
+        return None
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = (plan_path.parent / path).resolve()
+    data = load_json(path)
+    return path, float(data.get("threshold", 0.90))
+
+
+def scan_remaining_markers(
+    plan: dict[str, Any], plan_path: Path, output: Path, artifact_dir: Path
+) -> tuple[Path | None, list[dict[str, Any]]]:
+    evidence = marker_evidence(plan, plan_path)
+    if evidence is None:
+        return None, []
+    _, threshold = evidence
+    report = artifact_dir / f"{output.stem}.remaining-markers.json"
+    run_checked(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "detect_cut_markers.py"),
+            str(output),
+            "--marker",
+            str(DEFAULT_MARKER),
+            "--threshold",
+            str(threshold),
+            "--json",
+            str(report),
+            "--format",
+            "json",
+        ]
+    )
+    return report, load_json(report).get("predictions", [])
+
+
 def run_checked(argv: list[str]) -> subprocess.CompletedProcess[str]:
     proc = subprocess.run(argv, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if proc.returncode != 0:
@@ -184,6 +221,15 @@ def write_review_md(
         )
     if not predictions:
         lines.append("| - | - | - | no marker candidates |")
+        lines += [
+            "",
+            "## Markerless Review",
+            "",
+            "Marker detection found no candidates. This is not evidence that the source has no retakes.",
+            "",
+            "- Review a full-source transcript for unmarked false starts or repeated takes.",
+            "- Inspect the full visual timeline before approving a preserve-all plan.",
+        ]
 
     lines += [
         "",
@@ -289,6 +335,10 @@ def analyze(args: argparse.Namespace) -> int:
             "Render once from the original timeline.",
         ],
     }
+    if not predictions:
+        plan["render_notes"][0] = (
+            "No marker candidates: review full-source STT and the full visual timeline before preserve-all."
+        )
     write_json(plan_json, plan)
     write_review_md(review_md, media, marker_json, speech_json, plan_json, predictions, windows)
 
@@ -375,6 +425,21 @@ def run_self_test() -> int:
     join_map = build_join_map(Path("plan.json"), Path("in.mp4"), Path("out.mp4"), 10.0, segments, removals)
     assert [item["output_time"] for item in join_map["joins"]] == [2.0, 4.0]
     assert join_map["joins"][1]["removed_duration"] == 3.0
+    preserve_all = keep_segments(10.0, [])
+    assert [(item.start, item.end) for item in preserve_all] == [(0.0, 10.0)]
+    preserve_map = build_join_map(
+        Path("plan.json"), Path("in.mp4"), Path("out.mp4"), 10.0, preserve_all, []
+    )
+    assert preserve_map["joins"] == []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        markers = root / "markers.json"
+        write_json(markers, {"threshold": 0.93})
+        evidence = marker_evidence({"evidence": {"markers": str(markers)}}, root / "plan.json")
+        assert evidence == (markers, 0.93), evidence
+        review = root / "review.md"
+        write_review_md(review, Path("in.mp4"), markers, Path("speech.json"), Path("plan.json"), [], [])
+        assert "## Markerless Review" in review.read_text(encoding="utf-8")
     print("self_test: ok")
     return 0
 
@@ -382,17 +447,28 @@ def run_self_test() -> int:
 def render(args: argparse.Namespace) -> int:
     plan_path = args.plan.expanduser().resolve()
     plan = load_json(plan_path)
+    from audit_cut_plan import audit_plan
+
+    findings = audit_plan(plan, plan_path, 4.0)
+    if findings:
+        for item in findings:
+            print(f"finding: {item}", file=sys.stderr)
+        return fail("plan audit failed; fix the plan before render")
     source = Path(plan["source"]).expanduser().resolve()
     output = Path(args.output).expanduser().resolve() if args.output else Path(plan["output"]).expanduser().resolve()
     removals = plan.get("remove_intervals", [])
-    if not removals:
-        return fail("plan has no remove_intervals; review and fill the plan before render")
+    if not removals and plan.get("status") != "reviewed":
+        return fail("empty remove_intervals requires status reviewed after preserve-all review")
     if plan.get("status") != "reviewed" and not args.allow_draft:
         return fail("plan status must be reviewed before render; set status to reviewed or pass --allow-draft")
     if not source.exists():
         return fail(f"source not found: {source}")
+    if source == output:
+        return fail("source and output must be different")
     if output.exists() and not args.overwrite:
-        return fail(f"output exists, pass --overwrite: {output}")
+        return fail(
+            f"output exists: {output}; choose a new output path, or pass --overwrite only for a verified current-run target"
+        )
 
     ffmpeg = require_tool("ffmpeg")
     ffprobe = require_tool("ffprobe")
@@ -405,9 +481,6 @@ def render(args: argparse.Namespace) -> int:
         return fail("no audio stream found")
     duration = parse_duration(media)
     segments = keep_segments(duration, removals)
-    plan_encode = choose_encoder(video_streams[0], args.video_encoder, ffmpeg_encoders(ffmpeg))
-    video_opts = video_output_options(video_streams[0], plan_encode, output, args.video_bitrate)
-    audio_opts, audio_warnings = audio_output_options(audio_streams)
 
     output.parent.mkdir(parents=True, exist_ok=True)
     artifact_dir = default_artifact_dir(output)
@@ -415,52 +488,86 @@ def render(args: argparse.Namespace) -> int:
     default_join_map = artifact_dir / f"{output.stem}.join-map.json"
     log_file = None if args.dry_run else (args.log_file or default_log_file).expanduser().resolve()
     join_map_path = None if args.dry_run else (args.join_map or default_join_map).expanduser().resolve()
-    graph = build_filter_graph(segments, len(audio_streams))
-    with tempfile.NamedTemporaryFile("w", suffix=".ffgraph", delete=False, encoding="utf-8") as handle:
-        handle.write(graph)
-        graph_path = Path(handle.name)
-    try:
-        cmd = build_ffmpeg_command(
-            ffmpeg,
-            source,
-            output,
-            graph_path,
-            len(audio_streams),
-            video_opts,
-            audio_opts,
-            True,
-        )
+    if not removals:
         if args.dry_run:
-            print("ffmpeg command:", shlex.join(cmd))
+            print("render_mode: preserve_all_copy")
             print(f"kept_segments: {len(segments)}")
-            print(f"joins: {max(0, len(segments) - 1)}")
-            print(f"removed: {sum(float(i['end']) - float(i['start']) for i in removals):.3f}s")
+            print("joins: 0")
+            print("removed: 0.000s")
             print(f"artifacts: {artifact_dir}")
             return 0
+        assert log_file is not None
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        log_file.write_text(
+            f"=== {datetime.now().isoformat(timespec='seconds')} ===\ncopy {source} {output}\n",
+            encoding="utf-8",
+        )
         print(f"log: {log_file}")
-        result = run_with_log(cmd, log_file)
-        if result.returncode != 0:
-            print("ffmpeg command:", shlex.join(cmd), file=sys.stderr)
-            if log_file is not None:
-                print(f"log: {log_file}", file=sys.stderr)
-            return fail((result.stderr or result.stdout).strip()[-4000:])
-    finally:
-        graph_path.unlink(missing_ok=True)
+        shutil.copy2(source, output)
+        expected_video_codec = str(video_streams[0].get("codec_name", ""))
+    else:
+        plan_encode = choose_encoder(video_streams[0], args.video_encoder, ffmpeg_encoders(ffmpeg))
+        video_opts = video_output_options(video_streams[0], plan_encode, output, args.video_bitrate)
+        audio_opts, audio_warnings = audio_output_options(audio_streams)
+        graph = build_filter_graph(segments, len(audio_streams))
+        with tempfile.NamedTemporaryFile("w", suffix=".ffgraph", delete=False, encoding="utf-8") as handle:
+            handle.write(graph)
+            graph_path = Path(handle.name)
+        try:
+            cmd = build_ffmpeg_command(
+                ffmpeg,
+                source,
+                output,
+                graph_path,
+                len(audio_streams),
+                video_opts,
+                audio_opts,
+                True,
+            )
+            if args.dry_run:
+                print("ffmpeg command:", shlex.join(cmd))
+                print(f"kept_segments: {len(segments)}")
+                print(f"joins: {max(0, len(segments) - 1)}")
+                print(f"removed: {sum(float(i['end']) - float(i['start']) for i in removals):.3f}s")
+                print(f"artifacts: {artifact_dir}")
+                return 0
+            print(f"log: {log_file}")
+            result = run_with_log(cmd, log_file)
+            if result.returncode != 0:
+                print("ffmpeg command:", shlex.join(cmd), file=sys.stderr)
+                if log_file is not None:
+                    print(f"log: {log_file}", file=sys.stderr)
+                return fail((result.stderr or result.stdout).strip()[-4000:])
+        finally:
+            graph_path.unlink(missing_ok=True)
 
-    for warning in plan_encode.warnings + audio_warnings:
-        print(f"warning: {warning}")
-    errors = verify_output(ffmpeg, ffprobe, media, output, plan_encode.expected_video_codec, len(audio_streams))
+        for warning in plan_encode.warnings + audio_warnings:
+            print(f"warning: {warning}")
+        expected_video_codec = plan_encode.expected_video_codec
+
+    errors = verify_output(ffmpeg, ffprobe, media, output, expected_video_codec, len(audio_streams))
     if errors:
         for error in errors:
             print(f"verify_error: {error}", file=sys.stderr)
         return 1
     if join_map_path is not None:
         write_json(join_map_path, build_join_map(plan_path, source, output, duration, segments, removals))
+    marker_report, remaining_markers = scan_remaining_markers(plan, plan_path, output, artifact_dir)
     print(f"output: {output}")
     print(f"kept_segments: {len(segments)}")
     print(f"artifacts: {artifact_dir}")
     if join_map_path is not None:
         print(f"join_map: {join_map_path}")
+    if marker_report is not None:
+        print(f"remaining_markers: {marker_report}")
+    if remaining_markers:
+        for item in remaining_markers:
+            print(
+                f"remaining_marker: {float(item['time']):.3f}s "
+                f"({float(item['accuracy_percent']):.2f}%)",
+                file=sys.stderr,
+            )
+        return fail("remaining edit markers detected; remove them before delivery")
     print("verify: ok")
     return 0
 

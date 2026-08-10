@@ -1,222 +1,48 @@
 ---
 name: kakaotalk
-description: "macOS KakaoTalk chatroom read/search/send automation with shared communication rules before outbound messages. Use when user asks 카톡 보내줘, 카카오톡 메시지, 카톡 읽어줘, 채팅방 확인, 카톡방 찾아줘, 대화 내역, 카톡 검색, or send/read messages via KakaoTalk. Do NOT use for Slack, iMessage/SMS, Gmail/Google Chat, long-form writing, or message drafting without KakaoTalk execution."
+description: "macOS KakaoTalk chatroom read/search/send automation with shared communication rules before outbound messages. Use when user asks 카톡 보내줘, 카카오톡 메시지, 카톡 읽어줘, 채팅방 확인, 카톡방 찾아줘, 대화 내역, 카톡 검색, 내가 한 말 찾아줘, 이번 달 카톡 정리, or send/read messages via KakaoTalk. Do NOT use for Slack, iMessage/SMS, Gmail/Google Chat, long-form writing, or message drafting without KakaoTalk execution."
 ---
 
 # KakaoTalk CLI
 
-macOS Accessibility API(atomacos)를 통해 카카오톡 메시지를 읽고 보내는 스킬.
+`katok` CLI 하나로 카카오톡을 읽고, 검색하고, 보낸다.
 
-**안전선 — 마우스 커서를 옮기지 않는다.** 합성 마우스 클릭(`cliclick`·AppleScript `click at`·Quartz/CGEvent)은 사용자가 컴퓨터를 쓰는 중에 실제 커서를 빼앗는다. UI 조작은 전부 접근성(`.Press()`/`AXUIElementPerformAction`·`AXFocused`)과 키보드(`key code`·클립보드 붙여넣기)·`Raise()`로만 한다.
+**읽기, 검색, 발송 모두 `katok`으로 한다.** 접근성 UI 스크래핑, DB 직접 조회, 복호화로 폴백하지 않는다. `katok`이 로컬 DB 접근, 아카이브, 검색 인덱스, 발송 UI 조작을 전부 관리하므로 스킬은 CLI 표면만 다룬다.
+
+## 실행 표면 확인
+
+```bash
+katok --help
+```
+
+설치본이 문서보다 오래됐을 수 있다. 절차에 나오는 서브커맨드가 `--help` 목록에 없으면 그 자리에서 `cargo install katok`으로 올리고, 올리기 전까지 그 경로를 쓰지 않는다. 발송(`katok send`)은 기본 빌드에 들어 있고, 읽기 전용으로 설치하려면 `--no-default-features`를 준다.
+
+## 안전선
+
+- 검색 결과는 snippet, 날짜, 채팅방, chunk ID까지만 보여준다. 원문은 사용자가 그 결과를 열어 달라고 했을 때만 `katok chunk get`으로 가져온다.
+- 전체 채팅방 목록이나 전체 chunk 목록을 응답에 그대로 옮기지 않는다. 요청한 범위 밖의 대화가 딸려 나온다.
+- 발송은 되돌릴 수 없고 다른 사람에게 도달한다. 보낼 방을 스스로 고르지 않고, 방과 최종 본문을 사용자에게 확인받는다.
+- 대상 지정만 검증하면 될 때는 `--dry-run`을 쓴다. 방 창을 여는 것만으로는 아무에게도 알림이 가지 않는다.
+- 사람 검토를 남기려면 `--draft`로 입력창에 붙여둔다. 사람이 Enter를 누르기 전까지 전달되지 않는다.
+- 대화를 화면에 띄우는 시연에는 합성 데이터를 쓴다. 발표, 녹화, 화면 공유는 대화가 요청자 아닌 사람에게 도달하는 경로다.
 
 ## 메시지 작성 의존성
 
-카카오톡으로 보낼 문구를 작성·수정·발송할 때는 transport 실행 전에 공통 커뮤니케이션 규칙을 먼저 읽는다.
+카카오톡으로 보낼 문구를 작성, 수정, 발송할 때는 transport 실행 전에 공통 커뮤니케이션 규칙을 먼저 읽는다.
 
 1. `../communication/references/work-message-contract.md`
 2. `../communication/references/style-profiles.md` (저장된 문체를 맞출 때만)
-3. `../communication/references/message-templates.md` (요청·핸드오프·상태 공유일 때)
+3. `../communication/references/message-templates.md` (요청, 핸드오프, 상태 공유일 때)
 4. `../communication/references/channel-overlays/kakaotalk.md`
 
-공통 스킬을 읽을 수 없으면 최소 계약만 따른다: 목적·수신자·요청/맥락/액션을 분리하고, 사용자가 승인한 본문은 임의로 재작성하지 않으며, 발송 전 채팅방과 최종 본문을 확인받는다.
+공통 스킬을 읽을 수 없으면 최소 계약만 따른다: 목적, 수신자, 요청/맥락/액션을 분리하고, 사용자가 승인한 본문은 임의로 재작성하지 않으며, 발송 전 채팅방과 최종 본문을 확인받는다.
 
-이 스킬 디렉터리에서 아래 prefix를 사용한다.
+## 참조 라우팅
 
-```
-uv run --project . python scripts/
-```
-
----
-
-## 메시지 발송 워크플로우
-
-### Step 1: 채팅방 열고 대화 내역 읽기
-
-```bash
-{prefix}kakao_read.py "대상이름" --json
-```
-
-- 대상이 오픈채팅이면 먼저 아래 `오픈채팅 우회 절차`를 참고해 방을 연 뒤 읽기/발송 스크립트를 사용한다.
-
-### Step 2: 맥락 파악 후 메시지 작성
-
-- 배열 끝부분이 최신 메시지 (최근일수록 가치 높음)
-- 최근 대화 주제와 자연스럽게 이어지도록 구성
-- 위 `메시지 작성 의존성`의 공통 contract와 카카오톡 overlay를 적용
-
-### Step 3: 사용자 확인 (필수)
-
-텍스트로 메시지 내용을 보여준 후 사용자에게 확인:
-
-```
-**보낼 메시지:**
-받는 사람: {채팅방}
----
-{메시지 내용}
----
-→ 사용자에게 "이 메시지를 보낼까요?"라고 확인
-```
-
-### Step 4: 발송
-
-```bash
-{prefix}kakao_send.py "채팅방이름" "메시지"
-```
-
-- 사용자 요청 없이 서명이나 에이전트 표기를 추가하지 않는다.
-- 발송 직후 `kakao_read.py --limit N`에 방금 보낸 메시지가 안 보여도 즉시 실패로 단정하지 않는다. 이 스크립트는 현재 보이는 메시지 범위를 읽기 때문에 뷰포트가 최신 위치가 아니면 직전 발송분이 빠질 수 있다. `kakao_send.py`의 `"success": true`를 1차 확인값으로 본다.
-
----
-
-## 메시지 읽기 전용 워크플로우
-
-```bash
-{prefix}kakao_read.py "대상이름" --json
-```
-
-읽은 후 요약: 최근 대화 주제, 답장 필요 여부.
-
----
-
-## 권한 문제 진단 (필수)
-
-다음 신호가 보이면 방 이름 문제가 아니라 macOS 접근성 권한 문제다.
-
-- `atomacos`에서 `app.windows()`가 `0`을 반환함
-- `kakao_read.py --search ... --debug` 로그에 `main window NOT found after retries`가 찍힘
-- `osascript`에서 `보조 접근이 허용되지 않습니다` 오류가 발생함
-
-해결 절차:
-
-1. System Settings > Privacy & Security > Accessibility에서 현재 터미널 앱/Codex 실행 앱을 허용
-2. 필요하면 카카오톡과 터미널을 모두 다시 실행
-3. 아래 두 명령으로 권한이 실제 반영됐는지 확인
-
-```bash
-osascript -e 'tell application "System Events" to tell process "KakaoTalk" to get name of every window'
-# 기대값: 카카오톡
-
-uv run --project . python - <<'PY'
-import atomacos
-app = atomacos.getAppRefByBundleId('com.kakao.KakaoTalkMac')
-print('windows', len(app.windows()))
-PY
-# 기대값: windows 1 이상
-```
-
----
-
-## 채팅방 못 찾았을 때 — 자가 피드백 (필수)
-
-스크립트가 키워드 분리 재시도 + 열린 창 검증을 자동 수행함.
-그래도 실패하면 아래 단계를 직접 수행:
-
-1. **`--search "키워드"` 사용** — 가장 고유한 키워드 하나로 검색 결과 확인
-2. **키워드 변형** — 순서 다름("A X B" → "B X A"), 구분자 다름("X" vs "_"), 약칭 가능성
-3. **`--list` 사용** — 전체 채팅 목록에서 유사한 이름 찾기
-4. **엉뚱한 방 진입 금지** — 스크립트가 열린 창 제목을 검증하여 불일치 시 자동 닫음
-
----
-
-## 오픈채팅 우회 절차
-
-기본 `kakao_read.py --search` / `--list`는 현재 선택된 탭 기준으로만 보일 수 있다. 일반 채팅 탭에 머문 상태에서는 오픈채팅 방 이름이 검색되지 않을 수 있으므로 아래 순서로 우회한다.
-
-### 1. 카카오톡 메인 창 확인
-
-```bash
-open -a KakaoTalk
-
-uv run --project . python - <<'PY'
-import atomacos
-app = atomacos.getAppRefByBundleId('com.kakao.KakaoTalkMac')
-print('windows', len(app.windows()))
-for i, win in enumerate(app.windows(), 1):
-    print(i, getattr(win, 'AXTitle', None))
-PY
-```
-
-### 2. 오픈채팅 버튼 존재 확인
-
-```bash
-osascript -e 'tell application "System Events" to tell process "KakaoTalk" to get description of every button of window 1'
-# 기대값에 "오픈채팅" 포함
-```
-
-### 3. 필요하면 오픈채팅 탭을 접근성 Press로 전환
-
-오픈채팅 버튼을 **접근성 AXPress로 누른다 — 마우스 커서를 옮기지 않는다.** 합성 마우스 클릭(Quartz/CGEvent·`cliclick`·`click at`)은 사용자가 컴퓨터를 쓰는 중에 실제 커서를 빼앗으므로 이 스킬에서는 쓰지 않는다. `atomacos`의 `.Press()`가 안 먹으면 raw `AXUIElementPerformAction`으로 폴백한다.
-
-```bash
-uv run --project . python - <<'PY'
-import atomacos
-from ApplicationServices import AXUIElementPerformAction
-
-app = atomacos.getAppRefByBundleId('com.kakao.KakaoTalkMac')
-win = app.windows()[0]
-
-for child in getattr(win, 'AXChildren', []) or []:
-    if getattr(child, 'AXRole', None) == 'AXButton' and getattr(child, 'AXDescription', None) == '오픈채팅':
-        try:
-            child.Press()                                  # 접근성 Press (커서 안 움직임)
-        except Exception:
-            AXUIElementPerformAction(child.ref, 'AXPress')  # raw AXPress 폴백
-        print('pressed 오픈채팅')
-        break
-PY
-```
-
-### 4. 오픈채팅 목록에서 실제 행 텍스트 확인
-
-```bash
-uv run --project . python - <<'PY'
-import subprocess
-for i in range(1, 21):
-    script = (
-        'tell application "System Events" to tell process "KakaoTalk" '
-        f'to get value of every static text of every UI element of row {i} '
-        'of table 1 of scroll area 1 of window 1'
-    )
-    out = subprocess.run(['osascript', '-e', script], capture_output=True, text=True).stdout.strip()
-    print(f'{i}\t{out}')
-PY
-```
-
-예시 출력:
-
-```text
-3	프로젝트 공지, 1676, 11:32
-6	프로젝트 공지/운영자, 3월 23일
-```
-
-### 5. 원하는 행 선택 후 Enter로 입장
-
-```bash
-osascript \
-  -e 'tell application "System Events" to tell process "KakaoTalk" to select row 3 of table 1 of scroll area 1 of window 1' \
-  -e 'tell application "System Events" to key code 36'
-```
-
-입장 후에는 일반 채팅과 동일하게 처리한다.
-
-```bash
-{prefix}kakao_read.py "프로젝트 공지" --json
-{prefix}kakao_send.py "프로젝트 공지" "메시지"
-```
-
-### 6. 같은 이름의 일반 채팅/오픈채팅이 함께 있을 때
-
-- `프로젝트 공지`와 `프로젝트 공지/운영자`처럼 유사한 이름이 같이 보일 수 있으니, 행 텍스트 전체를 읽고 정확한 row index를 고른다.
-- `--search`가 0건이어도 오픈채팅 목록 행에는 존재할 수 있으므로, 검색 실패만으로 방이 없다고 결론내리지 않는다.
-
----
-
-전체 플래그는 `kakao_read.py --help` / `kakao_send.py --help` 참조.
-
----
-
-## 요구사항
-
-1. **의존성**: 이 스킬 디렉터리에서 `uv sync`
-2. **Accessibility 권한**: System Settings > Privacy & Security > Accessibility에서 Terminal 허용
-3. **카카오톡 실행 중**: macOS용 카카오톡 앱
+| 언제 | 읽을 것 |
+|---|---|
+| 메시지를 읽거나 보낸다 (최신성 판단, 단계, 확인 템플릿, 발송 결과 판정) | [references/message-workflows.md](references/message-workflows.md) |
+| 검색이 원하는 걸 못 찾는다, 기간이나 발신자로 좁힌다, 내가 한 말을 모은다 | [references/search-and-filtering.md](references/search-and-filtering.md) |
+| 보낼 방을 이름으로 특정하지 못한다, 같은 이름이 여럿이다, 오픈채팅이다 | [references/chatroom-lookup.md](references/chatroom-lookup.md) |
+| 설치, Full Disk Access, 발송 전제 조건을 점검한다 | [references/setup-and-permissions.md](references/setup-and-permissions.md) |
+| 실제 대화 대신 합성 데이터로 시연한다 | [references/demo-mode.md](references/demo-mode.md) |

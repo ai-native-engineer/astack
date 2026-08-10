@@ -2,6 +2,17 @@
 
 이 문서는 `company-context-research` 산출물을 혁신의 숲형 탭 데이터로 보강할 때 읽는다. API 호출 절차가 아니라, 이미 수집된 공식 데이터의 **정규화 파일 계약과 병합 규칙**만 다룬다.
 
+## 목차
+
+- Ownership Boundary
+- Principles
+- Normalized Inputs
+- Funding Data Boundary
+- Merge
+- Naver News
+- Naver DataLab
+- Final Check
+
 ## Ownership Boundary
 
 - `$open-api`가 DART, data.go.kr, KIPRIS, NTIS의 provider 선택, 키 주입, endpoint 확정, 호출, 페이징, retry, raw 저장, 레시피 적립을 담당한다.

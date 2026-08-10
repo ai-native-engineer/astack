@@ -63,6 +63,12 @@ echo 'export AD_ACCOUNT_ID=<숫자 ID>' >> ~/.zshrc
 
 ⚠️ `~/.config/meta/credentials`는 **토큰 전용**. `AD_ACCOUNT_ID`는 여기 못 둔다(`~/.config/meta/.env`도 안 읽힘) → `~/.zshrc` export 또는 매번 `--ad-account-id`.
 
+경로가 의심되면 추측하지 말고 도구에 직접 묻는다 — 소스가 컴파일된 `.so`라 파일을 읽어서는 확인되지 않는다.
+
+```bash
+~/.local/share/uv/tools/meta-ads/bin/python -c "from meta import config; print(config.get_credentials_path())"
+```
+
 ## 검증 체크리스트
 
 - `meta auth status` → `Authenticated`

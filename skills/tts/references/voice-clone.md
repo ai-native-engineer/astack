@@ -1,6 +1,6 @@
 # 로컬 TTS 상세 - Qwen3-TTS / mlx-audio
 
-레이어 구분: 실행 프로그램(`mlx-audio`) = uv tool / 전사 = `apple-stt`(`~/scripts/apple-stt`, stt 스킬) / 모델 가중치 = HF 캐시(`~/.cache/huggingface`). `hf`는 가중치 다운로드 도구지 프로그램 설치 도구가 아니다.
+레이어 구분: 실행 프로그램(`mlx-audio`) = uv tool / 전사 = PATH의 `apple-stt`(stt 스킬) / 모델 가중치 = HF 캐시(`~/.cache/huggingface`). `hf`는 가중치 다운로드 도구지 프로그램 설치 도구가 아니다.
 
 ## 목차
 
@@ -26,7 +26,7 @@ uv tool install huggingface_hub                # 가중치 다운로드 (hf)
 # ffmpeg: brew install ffmpeg
 ```
 - 가중치는 첫 실행 시 repo id로 자동 다운로드된다. 미리 받으려면: `hf download mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16`.
-- 레퍼런스 전사는 `--ref-text`/`--ref-text-file`로 직접 주거나, PATH 또는 `~/scripts/apple-stt`의 `apple-stt`를 쓴다.
+- 레퍼런스 전사는 `--ref-text`/`--ref-text-file`로 직접 주거나, PATH의 `apple-stt`를 쓴다.
 
 ## 런타임 복구 — transformers 비호환
 
@@ -71,6 +71,7 @@ uv pip install --python ~/.local/share/uv/tools/mlx-audio/bin/python 'transforme
   - 단점: 세그먼트 독립 샘플링이라 톤 일관성이 약간 흔들릴 수 있다(아래 튜닝으로 완화).
   - 같은 대본·음성·모델·튜닝으로 고정 `--proj` 명령을 다시 실행하면 완료된 청크는 건너뛰고, 원본 WAV만 있는 청크는 정규화한 뒤, 나머지만 생성한다.
   - 대본이나 설정이 manifest와 다르면 중단한다. 다른 내용의 전체 생성은 새 프로젝트 경로를 쓴다.
+- 리소스: RTF 약 0.25~0.7배(실시간보다 빠름), peak memory 약 10~15GB. 메모리 여유가 없는 기기에서는 다른 무거운 작업과 동시에 돌리지 않는다.
 
 ### 한국어 발화용 텍스트 전처리
 TTS에는 화면용 표기보다 **귀로 들었을 때 자연스러운 발화문**을 넣는다. 이 스킬은 최종 발화용 대본을 만드는 쪽이므로 원문/녹음용 파일을 강제로 분리하지 않는다.

@@ -11,6 +11,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INNER="$SCRIPT_DIR/_fda_check_inner.sh"
 CHECK_PY="$SCRIPT_DIR/check_fda.py"
 LOG="$HOME/.voice-memos/logs/fda-check.log"
+PYTHON_NAME="${VOICE_MEMOS_PYTHON:-python3}"
+PYTHON="$(command -v "$PYTHON_NAME" || true)"
+
+if [ -z "$PYTHON" ]; then
+    echo "python3 not found; add it to PATH or set VOICE_MEMOS_PYTHON" >&2
+    exit 69
+fi
 
 mkdir -p "$(dirname "$LOG")"
 rm -f "$LOG"
@@ -18,7 +25,7 @@ rm -f "$LOG"
 # 실제 run.sh와 동일하게 bash가 python3를 호출하도록 inner 스크립트 생성
 cat > "$INNER" <<EOF
 #!/bin/bash
-/opt/homebrew/bin/python3 "$CHECK_PY"
+"$PYTHON" "$CHECK_PY"
 EOF
 chmod +x "$INNER"
 

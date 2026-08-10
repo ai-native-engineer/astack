@@ -27,6 +27,8 @@ WATCHER_LABEL="$(/usr/libexec/PlistBuddy -c 'Print :Label' "$WATCHER_PLIST")"
 3. `summarize.py` — 요약·제목 생성 (`uv run`, `CLAUDECODE` unset)
 4. `notify.py` — Discord/Telegram 알림 (`--skip-notify`로 스킵)
 
+`extract.py --all`은 Voice Memos DB에서 최근 삭제된 항목과 로컬 오디오가 아직 내려오지 않은 iCloud 동기화 대기 항목을 제외한다. 동기화가 끝나 `ZLOCALDURATION`이 생기면 자동으로 다시 처리 대상이 된다.
+
 `review_pending`이면 3단계가 Claude 호출을 건너뛴다. 새 summary가 없으므로 4단계도 transcript 전문을 provisional 본문으로 보내지 않는다. `privacy: local`도 Claude 호출을 건너뛴다. 처리할 게 없으면 로그에 `no changes` 한 줄만 남는다. 단계 실패 시 redacted `[ERROR]` 로그 + Telegram 에러 알림을 보낸다.
 
 ### 모드와 활성화 상태
@@ -50,7 +52,7 @@ Telegram 에러 알림을 받은 경우는 전달된 로그의 **마지막 실�
 
 새 녹음을 해도 watcher.log에 `no changes`/extract `processed=0`만 반복한다. WatchPaths 트리거는 정상이나 run.sh의 python3가 TCC 보호 폴더(Recordings)를 0개로 본다(터미널/Claude 셸은 FDA가 있어 같은 스크립트가 정상). macOS 업데이트로 FDA가 리셋되면 재발.
 
-해결: 시스템 설정 > 개인정보 보호 및 보안 > 전체 디스크 접근에 `/bin/bash`(ProgramArguments[0], TCC 책임 프로세스)와 `/opt/homebrew/bin/python3`(실제 접근자) **둘 다** 추가+토글 ON. 패널 바로 열기:
+해결: 시스템 설정 > 개인정보 보호 및 보안 > 전체 디스크 접근에 `/bin/bash`(ProgramArguments[0], TCC 책임 프로세스)와 `command -v "${VOICE_MEMOS_PYTHON:-python3}"`가 출력한 실제 Python 실행 파일 **둘 다** 추가+토글 ON. 패널 바로 열기:
 
 ```bash
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"

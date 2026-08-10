@@ -12,7 +12,7 @@ compatibility: "macOS on Apple Silicon. Requires Python 3, ffmpeg, and mlx-audio
 - 음성 레퍼런스는 스킬에 넣지 않고 로컬 `~/.local/share/tts/voices/<name>/ref.wav + ref.txt`에 둔다.
 - 기본 음성은 `~/.config/tts/config.json`의 `default_voice`로 정한다. 미설정 별칭은 `default`다.
 - `prep --voice <name>`은 새 음성을 로컬 voice store에 저장한다. 같은 이름이 있으면 중단하며, 명시적인 `--replace`에서만 두 레퍼런스 파일을 함께 교체한다. `TTS_VOICE_DIR` 또는 `--voice-dir`로 위치를 바꿀 수 있다.
-- 등록 음성 복제는 `--voice`, 프리셋 화자는 `--preset-voice`, 자연어 음성 설계는 `--instruct`를 쓴다.
+- 등록 음성 복제는 `--voice`, 프리셋 화자는 `--preset-voice`, 자연어 음성 설계는 `--instruct`를 쓴다. 쓸 수 있는 프리셋 화자 이름은 `full --help`의 `--preset-voice` 설명에서 확인한다.
 - 긴 작업은 `chunk`, 짧은 문장은 `full`을 쓴다. `chunk`는 한 줄을 한 청크로 처리한다.
 - 같은 대본과 설정으로 `chunk --proj`를 다시 실행하면 완료된 청크를 건너뛰고 중단 지점부터 이어간다. 대본이나 설정이 다르면 새 프로젝트를 쓴다.
 - 민감한 대본·전사·음성 지시는 각각 `--text-file`, `--ref-text-file`, `--instruct-file`로 전달한다. 생성 자식 프로세스에는 내용이 표준입력으로 넘어가 프로세스 인자와 실행 로그에 남지 않는다.
@@ -27,9 +27,9 @@ compatibility: "macOS on Apple Silicon. Requires Python 3, ffmpeg, and mlx-audio
 4. 외부 공유본은 자동 전사와 직접 청취로 문장 누락·고유명사·끝음을 확인한다.
 
 ```bash
-S="$HOME/.agents/skills/shared/tts/scripts/tts_clone.py"  # shared 설치 기준
+S="${CLAUDE_PLUGIN_ROOT}/skills/tts/scripts/tts_clone.py"
 python3 "$S" chunk --text-file script.txt --out out/raw.wav --loudnorm-out out/edit.wav
-python3 "$S" full --preset-voice Aiden --instruct-file style.txt --text-file script.txt
+python3 "$S" full --preset-voice <preset-name> --instruct-file style.txt --text-file script.txt
 python3 "$S" regen --proj /tmp/tts-XXXX --seg 3 --duration-multiplier 1.08
 ```
 

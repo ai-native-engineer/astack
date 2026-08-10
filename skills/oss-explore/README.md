@@ -15,11 +15,13 @@ star는 인기도 신호로만 사용합니다. 기본 탐색은 관련도 계�
 
 - `scripts/explore.sh`: 주제 탐색과 후보 비교
 - `scripts/discover.sh`: 기여 이슈 발굴
-- `scripts/trending.sh`, `trending.py`: GitHub Trending 탐색
+- `scripts/trending.sh`, `trending.py`: `https://github.com/trending`의 전체/언어별 일간, 주간, 월간 탐색
 - `scripts/bootstrap.sh`: fork/clone/브랜치 준비
 - `scripts/contributions.sh`, `stats.sh`: 기여 회고
 - `scripts/render_html.py`: 탐색/회고 HTML 렌더링
 - `tests/test-explore.sh`: 관련도 계층, README fallback, 비라틴 주제 회귀 확인
+- `tests/test-operations.sh`: 공개 범위, 조회 실패, 캐시 보존, 검색 상한, 입력 검증 확인
+- `tests/test-trending.py`: Trending 정상/빈 결과/부분 마크업 변경 판별 확인
 
 ## 설계 출처
 

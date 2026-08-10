@@ -39,13 +39,8 @@ fi
 
 ARGMAX_BIN="${ARGMAX_CLI:-$(command -v argmax-cli || true)}"
 if [ -z "$ARGMAX_BIN" ]; then
-  local_argmax="$HOME/Dev/argmax-oss-swift/.build/release/argmax-cli"
-  if [ -x "$local_argmax" ]; then
-    ARGMAX_BIN="$local_argmax"
-  else
-    echo "argmax-cli not found; add it to PATH or set ARGMAX_CLI" >&2
-    exit 69
-  fi
+  echo "argmax-cli not found; add it to PATH or set ARGMAX_CLI" >&2
+  exit 69
 fi
 
 mkdir -p "$OUT"

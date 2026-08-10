@@ -66,10 +66,9 @@ def block(vid, tr):
 
 def process(fp, trmap):
     txt = open(fp, encoding="utf-8", errors="ignore").read()
-    if "<!-- youtube:" in txt or "<!-- vimeo:" in txt:
-        return 0  # academy/채널 페이지: render-video-refs가 이미 전사를 인라인함(중복 방지, 도메인 무관)
     lines = txt.split("\n")
-    out, seen, added = [], set(), 0
+    rendered = set(re.findall(r"<!-- youtube:\s*([A-Za-z0-9_-]{11})\s*-->", txt))
+    out, seen, added = [], rendered, 0
     # 선행 YAML 프론트매터(---...---) 안의 url은 앵커 금지: 블록이 frontmatter를 쪼개 깨뜨린다
     fm_end = -1
     if lines and lines[0].strip() == "---":
@@ -122,6 +121,14 @@ def main():
         res = open(tf).read()
         assert res.count(f"yt-inline:{vid}") == 1, "블록이 정확히 1번 삽입돼야 함"
         assert "yt-inline" not in res.split("---", 2)[1], "frontmatter 안엔 블록이 들어가면 안 됨"
+        other = "1234567890_"
+        open(tf, "w").write(f"<!-- youtube: {vid} -->\nhttps://youtu.be/{other}\n")
+        process(tf, {
+            vid: {"title": "rendered", "duration": "", "body": "x" * 50},
+            other: {"title": "inline", "duration": "", "body": "x" * 50},
+        })
+        res = open(tf).read()
+        assert f"yt-inline:{vid}" not in res and f"yt-inline:{other}" in res
         mirror = tempfile.mkdtemp()
         subprocess.run(["git", "init", "-q", mirror], check=True)
         ignored = os.path.join(mirror, "ignored.md")
@@ -134,8 +141,8 @@ def main():
     tr = load_transcripts(mirror)
     print(f"자막 캐시 {len(tr)}개 로드")
     total = files = 0
-    # 범용 비대상 트리만 경로로 제외(이미지·전사 캐시·채널 발행). academy 등 도메인은 하드코딩하지 않는다 ->
-    # 대신 process()가 render-video-refs 마커(<!-- youtube/vimeo:)를 가진 파일을 건너뛴다(도메인 무관, 중복 방지).
+    # 범용 비대상 트리만 경로로 제외(이미지·전사 캐시·채널 발행).
+    # render-video-refs 마커의 영상 ID는 process()가 건너뛰 중복 전사를 막는다.
     skip = ("/images/", os.sep + "_yt-cache" + os.sep, os.sep + "youtube.com" + os.sep)
     candidates = [fp for fp in glob.glob(os.path.join(mirror, "**", "*.md"), recursive=True)
                   if not any(s in fp for s in skip)]

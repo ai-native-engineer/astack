@@ -8,7 +8,15 @@
 set -uo pipefail
 DEST="${1:?usage: <ids on stdin> | transcribe-ids.sh <dest_dir> [--force]}"
 FORCE="${2:-}"
-YT="$HOME/.agents/skills/shared/youtube/youtube-digest/scripts"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+YT="$SCRIPT_DIR"
+if [ ! -f "$YT/extract_transcript.sh" ] || [ ! -f "$YT/srt-to-md.sh" ]; then
+  YT="${YOUTUBE_DIGEST_SCRIPTS:-$SCRIPT_DIR/../../youtube/youtube-digest/scripts}"
+fi
+if [ ! -f "$YT/extract_transcript.sh" ] || [ ! -f "$YT/srt-to-md.sh" ]; then
+  echo "youtube transcript helpers not found; set YOUTUBE_DIGEST_SCRIPTS" >&2
+  exit 69
+fi
 mkdir -p "$DEST"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT

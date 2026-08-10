@@ -14,6 +14,9 @@ from typing import Any
 
 MARKER_RE = re.compile(r"marker\s+(\d+)\s+at\s+([0-9]+(?:\.[0-9]+)?)s", re.IGNORECASE)
 SAFE_LONG_REASONS = ("full_retake", "intentional_long_cut")
+# VAD ranges include boundary padding, so allow a small edge overlap while
+# rejecting silence cuts that extend materially into detected speech.
+MAX_VAD_OVERLAP_SECONDS = 0.08
 
 
 def fail(message: str, code: int = 1) -> int:
@@ -101,6 +104,44 @@ def audit_plan(plan: dict[str, Any], plan_path: Path, max_marker_cut: float) -> 
     findings: list[str] = []
     segments = speech_segments(plan, plan_path)
     duration = media_duration(plan)
+    silence_items = [
+        item
+        for item in plan.get("remove_intervals", [])
+        if "silence" in str(item.get("reason", "")).lower()
+    ]
+    policy = plan.get("silence_policy")
+    if silence_items and not isinstance(policy, dict):
+        findings.append("automatic silence cuts are missing silence_policy; rebuild with build_mixed_cut_plan.py")
+    elif silence_items:
+        min_duration = float(policy.get("min_duration", 0))
+        padding = float(policy.get("padding", -1))
+        if min_duration < 0.8:
+            findings.append(f"silence_policy min_duration {min_duration:.3f}s is below the 0.8s safety floor")
+        if padding < 0:
+            findings.append("silence_policy padding must be >= 0")
+        for index, item in enumerate(silence_items, 1):
+            sources = item.get("silence_sources")
+            if not isinstance(sources, list) or not sources:
+                findings.append(f"silence interval {index}: missing explicit silencedetect source")
+                continue
+            for source in sources:
+                source_start = float(source["start"])
+                source_end = float(source["end"])
+                source_duration = source_end - source_start
+                if source_duration + 0.001 < min_duration:
+                    findings.append(
+                        f"silence interval {index}: detected silence {source_duration:.3f}s "
+                        f"is shorter than policy minimum {min_duration:.3f}s"
+                    )
+                cut_start = 0.0 if source_start <= 0.001 else source_start + padding
+                cut_end = duration if duration is not None and source_end >= duration - 0.001 else source_end - padding
+                for segment in segments:
+                    overlap = min(cut_end, segment["end"]) - max(cut_start, segment["start"])
+                    if overlap > MAX_VAD_OVERLAP_SECONDS:
+                        findings.append(
+                            f"silence interval {index}: planned silence overlaps VAD speech by {overlap:.3f}s"
+                        )
+                        break
 
     for index, item in enumerate(plan.get("remove_intervals", []), 1):
         start = float(item["start"])
@@ -154,6 +195,12 @@ def run_self_test() -> int:
         ]
     }
     assert not audit_plan(safe, Path("/tmp/plan.json"), 4.0)
+    unsafe_silence = {
+        "duration": 30.0,
+        "remove_intervals": [{"start": 1.0, "end": 1.2, "reason": "silence"}],
+    }
+    findings = audit_plan(unsafe_silence, Path("/tmp/plan.json"), 4.0)
+    assert any("missing silence_policy" in item for item in findings), findings
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         speech = root / "speech.json"

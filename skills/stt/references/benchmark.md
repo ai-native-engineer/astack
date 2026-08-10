@@ -41,17 +41,17 @@ Prepare a metadata-only input under a private directory. `scaffold` hashes the e
 ```bash
 install -m 600 /dev/null ~/.config/stt/benchmarks/empty-context.txt
 
-python3 skills/shared/stt/scripts/benchmark.py scaffold \
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/stt/scripts/benchmark.py" scaffold \
   --input ~/.config/stt/benchmarks/recordings.json \
   --output ~/.config/stt/benchmarks/manifest.json
 
-python3 skills/shared/stt/scripts/benchmark.py capture \
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/stt/scripts/benchmark.py" capture \
   --manifest ~/.config/stt/benchmarks/manifest.json \
   --binary /path/to/apple-stt \
   --vocab-file ~/.config/stt/benchmarks/empty-context.txt \
   --run-dir ~/.voice-memos/benchmarks/runs/no-context
 
-python3 skills/shared/stt/scripts/benchmark.py capture \
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/stt/scripts/benchmark.py" capture \
   --manifest ~/.config/stt/benchmarks/manifest.json \
   --binary /path/to/apple-stt \
   --vocab-file ~/.config/stt/benchmarks/common-context.txt \
@@ -65,7 +65,7 @@ The default private roots are `~/.config/stt/benchmarks` for manifests and `~/.v
 To freeze the currently deployed legacy binary as a production baseline, explicitly provide the deployed vocab snapshot and opt into the benchmark-only adapter:
 
 ```bash
-python3 skills/shared/stt/scripts/benchmark.py capture \
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/stt/scripts/benchmark.py" capture \
   --legacy-json \
   --manifest ~/.config/stt/benchmarks/manifest.json \
   --binary ~/.local/bin/apple-stt \
@@ -78,7 +78,7 @@ python3 skills/shared/stt/scripts/benchmark.py capture \
 ## Release command
 
 ```bash
-python3 skills/shared/stt/scripts/benchmark.py compare \
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/stt/scripts/benchmark.py" compare \
   --manifest ~/.config/stt/benchmarks/manifest.json \
   --baseline-dir ~/.voice-memos/benchmarks/runs/<baseline> \
   --candidate-dir ~/.voice-memos/benchmarks/runs/<candidate> \

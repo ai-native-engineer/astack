@@ -26,6 +26,8 @@ from video_silence_cut import (
     video_output_options,
 )
 
+MIN_AUDIO_BITRATE_RATIO = 0.5
+
 
 def fail(message: str, code: int = 1) -> int:
     print(f"error: {message}", file=sys.stderr)
@@ -79,6 +81,66 @@ def audio_shape(audio_streams: list[dict[str, Any]]) -> tuple[tuple[Any, ...], .
         )
         for stream in audio_streams
     )
+
+
+def stream_bitrate(stream: dict[str, Any]) -> int | None:
+    try:
+        return int(stream["bit_rate"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def representative_audio_streams(medias: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    audio_sets = [streams(media, "audio") for media in medias]
+    if not audio_sets:
+        return []
+    track_count = len(audio_sets[0])
+    if any(len(items) != track_count for items in audio_sets):
+        raise ValueError("audio track count differs across inputs")
+    return [
+        max((items[index] for items in audio_sets), key=lambda item: stream_bitrate(item) or 0)
+        for index in range(track_count)
+    ]
+
+
+def duration_weighted_audio_bitrates(
+    medias: list[dict[str, Any]],
+    durations: list[float],
+) -> list[int | None]:
+    audio_sets = [streams(media, "audio") for media in medias]
+    if not audio_sets:
+        return []
+    track_count = len(audio_sets[0])
+    if any(len(items) != track_count for items in audio_sets):
+        raise ValueError("audio track count differs across inputs")
+
+    expected: list[int | None] = []
+    for index in range(track_count):
+        weighted_sum = 0.0
+        known_duration = 0.0
+        for items, duration in zip(audio_sets, durations):
+            bit_rate = stream_bitrate(items[index])
+            if bit_rate is None:
+                continue
+            weighted_sum += bit_rate * duration
+            known_duration += duration
+        expected.append(round(weighted_sum / known_duration) if known_duration else None)
+    return expected
+
+
+def audio_bitrate_errors(
+    reference_bitrates: list[int | None],
+    output_streams: list[dict[str, Any]],
+) -> list[str]:
+    errors: list[str] = []
+    for index, (reference_rate, output) in enumerate(zip(reference_bitrates, output_streams)):
+        output_rate = stream_bitrate(output)
+        if reference_rate and output_rate and output_rate < reference_rate * MIN_AUDIO_BITRATE_RATIO:
+            errors.append(
+                f"audio stream {index} bitrate collapsed: input weighted estimate {reference_rate} b/s, "
+                f"output {output_rate} b/s; pass --audio-bitrate or inspect the merge inputs"
+            )
+    return errors
 
 
 def stream_shape(media: dict[str, Any]) -> tuple[Any, ...]:
@@ -162,15 +224,17 @@ def reencode_command(
     ffmpeg: str,
     inputs: list[Path],
     output: Path,
-    first_media: dict[str, Any],
+    medias: list[dict[str, Any]],
     overwrite: bool,
     video_encoder: str,
     video_bitrate: str,
+    audio_bitrate: str,
 ) -> list[str]:
+    first_media = medias[0]
     video_stream = streams(first_media, "video")[0]
-    audio_streams = streams(first_media, "audio")
+    audio_streams = representative_audio_streams(medias)
     plan = choose_encoder(video_stream, video_encoder, ffmpeg_encoders(ffmpeg))
-    audio_opts, audio_warnings = audio_output_options(audio_streams)
+    audio_opts, audio_warnings = audio_output_options(audio_streams, audio_bitrate)
     for warning in plan.warnings + audio_warnings:
         print(f"warning: {warning}")
 
@@ -194,8 +258,12 @@ def verify_merged(
     expected_duration: float,
     expected_video_codec: str,
     expected_audio_count: int,
+    reference_audio_bitrates: list[int | None] | None,
 ) -> tuple[list[str], float | None]:
     errors = verify_output(ffmpeg, ffprobe, first_media, output, expected_video_codec, expected_audio_count)
+    if reference_audio_bitrates:
+        output_audio = streams(ffprobe_json(ffprobe, output), "audio")
+        errors.extend(audio_bitrate_errors(reference_audio_bitrates, output_audio))
     try:
         actual_duration = parse_duration(ffprobe_json(ffprobe, output))
     except Exception as exc:
@@ -345,6 +413,8 @@ def write_qa_report(
     expected_duration: float,
     actual_duration: float | None,
     warnings: list[str],
+    requested_audio_bitrate: str,
+    output_audio_bitrates: list[str],
     spot_check_summary: Path | None,
     merged_spot_check: Path | None,
     join_map: Path | None,
@@ -356,6 +426,8 @@ def write_qa_report(
         "",
         f"Output: `{output}`",
         f"Merge mode: `{mode}`",
+        f"Requested audio bitrate: `{requested_audio_bitrate}`",
+        f"Output audio bitrates: `{', '.join(output_audio_bitrates)}`",
         f"Expected duration: `{expected_duration:.3f}s`",
         f"Actual duration: `{actual_duration:.3f}s`" if actual_duration is not None else "Actual duration: `unknown`",
         f"Join map: `{join_map}`" if join_map is not None else "Join map: `not written`",
@@ -397,7 +469,13 @@ def run_self_test() -> int:
     one = {
         "streams": [
             {"codec_type": "video", "codec_name": "hevc", "width": 1920, "height": 1080},
-            {"codec_type": "audio", "codec_name": "aac", "sample_rate": "48000", "channels": 2},
+            {
+                "codec_type": "audio",
+                "codec_name": "aac",
+                "sample_rate": "48000",
+                "channels": 2,
+                "bit_rate": "2000",
+            },
         ]
     }
     two = json.loads(json.dumps(one))
@@ -405,6 +483,13 @@ def run_self_test() -> int:
     two["streams"][0]["codec_name"] = "h264"
     assert stream_shape(one) != stream_shape(two)
     assert reencode_compatible([one, two])
+    two["streams"][1]["bit_rate"] = "128000"
+    selected_audio = representative_audio_streams([one, two])
+    assert selected_audio[0]["bit_rate"] == "128000"
+    weighted_audio = duration_weighted_audio_bitrates([one, two], [1.0, 1.0])
+    assert weighted_audio == [65000]
+    assert audio_bitrate_errors(weighted_audio, [{"bit_rate": "17000"}])
+    assert not audio_bitrate_errors(weighted_audio, [{"bit_rate": "64000"}])
     assert "concat=n=2:v=1:a=1[v][a0]" in concat_filter(1, 2)
     rows = [input_summary(Path("a.mp4"), one, 1.0)]
     assert rows[0]["audio_tracks"] == 1
@@ -426,6 +511,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--force-reencode", action="store_true")
     parser.add_argument("--video-encoder", default="auto")
     parser.add_argument("--video-bitrate", default="auto")
+    parser.add_argument(
+        "--audio-bitrate",
+        default="auto",
+        help="FFmpeg audio bitrate for every track; auto uses the highest input bitrate per track",
+    )
     parser.add_argument("--qa-report", type=Path)
     parser.add_argument("--spot-check-summary", type=Path)
     parser.add_argument("--merged-spot-check", type=Path)
@@ -465,6 +555,7 @@ def main() -> int:
         print_preflight(rows, copy_ok)
 
         temp_path: Path | None = None
+        reference_audio_bitrates: list[int | None] | None = None
         mode = "copy" if copy_ok else "reencode"
         if copy_ok:
             cmd, temp_path = copy_command(ffmpeg, inputs, output, args.overwrite)
@@ -476,11 +567,14 @@ def main() -> int:
                 ffmpeg,
                 inputs,
                 output,
-                medias[0],
+                medias,
                 args.overwrite,
                 args.video_encoder,
                 args.video_bitrate,
+                args.audio_bitrate,
             )
+            if args.audio_bitrate == "auto":
+                reference_audio_bitrates = duration_weighted_audio_bitrates(medias, durations)
             expected_codec = choose_encoder(
                 streams(medias[0], "video")[0],
                 args.video_encoder,
@@ -506,12 +600,17 @@ def main() -> int:
             sum(durations),
             expected_codec,
             len(streams(medias[0], "audio")),
+            reference_audio_bitrates,
         )
         if errors:
             for error in errors:
                 print(f"verify_error: {error}", file=sys.stderr)
             return 1
         warnings = warning_summary(log_path)
+        output_audio_bitrates = [
+            f"{stream_bitrate(item)} b/s" if stream_bitrate(item) is not None else "unknown"
+            for item in streams(ffprobe_json(ffprobe, output), "audio")
+        ]
         write_json(join_map_path, build_merge_join_map(output, inputs, durations, mode))
         qa_report = (args.qa_report or artifact_dir / f"{output.stem}.qa-report.md").expanduser().resolve()
         write_qa_report(
@@ -522,6 +621,8 @@ def main() -> int:
             sum(durations),
             actual_duration,
             warnings,
+            args.audio_bitrate if mode == "reencode" else "stream-copy",
+            output_audio_bitrates,
             args.spot_check_summary.expanduser().resolve() if args.spot_check_summary else None,
             args.merged_spot_check.expanduser().resolve() if args.merged_spot_check else None,
             join_map_path,
@@ -535,6 +636,7 @@ def main() -> int:
         print(f"join_map: {join_map_path}")
         print(f"qa_report: {qa_report}")
         print(f"warnings: {len(warnings)}")
+        print(f"output_audio_bitrates: {', '.join(output_audio_bitrates)}")
         print("verify: ok")
         return 0
     except Exception as exc:

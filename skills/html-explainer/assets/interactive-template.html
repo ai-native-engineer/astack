@@ -14,11 +14,18 @@
     --bg:#f7f6f3; --surface:#fff; --surface-2:#f1efea; --text:#1c1b19; --muted:#6b665d;
     --border:#e2ded6; --line:#d8d3c9; --accent:#1c1b19; --accent-soft:#eceae4;
     --good:#2f8f4e; --bad:#c2362f;
+    /* 깊이는 그림자(투명도라 배경을 안 탄다), 구분선만 --border */
+    --shadow-border: 0 0 0 1px oklch(0 0 0 / .06), 0 1px 2px -1px oklch(0 0 0 / .06), 0 2px 4px 0 oklch(0 0 0 / .04);
+    --shadow-border-hover: 0 0 0 1px oklch(0 0 0 / .1), 0 1px 2px -1px oklch(0 0 0 / .08), 0 2px 4px 0 oklch(0 0 0 / .06);
+    --img-outline: oklch(0 0 0 / .1);
   }
   [data-theme="dark"] {
     --bg:#16151a; --surface:#1e1d24; --surface-2:#26252e; --text:#ece9e3; --muted:#a39e94;
     --border:#34323c; --line:#3c3a45; --accent:#ece9e3; --accent-soft:#2a2932;
     --good:#5fc97e; --bad:#f08079;
+    --shadow-border: 0 0 0 1px oklch(1 0 0 / .08);
+    --shadow-border-hover: 0 0 0 1px oklch(1 0 0 / .16);
+    --img-outline: oklch(1 0 0 / .1);
   }
   * { box-sizing:border-box; margin:0; padding:0; }
   html, body { height:100%; }
@@ -33,14 +40,17 @@
   .topbar { display:flex; align-items:center; gap:16px; padding:22px 0 0; }
   .counter { font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--muted); letter-spacing:.04em; white-space:nowrap; }
   .prog { flex:1; height:3px; background:var(--accent-soft); border-radius:3px; overflow:hidden; }
-  .prog > i { display:block; height:100%; background:var(--accent); border-radius:3px; transition:width .45s cubic-bezier(.4,0,.2,1); }
-  .themebtn { background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px; width:34px; height:30px; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
-  .themebtn:hover { color:var(--text); border-color:var(--line); }
+  .prog > i { display:block; height:100%; background:var(--accent); border-radius:3px; transition-property:width; transition-duration:260ms; transition-timing-function:cubic-bezier(.4,0,.2,1); }
+  .themebtn { background:none; border:none; box-shadow:var(--shadow-border); color:var(--muted); border-radius:8px; width:34px; height:30px; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center;
+              transition-property:color, box-shadow, scale; transition-duration:150ms; transition-timing-function:ease-out; }
+  .themebtn:hover { color:var(--text); box-shadow:var(--shadow-border-hover); }
+  .themebtn:active { scale:.96; }
 
   /* 단계 본문 (한 스텝 = 한 화면) */
   .panel { flex:1; display:flex; flex-direction:column; justify-content:center; padding:36px 0; }
-  .step-anim { animation:fadeUp .42s cubic-bezier(.2,.7,.2,1); }
-  @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  /* 스텝 이동은 매 클릭 반복되는 조작 — 짧게 유지한다 */
+  .step-anim { animation:fadeUp .2s ease-out; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
   .eyebrow { font-family:"JetBrains Mono",monospace; font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
   h1.disp { font-family:"Gowun Batang",serif; font-weight:700; font-size:clamp(28px,5vw,44px); line-height:1.25; letter-spacing:-.01em; }
   h1.disp em { font-family:"Instrument Serif","Gowun Batang",serif; font-style:italic; }
@@ -49,11 +59,14 @@
   .body-txt b { font-weight:700; }
 
   /* 인터랙티브 위젯 공통 프레임 (직접 조작해 정보를 드러내는 곳) */
-  .demo { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px; margin-top:26px; }
+  .demo { background:var(--surface); box-shadow:var(--shadow-border); border-radius:14px; padding:20px; margin-top:26px; }
   .demo .ask { font-size:15px; margin-bottom:14px; }
-  .simbtn { border:1px solid var(--line); background:var(--surface-2); color:var(--text); border-radius:8px; padding:9px 16px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
-  .simbtn:hover { border-color:var(--accent); }
+  .simbtn { border:none; box-shadow:var(--shadow-border); background:var(--surface-2); color:var(--text); border-radius:8px; padding:9px 16px; font:inherit; font-size:14px; font-weight:600; cursor:pointer;
+            transition-property:box-shadow, scale; transition-duration:150ms; transition-timing-function:ease-out; }
+  .simbtn:hover { box-shadow:var(--shadow-border-hover); }
+  .simbtn:active { scale:.96; }
   .reveal { margin-top:14px; padding:14px; border-radius:10px; background:var(--accent-soft); font-size:14px; }
+  img { max-width:100%; height:auto; border-radius:10px; outline:1px solid var(--img-outline); outline-offset:-1px; }
 
   /* 핵심 한 줄 (마지막 스텝) */
   .key { text-align:center; padding:20px 0; }
@@ -61,14 +74,22 @@
 
   /* 하단 네비 */
   .nav { display:flex; align-items:center; justify-content:space-between; padding:18px 0 30px; border-top:1px solid var(--border); }
-  .nav button.move { font:inherit; font-size:14px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--surface); color:var(--text); border-radius:9px; padding:9px 18px; }
-  .nav button.move:hover:not(:disabled) { border-color:var(--accent); }
+  .nav button.move { font:inherit; font-size:14px; font-weight:600; cursor:pointer; border:none; box-shadow:var(--shadow-border); background:var(--surface); color:var(--text); border-radius:9px; padding:9px 18px;
+                     transition-property:box-shadow, scale, opacity; transition-duration:150ms; transition-timing-function:ease-out; }
+  .nav button.move:hover:not(:disabled) { box-shadow:var(--shadow-border-hover); }
+  .nav button.move:active:not(:disabled) { scale:.96; }
   .nav button.move:disabled { opacity:.32; cursor:default; }
-  .nav button.primary { background:var(--accent); color:var(--bg); border-color:var(--accent); }
+  .nav button.primary { background:var(--accent); color:var(--bg); }
   .dots { display:flex; gap:8px; }
-  .dots i { width:8px; height:8px; border-radius:50%; background:var(--line); cursor:pointer; transition:transform .2s, background .2s; }
+  .dots i { width:8px; height:8px; border-radius:50%; background:var(--line); cursor:pointer; transition-property:transform, background-color; transition-duration:200ms; transition-timing-function:ease-out; }
   .dots i.on { background:var(--accent); transform:scale(1.35); }
   .hint { text-align:center; font-size:11.5px; color:var(--muted); padding-bottom:22px; font-family:"JetBrains Mono",monospace; letter-spacing:.03em; }
+
+  /* 애니메이션을 추가하면 이 블록에도 등록한다 */
+  @media (prefers-reduced-motion: reduce) {
+    .step-anim { animation:none; }
+    .prog > i, .dots i, .themebtn, .simbtn, .nav button.move { transition-duration:1ms; }
+  }
 </style>
 <!-- React + Babel: 메이저 버전 고정(@latest 금지). in-browser Babel 경고는 정상. -->
 <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>

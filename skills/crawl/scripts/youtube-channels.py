@@ -1,6 +1,6 @@
 """YouTube 채널 전 영상을 미러에 발행. enumerate -> 전사(공용 캐시) -> 캐시에서 발행 페이지 렌더.
 
-[실행하라] python3 youtube-channels.py <out_dir> <handle>:<channel_id> [<handle>:<channel_id> ...]
+[실행하라] python3 youtube-channels.py <out_dir> <handle>:<channel_id> [<handle>:<channel_id> ...] [--tabs=videos,shorts,streams] [--prune-stale]
 예) python3 youtube-channels.py . anthropic-ai:UCrDwWp7EBBv4NwvScIpBDOA claude:UCV03SRZXJEz-hchIAogeJOg
     python3 youtube-channels.py . openai:UCXZCJLdBC09xxGZ6gcdrc6A
 
@@ -51,22 +51,30 @@ def make_filename(meta, vid, seen):
     return name + ".md"
 
 
-def enumerate_channel(channel_id):
-    """채널 영상 (id, title) 목록(재생순=최신 먼저). 실패 시 None.
+def channel_urls(channel_id, tabs):
+    return [f"https://www.youtube.com/channel/{channel_id}/{tab}" for tab in tabs]
+
+
+def enumerate_channel(channel_id, tabs=("videos", "shorts", "streams")):
+    """선택한 채널 탭의 (id, title) 합집합. 전 탭 실패 시 None.
     title은 무자막 stub(캐시 title='YouTube <id>')의 파일명·H1 보강용 -- flat-playlist는 자막 유무와 무관히 제목을 준다."""
-    url = f"https://www.youtube.com/channel/{channel_id}/videos"
-    r = subprocess.run(
-        ["yt-dlp", "--flat-playlist", "--print", "%(id)s\t%(title)s", url],
-        stdin=subprocess.DEVNULL, capture_output=True, text=True,
-    )
-    if r.returncode != 0 and not r.stdout.strip():
-        sys.stderr.write(f"  yt-dlp 실패: {channel_id}\n{r.stderr[-300:]}\n")
+    out, seen, succeeded = [], set(), 0
+    for tab, url in zip(tabs, channel_urls(channel_id, tabs)):
+        r = subprocess.run(
+            ["yt-dlp", "--flat-playlist", "--print", "%(id)s\t%(title)s", url],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        )
+        if r.returncode != 0 and not r.stdout.strip():
+            sys.stderr.write(f"  yt-dlp 실패: {channel_id}/{tab}\n{r.stderr[-300:]}\n")
+            continue
+        succeeded += 1
+        for ln in r.stdout.splitlines():
+            parts = ln.split("\t", 1)
+            if parts and ID_RE.match(parts[0]) and parts[0] not in seen:
+                seen.add(parts[0])
+                out.append((parts[0], parts[1] if len(parts) > 1 else ""))
+    if not succeeded:
         return None
-    out = []
-    for ln in r.stdout.splitlines():
-        parts = ln.split("\t", 1)
-        if parts and ID_RE.match(parts[0]):
-            out.append((parts[0], parts[1] if len(parts) > 1 else ""))
     return out
 
 
@@ -114,6 +122,17 @@ def parse_cache(fp):
     return fm
 
 
+def stale_pages(ddir, desired):
+    """같은 YouTube ID의 제목/파일명이 바뀌어 남은 구 생성물."""
+    stale = []
+    for fp in glob.glob(os.path.join(ddir, "*.md")):
+        text = open(fp, encoding="utf-8", errors="ignore").read(1000)
+        match = re.search(r"^youtube_id:\s*([A-Za-z0-9_-]{11})\s*$", text, re.M)
+        if match and match.group(1) in desired and os.path.abspath(fp) != os.path.abspath(desired[match.group(1)]):
+            stale.append(fp)
+    return stale
+
+
 def render_page(vid, handle, meta, out_page):
     """발행 페이지 렌더. 자막 있으면 [썸네일 + 접이식 <details> 자막], 없으면 폴드 없이 최소형.
     무자막은 frontmatter captions:none(AI 1차 신호) + 본문 한 줄. 빈 <details> 폴드는 노이즈라 안 쓴다."""
@@ -145,16 +164,22 @@ def main():
     force = "--force" in args              # 발행 페이지만 재렌더(저렴)
     refetch = "--refetch" in args          # 전사까지 재추출(비쌈)
     render_only = "--render-only" in args  # 전사 호출 생략, 기존 캐시에서 렌더만
-    args = [a for a in args if a not in ("--force", "--refetch", "--render-only")]
+    prune_stale = "--prune-stale" in args  # 제목 변경으로 남은 구 파일 삭제(명시적 삭제 게이트)
+    tabs_arg = next((a.split("=", 1)[1] for a in args if a.startswith("--tabs=")), "videos,shorts,streams")
+    tabs = tuple(dict.fromkeys(t for t in tabs_arg.split(",") if t in ("videos", "shorts", "streams")))
+    if not tabs:
+        print("--tabs에는 videos,shorts,streams 중 하나 이상이 필요합니다.")
+        return
+    args = [a for a in args if a not in ("--force", "--refetch", "--render-only", "--prune-stale") and not a.startswith("--tabs=")]
     if len(args) < 2:
-        print("usage: youtube-channels.py <out_dir> <handle>:<channel_id> [...] [--force] [--refetch] [--render-only]"); return
+        print("usage: youtube-channels.py <out_dir> <handle>:<channel_id> [...] [--tabs=videos,shorts,streams] [--force] [--refetch] [--render-only] [--prune-stale]"); return
     out = args[0]
     cache_dir = os.path.join(out, CACHE)
     for spec in args[1:]:
         if ":" not in spec:
             print(f"  잘못된 인자(무시): {spec}  -- 형식은 handle:channel_id"); continue
         handle, cid = spec.split(":", 1)
-        ids = enumerate_channel(cid)
+        ids = enumerate_channel(cid, tabs)
         if ids is None:
             print(f"{handle}: enumerate 실패 -- 기존 발행물 보존"); continue
         print(f"{handle}: 채널 영상 {len(ids)}개")
@@ -165,6 +190,7 @@ def main():
         rendered = 0
         seen_names = set()
         index = []
+        desired = {}
         for vid, enum_title in ids:
             cache_fp = os.path.join(cache_dir, f"{vid}.md")
             if not os.path.exists(cache_fp):  # 전사 실패(429 등) -> 다음 실행에 증분 채움
@@ -177,15 +203,22 @@ def main():
                 backfill_date(vid, meta, cache_fp)
             fname = make_filename(meta, vid, seen_names)
             page_fp = os.path.join(ddir, fname)
+            desired[vid] = page_fp
             if force or not os.path.exists(page_fp):
                 render_page(vid, handle, meta, page_fp)
                 rendered += 1
             d = f" — {meta['date']}" if meta.get("date") else ""
             nc = "" if len(meta.get("transcript", "")) >= 40 else " (자막없음)"
             index.append(f"- [{meta.get('title', vid)}]({handle}/{fname}){d}{nc}")
+        stale = stale_pages(ddir, desired)
+        if prune_stale:
+            for fp in stale:
+                os.unlink(fp)
+        elif stale:
+            print(f"{handle}: 구 파일 후보 {len(stale)}개 (--prune-stale로 정리)")
         idx = [f"# {handle} (YouTube)\n", f"영상 {len(index)}개. 썸네일 + 자막(있으면 접이식, 없으면 '자막없음').\n"] + index
         open(os.path.join(out, PUB, f"{handle}.md"), "w", encoding="utf-8").write("\n".join(idx) + "\n")
-        print(f"{handle}: 발행 {len(index)}개 (신규 렌더 {rendered}개) -> {PUB}/{handle}/")
+        print(f"{handle}: 발행 {len(index)}개 (신규 렌더 {rendered}개, 구 파일 정리 {len(stale) if prune_stale else 0}개) -> {PUB}/{handle}/")
 
 
 if __name__ == "__main__":
@@ -194,8 +227,15 @@ if __name__ == "__main__":
         assert make_filename({"date": "2026-04-09", "title": "Cowork is now GA!"}, "AbcdEfghIjk", seen) == "260409-cowork-is-now-ga.md"
         assert make_filename({"date": "2026-04-09", "title": "Cowork is now GA!"}, "ZZZZZZZZZZZ", seen) == "260409-cowork-is-now-ga-ZZZZZZ.md", "충돌 접미"
         assert make_filename({"title": "No Date Here"}, "Vid12345678", set()) == "no-date-here.md", "무날짜"
+        assert channel_urls("CID", ("videos", "shorts")) == [
+            "https://www.youtube.com/channel/CID/videos",
+            "https://www.youtube.com/channel/CID/shorts",
+        ]
         import tempfile
         d = tempfile.mkdtemp()
+        old = os.path.join(d, "old.md")
+        open(old, "w").write("---\nyoutube_id: ABCDEFGHIJK\n---\n")
+        assert stale_pages(d, {"ABCDEFGHIJK": os.path.join(d, "new.md")}) == [old]
         page = os.path.join(d, "p.md")
         render_page("ABCDEFGHIJK", "ch",
                     {"title": "Hello: A Test", "date": "2025-01-02", "duration": "3:14", "transcript": "word " * 30},

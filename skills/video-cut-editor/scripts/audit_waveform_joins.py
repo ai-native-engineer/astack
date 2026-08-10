@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import shutil
 import subprocess
 import sys
@@ -21,11 +22,20 @@ FRAME_SAMPLES = 480  # 10 ms at 48 kHz.
 FRAME_BYTES = FRAME_SAMPLES * 2
 QUIET_DB = -45.0
 ACTIVE_DB = -42.0
+AUDIO_TRACK_RE = re.compile(r"^0:a:\d+$")
 
 
 def fail(message: str, code: int = 1) -> int:
     print(f"error: {message}", file=sys.stderr)
     return code
+
+
+def audio_track_arg(value: str) -> str:
+    if not AUDIO_TRACK_RE.fullmatch(value):
+        raise argparse.ArgumentTypeError(
+            "expected an FFmpeg audio stream specifier such as 0:a:0 or 0:a:1"
+        )
+    return value
 
 
 def require_tool(name: str) -> str:
@@ -257,6 +267,14 @@ def run_self_test() -> int:
         rms, first, last, maxdiff = pcm_frames(pcm)
         result = classify_join(0.5, rms, first, last, maxdiff)
         assert result["severity"] == "review", result
+    assert audio_track_arg("0:a:0") == "0:a:0"
+    for invalid in ("0", "1", "1:a:0"):
+        try:
+            audio_track_arg(invalid)
+        except argparse.ArgumentTypeError:
+            pass
+        else:
+            raise AssertionError(f"invalid audio track must be rejected: {invalid}")
     print("self_test: ok")
     return 0
 
@@ -265,7 +283,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audit waveform continuity at known edit joins.")
     parser.add_argument("media", nargs="?", type=Path)
     parser.add_argument("join_map", nargs="?", type=Path)
-    parser.add_argument("--audio-track", default="0:a:0")
+    parser.add_argument(
+        "--audio-track",
+        default="0:a:0",
+        type=audio_track_arg,
+        help="FFmpeg stream specifier, for example 0:a:0 or 0:a:1 (default: 0:a:0)",
+    )
     parser.add_argument("--output-json", type=Path)
     parser.add_argument("--output-md", type=Path)
     parser.add_argument("--fail-on-review", action="store_true")
