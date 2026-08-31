@@ -38,8 +38,8 @@ katok --data-dir "$DEMO" search keyword "<표현>" --limit 1000 --json
 지어낸 한국어 이름은 생각보다 자주 실제 연락처와 겹친다. 시연 화면이나 공개 저장소에서 자기 이름을 발견하는 상황을 피한다.
 
 ```bash
-katok source chats --source macos --json | jq -r '.[].chat_name' > /tmp/roomnames.txt
-grep -c "<지어낸 이름>" /tmp/roomnames.txt   # 0이어야 한다
+katok source chats --source macos --json | jq -r '.[].chat_name' > "${TMPDIR:-/tmp}/roomnames.txt"
+grep -c "<지어낸 이름>" "${TMPDIR:-/tmp}/roomnames.txt"   # 0이어야 한다
 ```
 
 생성한 fixture 파일은 커밋하지 않는다. 생성 스크립트를 정본으로 두고 매번 다시 만든다. `.jsonl`은 실제 카카오톡 유래 데이터가 취하는 형식이라 저장소에서 통째로 무시되는 경우가 많다.

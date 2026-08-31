@@ -13,7 +13,7 @@ Use this when the user asks for an HTML explainer but explicitly wants it to fee
 1. Parse the source Markdown into structured data:
    - `#` top-level sections become major wiki pages or category groups.
    - `##` headings become term/doc pages when the document is glossary-like.
-   - Field bullets such as `- 뜻:`, `- 마주치는 순간:`, `- 비개발자식 해석:`, `- AI에게 이렇게 말하기:`, `- 주의:` become explicit wiki fields.
+   - Repeated field bullets (a `- <field>:` pattern consistent across terms) become explicit wiki fields.
 2. Embed the structured data as JSON inside the HTML:
    - `<script id="wikiData" type="application/json">...</script>`
    - Keep rendering logic separate from the data blob.
@@ -35,7 +35,9 @@ Use this when the user asks for an HTML explainer but explicitly wants it to fee
 - Good visual direction for technical glossary wikis: editorial reference book, restrained dark docs, warm paper encyclopedia, or compact command-center docs.
 - Avoid fake metrics, generic feature cards, and slide-deck rhythm.
 
-## Local verification checklist
+## Verification
+
+기본 확인은 `open` 후 사용자 브라우저 육안이다(SKILL.md 워크플로와 동일). 아래 체크는 사용자가 CDP 검수를 요청했을 때 수행한다.
 
 - Open the file in a browser using `file://`.
 - Verify the app shell renders: left nav, home page, category page, term detail page.

@@ -1,12 +1,12 @@
 ---
 name: html-explainer
-description: "Local single-file HTML explainer in two types - visual (Mermaid/ELK diagrams, ECharts, Iconify; static, at-a-glance) and interactive walkthrough (React single-file; click-through steps, learner-driven). Both dark/light. After writing, open the file in the user's browser with `open`; do not start chrome-devtools for routine visualization. Use when user asks HTML로 설명/정리, 시각화 자료, 구조도, 아키텍처 그림, flow diagram, comparison chart, 인터랙티브 튜토리얼, 단계별 설명, 클릭하며 보는 설명, step-through explainer, or complex explanation as a local HTML file. Do NOT use for production websites, Remotion/video motion graphics, Marp/PPT slide deck files, raw markdown docs, or frontend app implementation."
-argument-hint: "[visual|interactive] [topic]"
+description: "Local single-file HTML explainer in three types - visual (Mermaid/ELK diagrams, ECharts, Iconify; static, at-a-glance), interactive walkthrough (React single-file; click-through steps, learner-driven), and wiki/knowledge-base (searchable glossary/handbook, hash routing). All dark/light. After writing, open the file in the user's browser with `open`; do not start chrome-devtools for routine visualization. Use when user asks HTML로 설명/정리, 시각화 자료, 구조도, 아키텍처 그림, flow diagram, comparison chart, 인터랙티브 튜토리얼, 단계별 설명, 클릭하며 보는 설명, step-through explainer, 위키처럼 정리, 용어집/사전 HTML, searchable handbook, or complex explanation as a local HTML file. Do NOT use for production websites, Remotion/video motion graphics, Marp/PPT slide deck files, raw markdown docs, or frontend app implementation."
+argument-hint: "[visual|interactive|wiki] [topic]"
 ---
 
 # HTML Explainer
 
-설명 자료를 단일 HTML로 만든다. **두 타입**이 있고, 시작 전에 먼저 고른다. 핵심 멘탈 모델: **수동으로 좌표를 계산하지 않는다** - 시각형은 배치를 레이아웃 엔진(Mermaid/ELK)에, 인터랙티브형은 상태를 React에 위임한다. 수동 SVG 좌표 계산은 요소 겹침·가림 사고의 근원이다(실측 실패 패턴).
+설명 자료를 단일 HTML로 만든다. **세 타입**이 있고, 시작 전에 먼저 고른다. 핵심 멘탈 모델: **수동으로 좌표를 계산하지 않는다** - 시각형은 배치를 레이아웃 엔진(Mermaid/ELK)에, 인터랙티브형은 상태를 React에 위임한다. 수동 SVG 좌표 계산은 요소 겹침·가림 사고의 근원이다.
 
 ## 타입 - 먼저 고른다
 
@@ -24,16 +24,15 @@ argument-hint: "[visual|interactive] [topic]"
 4. **CDP 검수는 명시 요청만**: 콘솔·스크린샷·Lighthouse를 사용자가 요청한 경우에만 chrome-devtools CLI 또는 `scripts/verify.sh`를 쓴다. CLI를 호출하는 순간 자동화 Chrome 프로세스가 따로 뜬다. 탭을 닫아도 프로세스는 남는다. 썼으면 그 작업 끝에 `chrome-devtools stop`으로 프로세스를 내린다.
 5. **공개 링크가 필요할 때만 배포**: 사용자가 지정한 정적 호스팅·배포 도구로 넘긴다. 배포 단계는 파일 배치·버전 백업·실제 URL 검증만 맡고, 디자인·카피·레이아웃 판단은 이 스킬 안에서 끝낸다.
 
-출력 경로는 기본 `/tmp/<slug>.html`(1회성 열람). 보관·공유를 원하면 프로젝트 폴더에 둔다.
+출력 경로는 기본 `${TMPDIR:-/tmp}/<slug>.html`(1회성 열람). 보관·공유를 원하면 프로젝트 폴더에 둔다.
 
-## 철칙 (두 타입 공통)
+## 철칙 (모든 타입 공통)
 
 - 긴 한국어 라벨은 `<br/>`로 수동 분리 (CJK 무공백 장문 클리핑).
 - 다크/라이트는 `matchMedia('(prefers-color-scheme: dark)')` 기준 - 양 템플릿에 배선돼 있다.
 - CDN 라이브러리는 메이저 버전 고정(시각형 `@11`·`@6`·`@3`, 인터랙티브형 React `@18.3.1`·Babel `@7.26.4`). `@latest` 금지.
 - **애니메이션은 이해 보조만** - 데이터 흐름·상태 전환·값 변화·단계 진행처럼 정보를 운반할 때만. 장식적 fade-in·슬라이드인 금지.
 - 표면 깊이는 `--shadow-border`, 보더는 구분선·상태에만. 이미지 아웃라인·누름 피드백·transition 속성 명시 등 마감 규칙은 `references/ui-polish.md`가 정본이고 양 템플릿에 토큰으로 배선돼 있다.
-- 시각화 HTML의 기본 확인은 사용자 브라우저 `open`이다. chrome-devtools CLI를 검증 기본값으로 쓰지 않는다.
 
 ## 시각형 전용 철칙
 

@@ -26,7 +26,7 @@
 
 - **in-browser Babel 경고는 정상이다.** 사용자가 CDP 검수를 요청해 `verify.sh`를 돌렸을 때 콘솔에 "precompile your scripts for production"이 `[warn]`으로 뜨는 건 에러가 아니다 — 무시한다.
 - **`verify.sh`의 render-check JSON은 `mermaid/echarts/iconify`가 전부 false/0으로 나온다** — 이 타입은 그 스택을 안 쓰니 정상이다. CDP 검수를 요청받은 경우의 통과 판정은 **콘솔 에러 0 + 스크린샷 육안**이다(겹침·잘림·첫 스텝 렌더). 기본 확인은 사용자 브라우저 `open`이다.
-- **키보드 핸들러는 `INPUT`/`TEXTAREA`를 건너뛴다.** 안 그러면 입력 중 스페이스/화살표가 스텝을 넘긴다(템플릿에 `입력 보호` 배선됨). Enter 전송은 [dev-frontend의 IME-safe 검증 계약](../../dev-frontend/SKILL.md#ime-safe-enter-submit)을 따른다.
+- **키보드 핸들러는 `INPUT`/`TEXTAREA`를 건너뛴다.** 안 그러면 입력 중 스페이스/화살표가 스텝을 넘긴다(템플릿에 `입력 보호` 배선됨). Enter 전송은 IME-safe로 처리한다: `compositionstart/end` 상태와 `nativeEvent.isComposing`(fallback `keyCode === 229`)을 확인해 조합 확정용 Enter를 전송으로 받지 않는다 - 놓치면 한글 마지막 글자 잔류/중복 전송. 계약 정본과 검증 절차는 dev-frontend 스킬의 `IME-safe Enter submit` 절.
 - **스텝 전환 애니메이션은 `key={step}`으로 본문을 remount**해서 낸다(템플릿 배선). 이게 빠지면 fadeUp이 안 돈다.
 - 팔레트(`:root` CSS 변수)는 토픽에 맞게 바꾼다. 기본은 따뜻한 에디토리얼 톤이라 대시보드·핀테크엔 어울리지 않는다 — 그럴 땐 변수만 교체한다.
 

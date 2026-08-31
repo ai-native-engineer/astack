@@ -18,6 +18,8 @@
 
 원본은 MIT License로 배포된다. 저작권과 라이선스 전문은 `assets/html-effectiveness-LICENSE.txt`에 보존한다.
 
+시각형 스택(Mermaid+ELK, ECharts, Iconify)은 2026-06 멀티에이전트 리서치에서 공식 문서·릴리스·이슈 트래커를 검증해 선정했다.
+
 `references/ui-polish.md`의 마감 규칙은 [jakubkrehel/skills](https://github.com/jakubkrehel/skills)(MIT, revision `d01493b0a7b976a74bfcedc80c783d60c7995910`)의 `better-ui` 스킬 원칙에서 가져왔다. 원본은 React·Tailwind·Motion 기준이라 그대로 참조하지 않고, 단일 파일 HTML에서 성립하는 항목만 골라 다시 썼다.
 
 - 내재화한 항목: 깊이는 그림자와 구조는 보더 분리, 동심 border radius, 이미지 아웃라인의 순수 흑/백 규칙, `transition` 속성 명시와 `will-change` 절제, `scale(0.96)` 누름 피드백, 반복 조작의 모션 절제와 `prefers-reduced-motion`, 아이콘의 광학 무게와 `currentColor` 상태 표현.

@@ -83,7 +83,7 @@ jq -r '.[] | [.sender_nickname, .chat_name] | @tsv' hits.json \
 katok source chats --source macos --json | jq -r '.[].chat_name' | grep -c "<후보 이름>"
 ```
 
-확정이 애매하면 1:1 방 하나를 골라 8월 chunk의 발신자가 두 사람으로 갈리는지 본다. 갈리면 귀속이 정상이다.
+확정이 애매하면 1:1 방 하나를 골라 최근 chunk의 발신자가 두 사람으로 갈리는지 본다. 갈리면 귀속이 정상이다.
 
 ## 본문 회수 - chunks에는 본문이 없다
 

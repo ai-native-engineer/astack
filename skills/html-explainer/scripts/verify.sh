@@ -51,7 +51,7 @@ chrome-devtools evaluate_script "() => ({
 select_target
 chrome-devtools evaluate_script "() => { document.querySelectorAll('.wrap > *').forEach(el => { el.style.opacity = ''; el.style.transform = ''; }); return true; }" >/dev/null 2>&1
 
-shot="/tmp/$(basename "${f%.html}")-verify.png"
+shot="${TMPDIR:-/tmp}/$(basename "${f%.html}")-verify.png"
 select_target
 chrome-devtools take_screenshot --fullPage --filePath "$shot" >/dev/null 2>&1
 echo
