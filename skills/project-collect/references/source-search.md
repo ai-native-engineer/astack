@@ -10,6 +10,7 @@
 - 음성 4소스 (voice-memos 스킬로 빠짐없이)
 - Notion (workspace/alias 조회)
 - Slack
+- 카카오톡
 - Google Workspace (gog 등록 계정)
 - 미팅/강의 녹화 (OBS·화면녹화)
 
@@ -46,6 +47,10 @@
 ## Slack
 
 - `agent-slack`로 채널·스레드 검색 → 관련 채널의 전체 메시지(루트+답글)를 1개 아카이브로, 첨부는 `attachments/`.
+
+## 카카오톡
+
+- `kakaotalk` 스킬로 채팅방·대화 검색 → 관련 대화(기간·방 이름을 헤더에 기록)를 1개 아카이브로, 첨부는 `attachments/`.
 
 ## Google Workspace (gog 등록 계정)
 

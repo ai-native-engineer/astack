@@ -1,15 +1,13 @@
 ---
 name: project-collect
-description: "Collects project context from Slack, Notion, Google Workspace, Obsidian, voice notes, recordings, and local sources into per-source archives under a non-Obsidian project's context folder with attachments preserved. Use when user asks 프로젝트 맥락 모아줘, 맥락 가져와줘, context 수집, 자료 모아줘, collect project context, or project-collect. Do NOT use inside Obsidian vaults; use the vault's ingest workflow. Also excludes project cleanup, external web/YouTube research, company public research, and daily briefs."
+description: "프로젝트 맥락을 Slack, Notion, Google Workspace, Obsidian, 음성 메모, 통화/미팅 녹음과 녹화, 로컬 소스에서 검색해 프로젝트 context 폴더에 소스당 1개 통합 아카이브와 attachments 원본으로 수집한다. Use when user asks 프로젝트 맥락 모아줘, 맥락 가져와줘, context 수집, 자료 모아줘, 슬랙/노션 관련 자료 수집, collect project context, or project-collect. Do NOT use for organizing what is already in the project - 정본/stale 판정, 루트 재편, 인덱스 갱신 (project-organize); inside an Obsidian vault (use the vault's ingest workflow); external web/YouTube research; or company public research."
 ---
 
 # Project Collect
 
-주제(키워드)를 받아 등록된 도구들을 검색하고, **관련 맥락을 소스당 1개 통합 아카이브로 정리**해 실행 시작 때 확정한 `$OUT_DIR`에 저장한다. 원본 파일은 그대로 보존한다. 외부 웹/유튜브 리서치는 하지 않는다.
+주제(키워드)를 받아 등록된 도구들을 검색하고, **관련 맥락을 소스당 1개 통합 아카이브로 정리**해 실행 시작 때 확정한 `$OUT_DIR`에 저장한다. 원본 파일은 그대로 보존한다. 외부 웹/유튜브 리서치는 하지 않는다. 밖에서 안으로 들여오는 반쪽이 이 스킬이고, 들여온 뒤 폴더를 읽히게 유지하는 짝은 `project-organize`다.
 
-> **이름 기준**: 신규 호출과 문서에서는 `project-collect`를 쓴다.
-
-> **출력 위치(하위호환)**: 신규 프로젝트는 `01-context/company/`, 기존 `context/`만 있는 레거시 프로젝트는 `context/`를 쓴다. 둘 다 있으면 자동 선택하지 않고 `CONFLICT`로 중단한다. `.obsidian/`이 있는 vault에서는 내부 아카이브를 만들지 않고 `OBSIDIAN_VAULT`로 중단한다. 이 경우 해당 vault의 ingest 워크플로를 쓴다. 실행 시작 때 `scripts/context_status.py --resolve-dir`로 절대 경로 `$OUT_DIR`을 한 번만 확정한다.
+> **출력 위치(하위호환)**: 신규 프로젝트는 `01-context/company/`, 기존 `context/`만 있는 레거시 프로젝트는 `context/`를 쓴다. 둘 다 있으면 자동 선택하지 않고 `CONFLICT`로 중단한다. `.obsidian/`이 있는 vault에서는 내부 아카이브를 만들지 않고 `OBSIDIAN_VAULT`로 중단한다 - 이 경우 해당 vault의 ingest 워크플로를 쓴다. `$OUT_DIR` 확정 절차는 아래 사전 준비 1이다.
 
 ## 출력 형태 (가장 중요)
 
@@ -32,7 +30,7 @@ description: "Collects project context from Slack, Notion, Google Workspace, Obs
 
 메타데이터는 아카이브 맨 위 **YAML frontmatter**가 단일 소스다 (스키마·소스별 anchor·머지 절차 전부: `references/archive-schema.md`).
 
-- **증분 기준점(anchor)**: 재수집 전 `python3 "${CLAUDE_PLUGIN_ROOT}/skills/project-collect/scripts/context_status.py" "$OUT_DIR" --source <소스>`로 기존 anchor를 읽어 그 이후만 검색한다. slack=마지막 ts(`--oldest`), gmail=마지막 날짜(`after:`) 등. 빈 줄이면 anchor가 없는 것이므로 본문 항목과 dedupe한다.
+- **증분 기준점(anchor)**: 재수집 전 `python3 "${CLAUDE_PLUGIN_ROOT}/skills/project-collect/scripts/context_status.py" "$OUT_DIR" --source <소스>`로 기존 anchor를 읽어 그 이후만 검색한다. slack=마지막 ts(`--oldest`), gmail=마지막 날짜(`after:`) 등. 빈 줄이면 anchor가 없는 것이므로 `collected_last` 이후를 검색하고 본문 항목과 dedupe한다.
 - **풀 리스캔 예외**: 사용자가 "처음부터 끝까지 수집해줘" 류로 명시 요청할 때만 anchor를 무시하고 전 범위 재검색. 이때도 새 파일을 만들지 않고 기존 항목과 dedupe하며 같은 아카이브에 머지한다.
 - **본문 증분**: 기존 항목 보존, 직전 수집 이후 신규 항목만 시간순 제자리에 dedupe(같은 ts·내용 제외)해 끼워 넣는다.
 - **frontmatter 갱신**: `collected_last`=오늘, `range_end`=새 최신 항목일, `anchor`=새 마지막 키, `items` 갱신. `collected_first`·`range_start`는 불변.
@@ -47,6 +45,8 @@ description: "Collects project context from Slack, Notion, Google Workspace, Obs
 - 자동 알림(CRM 문의알림 등), 무관 채널, 일반 지식 페이지는 제외한다.
 - 빈 export(블록 0·본문 0)는 저장하지 않고 manifest에 "빈 export"로 기록.
 - 애매하면 버리지 말고 목록으로 사용자에게 확인받는다.
+
+**project-organize와의 경계.** 기준은 방향이다 - 밖에서 새로 들여오는 일은 이 스킬, 이미 폴더 안에 있는 것을 읽히게 만드는 일은 `project-organize`다. 수집 중 발견한 기존 파일의 정본/stale 판정, 수집 산출물의 AGENTS.md·README 인덱스 반영, 루트 재편은 project-organize 소관이다. collect는 stale로 보이는 기존 파일을 지우거나 옮기지 않고, 관찰만 마무리 요약에 한 줄로 남긴다.
 
 ## 입력
 
@@ -81,7 +81,7 @@ description: "Collects project context from Slack, Notion, Google Workspace, Obs
 - 문서/지식: Notion(기본) · Obsidian(기본) · Confluence · Google Docs(gog) · 사내 위키
 - 메일/일정/드라이브: Gmail·Calendar·Drive(gog, 기본) · Outlook/M365
 - 개인: 음성메모 · 에이닷 통화녹음 · Apple Notes · Caret (모두 기본 — voice-memos 스킬 `search.py`가 앞 3개를 통합, Caret은 MCP 병렬)
-- 녹화: OBS 미팅·강의 녹화(`~/Movies/`·`~/Movies/obs/*.mp4`·화면녹화 mp4/vtt) — apple-stt/mlx_whisper로 전사. 강의 녹화면 학습자 막힘 포인트를 뽑아 차기 회차 교안/과제에 반영(→ `curriculum`)
+- 녹화: OBS 미팅·강의 녹화(`~/Movies/`·`~/Movies/obs/*.mp4`·화면녹화 mp4/vtt) — apple-stt/mlx_whisper로 전사. 강의 녹화면 학습자 막힘 포인트를 뽑아 차기 회차 교안/과제에 반영(→ `curriculum-authoring`)
 - 이슈/PM: Jira · Linear · Asana · GitHub Issues
 - 저장소: Google Drive(기본) · Dropbox · 로컬 폴더
 
@@ -117,6 +117,7 @@ description: "Collects project context from Slack, Notion, Google Workspace, Obs
 - 음성 4소스 (음성메모·에이닷 통화녹음·Apple Notes·Caret — voice-memos 스킬로 빠짐없이)
 - Notion (등록 workspace/alias 조회)
 - Slack (`agent-slack`)
+- 카카오톡 (`kakaotalk`)
 - Google Workspace (gog — Gmail·Calendar·Drive, 등록 계정 전수)
 - 미팅/강의 녹화 (OBS·화면녹화)
 
@@ -126,4 +127,21 @@ description: "Collects project context from Slack, Notion, Google Workspace, Obs
 
 ## 마무리 요약
 
-저장된 아카이브·attachments 목록, 소스별 관련 항목 수 / 제외 수(사유), 검색 못 한 소스 사유를 출력한다. 파일 작성 후 `file -I`로 UTF-8 확인.
+아래 템플릿으로 요약한다. 빈 섹션은 접는다.
+
+```markdown
+## Collected
+- <소스> - <아카이브 경로> (kept N) / attachments: <목록 또는 없음>
+
+## Excluded
+- <소스> - <제외 N건, 대표 사유>
+
+## Uncertain
+- <항목> - <사용자 확인이 필요한 이유>
+
+## Not Searched
+- <소스> - <사유>
+```
+
+- 파일 작성 후 `file -I`로 UTF-8을 확인한다.
+- git repo면 이번 실행이 만들거나 병합한 `$OUT_DIR` 경로(아카이브·attachments)만 stage해 커밋한다. 병합한 아카이브에 다른 세션의 미커밋 변경이 이미 있었으면 커밋 전에 알리고, 포함하면 그 파일을 명시한다. 커밋을 미루면 미커밋 경로 목록을 요약에 남긴다.

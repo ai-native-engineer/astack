@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""context/ 소스 아카이브 현황 뷰어.
+"""수집 아카이브($OUT_DIR) 현황 뷰어.
 
 각 .md의 YAML frontmatter(없으면 파일명·본문 헤더에서 best-effort)를 읽어
 소스별 수집 현황을 표로 출력한다. --source 로 특정 소스의 anchor(증분 기준점)만 조회.
@@ -154,7 +154,7 @@ def self_check_resolver():
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="context/ 아카이브 수집 현황 뷰어")
+    ap = argparse.ArgumentParser(description="수집 아카이브($OUT_DIR) 현황 뷰어")
     ap.add_argument("dir", nargs="?", default=None,
                     help="아카이브 폴더 (생략하면 프로젝트 root에서 해소)")
     ap.add_argument("--root", default=".", help="프로젝트 root (기본: 현재 디렉터리)")
