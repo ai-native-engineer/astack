@@ -11,6 +11,7 @@ Discord, Telegram으로 요약 결과를 전송합니다.
 import hashlib
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
 from contextlib import nullcontext
@@ -24,6 +25,7 @@ from config import (
     TRANSCRIPTS_DIR,
     analysis_path_for,
     atomic_write_text,
+    is_dataless,
     iter_transcript_files,
     recording_lock,
     run_path_for,
@@ -319,11 +321,24 @@ def main():
 
     files = sorted(iter_transcript_files(TRANSCRIPTS_DIR), reverse=True)
     sent = 0
+    deferred = 0
     for transcript_path in files:
-        if notify_from_paths(transcript_path, summary_path_for(transcript_path)):
-            sent += 1
+        if is_dataless(transcript_path):
+            deferred += 1
+            continue
+        try:
+            if notify_from_paths(transcript_path, summary_path_for(transcript_path)):
+                sent += 1
+        except OSError as exc:
+            # iCloud 산출물이 아직 로컬에 내려오지 않으면 읽기가 EDEADLK로 실패한다.
+            # 마커를 남기지 않으므로 다음 pass에서 다시 시도된다. 한 파일 때문에 배치를 죽이지 않는다.
+            deferred += 1
+            print(
+                f"  [WARN] NotifyDeferred:{type(exc).__name__} {transcript_path.parent.name}",
+                file=sys.stderr,
+            )
 
-    print(f"  {sent}/{len(files)} 전송됨")
+    print(f"  {sent}/{len(files)} 전송됨" + (f" (보류 {deferred})" if deferred else ""))
 
 
 if __name__ == "__main__":

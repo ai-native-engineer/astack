@@ -7,6 +7,7 @@ import json
 import os
 import fcntl
 import math
+import re
 import shutil
 import subprocess
 import tempfile
@@ -14,6 +15,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
@@ -55,6 +57,60 @@ RECORDINGS_DIR = Path(
 ).expanduser()
 CALL_TRANSCRIPT_SUFFIX = ".transcript.md"
 CALL_SUMMARY_SUFFIX = ".summary.md"
+CALL_NAME_SUFFIXES = (CALL_TRANSCRIPT_SUFFIX, CALL_SUMMARY_SUFFIX, ".txt", ".m4a")
+
+
+def is_dataless(path: Path) -> bool:
+    """iCloud에 있고 아직 로컬로 내려오지 않은 파일인지. 읽으면 EDEADLK로 실패한다."""
+    try:
+        return path.stat().st_blocks == 0
+    except OSError:
+        return False
+CALL_DATETIME_RE = re.compile(r"^(?P<prefix>.+)_(?P<date>\d{8})_(?P<time>\d{6})$")
+CALL_DATE_TRAILING_RE = re.compile(r"^(?P<prefix>.+)_(?P<date>\d{6})$")
+CALL_DATE_LEADING_RE = re.compile(r"^(?P<date>\d{6})-(?P<prefix>.+)$")
+CALL_TRAILING_PHONE_RE = re.compile(r"^(?P<contact>.+)_(?P<phone>\d{7,11})$")
+
+
+@dataclass(frozen=True)
+class CallName:
+    contact: str
+    phone: str
+    dt: datetime
+    has_time: bool
+
+
+def parse_call_name(name: str) -> "CallName | None":
+    """통화 녹음 파일명에서 상대·전화번호·시각을 파싱한다. 지원 밖 이름은 None.
+
+    지원 형식: `<상대>_<전화번호>_<YYYYMMDD>_<HHMMSS>`, `<상대>_<YYMMDD>`, `<YYMMDD>-<상대>`.
+    이 폴더에는 사람이 직접 붙인 이름도 들어오므로 날짜가 앞이든 뒤든 인식한다.
+    """
+    stem = name
+    for suffix in CALL_NAME_SUFFIXES:
+        if stem.endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+
+    match = CALL_DATETIME_RE.match(stem)
+    has_time = bool(match)
+    if match:
+        stamp, fmt = f"{match.group('date')}{match.group('time')}", "%Y%m%d%H%M%S"
+    else:
+        match = CALL_DATE_TRAILING_RE.match(stem) or CALL_DATE_LEADING_RE.match(stem)
+        if not match:
+            return None
+        stamp, fmt = match.group("date"), "%y%m%d"
+    try:
+        dt = datetime.strptime(stamp, fmt)
+    except ValueError:
+        return None
+
+    prefix = match.group("prefix")
+    phone_match = CALL_TRAILING_PHONE_RE.match(prefix)
+    if phone_match:
+        return CallName(phone_match.group("contact"), phone_match.group("phone"), dt, has_time)
+    return CallName(prefix, "", dt, has_time)
 
 PROCESS_MARKERS = (
     "<!-- corrected -->",

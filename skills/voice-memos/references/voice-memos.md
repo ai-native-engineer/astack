@@ -13,6 +13,7 @@ Apple Voice Memos 앱이 만든 `.m4a`/`.qta` 녹음 파일을 `apple-stt`(macOS
 - 5. 알림 전송 (notify)
 - 6. (폐기) Apple 전사 트리거 (trigger-tsrp)
 - 7. 앱 표시 이름 변경 (rename-title)
+- 8. 녹음 이어붙이기 (concat)
 
 ## 위치
 
@@ -138,10 +139,6 @@ Voice Memos 전사본에는 화자 라벨이 없다. 다자 대화·미팅을 �
 3. 사용자 프로필에 알려진 호칭이 전사본에 등장하면 사용자를 지칭할 가능성이 높지만, 그 문장이 사용자의 **발화**인지 사용자**에 대한 언급**인지 반드시 구분한다.
 4. 추측으로 화자를 특정해 요약하지 말고, 불확실하면 묻고 답을 받은 뒤 요약을 확정한다.
 
-### [필수] Caret MCP 사전 보강
-
-LLM이 채팅에서 직접 요약·검토할 때는 Caret MCP로 외부 컨텍스트를 모은다. 자동 `summarize.py`는 Caret을 호출하지 않는다. 절차는 `references/caret.md`.
-
 ## 4. 전문 읽기 (read)
 
 전사본은 줄 수는 적지만 한 줄이 수만 자라 Read 도구의 10K 토큰 제한을 초과한다. iCloud Drive 파일은 Hermes/Python 직접 읽기에서 `OSError: [Errno 11] Resource deadlock avoided`가 날 수 있다. 이때는 먼저 `/bin/cp '<icloud-file>' /tmp/<name>.md`로 로컬 임시 복사본을 만든 뒤 그 복사본을 `fold`/Read 한다. `cp`도 같은 오류로 실패하면 파일이 `compressed,dataless` 상태일 수 있다. `/usr/bin/stat -f '%Sf' '<icloud-file>'`로 확인하고, `brctl download '<icloud-file>'` 실행 후 2-10초 기다려 flags에서 `dataless`가 사라졌는지 확인한 다음 다시 `/bin/cp` 한다. `brctl download`도 안 되면 Finder에서 다운로드하거나 FDA/파일 접근 권한을 확인해야 한다.
@@ -265,3 +262,33 @@ Voice Memos 앱 안에서 보이는 메모 제목만 바꾼다. 이 작업은 �
 3. 날짜 접두사는 transcript의 `녹음일시` 기준 `YYMMDD`.
 4. 본문 2-4개 핵심 키워드로 짧게: `260407-AI-API-서빙-플랫폼`.
 5. 항목별로 `선택 → 제목 필드가 해당 항목명으로 바뀐 것 확인 → 값 설정 → Return → 목록 prefix 검증` 순서를 반복.
+
+## 8. 녹음 이어붙이기 (concat)
+
+Voice Memos 앱에는 여러 녹음을 하나로 합치는 기능이 없다. 원본 `.m4a`/`.qta`는 덮어쓰지 않고, 복사본을 시간순으로 이어 새 파일을 만든다. 이어붙이기 명령은 `ffmpeg` 스킬의 concat demuxer를 쓴다. 코덱·샘플레이트·채널이 같으면 `-c copy`.
+
+기본은 음성만 바로 잇는다. 녹음 사이 실제 공백을 무음으로 넣을지는 사용자에게 묻는다.
+
+### 복사
+
+Recordings 폴더는 TCC 보호다. 현재 프로세스가 `Operation not permitted`면 전체 디스크 접근이 있는 다른 프로세스로 복사한다. 특정 터미널 앱 이름을 정본으로 박지 않는다. Voice Memos 공유 시트·목록 클릭으로 파일을 빼내지 않는다.
+
+파일명 패턴은 `YYYYMMDD HHMMSS-<id>.m4a`(또는 `.qta`). 앱 표시 이름(`녹음 43`)과 파일명은 다르다.
+
+### 검증
+
+합친 뒤에 아래가 맞아야 이음이 맞다.
+
+1. 각 소스 duration 합 = 합친 파일 duration (서브프레임 오차만 허용)
+2. 오디오 패킷 수 합 = 합친 파일 패킷 수
+3. 가능하면 소스 AAC payload를 이어 붙인 것과 합친 파일 payload의 md5가 같다
+
+컨테이너 크기 차이는 Voice Memos 부가 데이터가 빠진 것일 수 있다. 패킷·payload가 같으면 소리는 같다. 따로 디코드한 PCM md5가 다른 것은 AAC 디코더 상태 차이일 수 있어 실패로 보지 않는다.
+
+앱에 넣으려면 `open -a VoiceMemos <새파일.m4a>`만 쓴다.
+
+### 소스 녹음 삭제
+
+기본은 원본을 남긴다. 목록에서 빼라는 명시 요청을 받은 뒤에만 진행한다.
+
+파일만 휴지통에 넣으면 iCloud가 다시 채운다. `CloudRecordings.db`의 `ZEVICTIONDATE`가 비어 있으면 앱이 복구한다. 앱에서 해당 행을 삭제해 eviction을 기록한 뒤, 남은 로컬 `.m4a`와 `-track0.waveform`만 휴지통으로 옮긴다. 합친 항목과 무관한 녹음은 건드리지 않는다.

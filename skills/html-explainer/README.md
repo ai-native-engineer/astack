@@ -4,13 +4,13 @@
 
 ## 구조
 
-- `SKILL.md`: 타입 선택, 생성, 검증 워크플로
+- `SKILL.md`: 타입 선택, 생성, 사용자 브라우저로 열기. CDP 검수는 명시 요청만
 - `references/`: 타입별 스택과 작성 규칙, 타입 공통 마감 규칙(`ui-polish.md`)
 - `assets/template.html`: 시각형 기본 템플릿
 - `assets/interactive-template.html`: 인터랙티브형 기본 템플릿
 - `assets/01-*.html`부터 `assets/20-*.html`: 용도별 단일 HTML 예시 템플릿
 - `assets/AGENTS.md`: 20개 예시 템플릿 카탈로그
-- `scripts/verify.sh`: 브라우저 렌더 검증
+- `scripts/verify.sh`: 사용자가 CDP 검수를 요청했을 때만. 끝나면 데몬을 내린다
 
 ## 참고 자료와 출처
 
@@ -26,4 +26,4 @@
 
 ## 유지보수
 
-번호가 붙은 파일은 결과물 유형과 정보 구조를 참고하는 예시다. 실제 생성물은 `SKILL.md`의 타입별 규칙과 검증 절차를 따른다. 업스트림을 갱신할 때는 20개 HTML과 라이선스 고지를 함께 교체하고 skill-manager 검증을 다시 실행한다.
+번호가 붙은 파일은 결과물 유형과 정보 구조를 참고하는 예시다. 실제 생성물은 `SKILL.md`의 타입별 규칙을 따른다. 업스트림을 갱신할 때는 20개 HTML과 라이선스 고지를 함께 교체하고 skill-manager 검증을 다시 실행한다.

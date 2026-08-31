@@ -351,11 +351,22 @@ else:
     def test_call_search_supports_legacy_and_date_only_filenames(self):
         legacy = Path("홍길동_01012345678_20260726_235600.txt")
         current = Path("윤형준님_260726.txt")
+        leading = Path("260819-윤형준님.transcript.md")
 
         self.assertEqual(search.call_to_datetime(legacy).isoformat(), "2026-07-26T23:56:00")
         self.assertEqual(search.call_display_name(legacy), "홍길동")
         self.assertEqual(search.call_to_datetime(current).isoformat(), "2026-07-26T00:00:00")
         self.assertEqual(search.call_display_name(current), "윤형준님")
+        self.assertEqual(search.call_to_datetime(leading).isoformat(), "2026-08-19T00:00:00")
+        self.assertEqual(search.call_display_name(leading), "윤형준님")
+        self.assertIsNone(search.call_to_datetime(Path("메모.txt")))
+
+    def test_unsupported_call_filename_is_skipped_not_failed(self):
+        source = self.audio("무제.m4a", b"call")
+        with mock.patch.object(config, "CALL_RECORDINGS_DIR", source.parent):
+            outcome = transcribe_calls.process_file(source)
+        self.assertEqual(outcome.status, config.OutcomeStatus.SKIPPED)
+        self.assertEqual(outcome.code, "FilenameUnsupported")
 
     def test_unsettled_audio_is_deferred(self):
         source = self.audio("20260722 123456-one.m4a", b"first")

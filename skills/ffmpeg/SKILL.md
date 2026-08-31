@@ -33,3 +33,5 @@ ffmpeg 작업은 두 모드뿐이다. 어느 쪽인지부터 정한다.
 | Apple HDR(HLG/BT.2020)→SDR, 사이니지/안드로이드 호환, HEIC→JPG/PNG | `references/apple-hdr.md` |
 
 기본 명령은 해당 reference의 레시피를 베끼고, 전체 옵션은 `ffmpeg -h full` / https://ffmpeg.org/ffmpeg.html 에 위임한다.
+
+CapCut 프로젝트 타임라인을 읽어 MP4를 재구성하는 작업은 `capcut-editor-assistant`가 담당한다. 이 스킬은 그때 쓰는 인코딩·HDR·자막 레시피만 제공한다.

@@ -56,7 +56,7 @@ import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.mi
 ## Iconify (아이콘)
 
 - `<iconify-icon icon="lucide:database"></iconify-icon>`. 크기는 `font-size`, 색은 `color`로 제어 (currentColor 상속 → 다크 자동).
-- ⚠️ **존재하지 않는 이름은 에러 없이 빈 칸** — 흔한 lucide 아이콘만 쓰고, verify 단계에서 `iconify-icon`의 shadowRoot에 svg가 생겼는지 확인한다 (verify.sh가 체크).
+- ⚠️ **존재하지 않는 이름은 에러 없이 빈 칸** — 흔한 lucide 아이콘만 쓴다. 사용자가 CDP 검수를 요청해 `verify.sh`를 돌리면 `iconify-icon` shadowRoot의 svg 존재로 확인한다.
 - lucide 이름은 현행 canonical 기준 (예: `triangle-alert`, `alert-triangle` 아님).
 - Mermaid 노드 내부에는 아이콘을 넣지 않는다 — 섹션 헤더·경고 박스 등 HTML 영역에만.
 

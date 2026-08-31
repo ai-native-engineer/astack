@@ -50,15 +50,28 @@ Telegram 에러 알림을 받은 경우는 전달된 로그의 **마지막 실�
 
 ### A. 워처는 도는데 전사가 안 됨 — FDA 부재
 
-새 녹음을 해도 watcher.log에 `no changes`/extract `processed=0`만 반복한다. WatchPaths 트리거는 정상이나 run.sh의 python3가 TCC 보호 폴더(Recordings)를 0개로 본다(터미널/Claude 셸은 FDA가 있어 같은 스크립트가 정상). macOS 업데이트로 FDA가 리셋되면 재발.
+전사 단계가 `[WARN] Voice Memos state unavailable: unable to open database file` 또는 `processed=0`을 반복한다. WatchPaths 트리거는 정상이나 run.sh의 python3가 TCC 보호 폴더(Recordings)를 못 연다.
 
-해결: 시스템 설정 > 개인정보 보호 및 보안 > 전체 디스크 접근에 `/bin/bash`(ProgramArguments[0], TCC 책임 프로세스)와 `command -v "${VOICE_MEMOS_PYTHON:-python3}"`가 출력한 실제 Python 실행 파일 **둘 다** 추가+토글 ON. 패널 바로 열기:
+TCC는 실행 파일의 **실경로** 단위로 권한을 기록한다. 그래서 다음 두 경우에 재발한다.
+
+- macOS 업데이트로 FDA 목록이 리셋됨
+- python 인터프리터가 업그레이드돼 `python3`가 가리키는 실경로가 바뀜 — 권한은 옛 경로에 남고 새 경로는 무권한이다. 목록에 같은 이름(`python3.14` 등)이 두 개 보이면 이 상황이다
+
+해결: 시스템 설정 > 개인정보 보호 및 보안 > 전체 디스크 접근에 `/bin/bash`(ProgramArguments[0], TCC 책임 프로세스)와 `readlink -f "$(command -v "${VOICE_MEMOS_PYTHON:-python3}")"`가 출력한 실제 Python 실행 파일 **둘 다** 추가+토글 ON. 심볼릭 링크를 고르면 권한이 붙지 않으니 실경로를 넣는다. 패널 바로 열기:
 
 ```bash
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
 ```
 
 검증: `bash scripts/verify_fda.sh` — 워처 plist를 안 건드리고 일회성 잡으로 `bash→python3` 체인을 재현해 폴더 개수만 센다(부작용 없음). `count>0`이면 성공.
+
+후보가 여럿이면 인터프리터별로 돌려 어느 것이 권한을 가졌는지 가른다. 셸에서 직접 연 결과는 셸의 책임 프로세스 권한을 타므로 판별 근거로 쓰지 않는다.
+
+```bash
+VOICE_MEMOS_PYTHON=<후보 절대경로> bash scripts/verify_fda.sh
+```
+
+권한 있는 인터프리터를 찾았으면 plist `EnvironmentVariables`의 `VOICE_MEMOS_PYTHON`으로 고정해 즉시 복구할 수 있다. 다만 패키지 매니저가 옛 버전을 정리하면 그대로 다시 깨지므로, 새 경로를 FDA에 추가한 뒤 이 고정은 지운다.
 
 ### B. 워처가 아예 실행 안 됨 — 로그가 iCloud 경로 (EX_CONFIG)
 

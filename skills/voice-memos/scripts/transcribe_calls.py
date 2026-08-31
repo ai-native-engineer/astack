@@ -9,12 +9,12 @@ import subprocess
 import sys
 import time
 from collections import Counter
-from datetime import datetime
 from pathlib import Path
 
 from config import (
     AppleResult,
     AnalysisSchemaError,
+    CallName,
     CALL_RECORDINGS_DIR,
     CALL_TRANSCRIPT_SUFFIX,
     CONTEXT_DIR,
@@ -29,6 +29,8 @@ from config import (
     atomic_write_json,
     atomic_write_text,
     create_audio_snapshot,
+    is_dataless,
+    parse_call_name,
     recording_lock,
     run_apple_stt,
     run_is_fresh,
@@ -47,14 +49,8 @@ from review import (
 )
 
 CALLS_DIR = CALL_RECORDINGS_DIR
-FILENAME_RE = re.compile(r"^(?P<prefix>.+)_(?P<date>\d{8})_(?P<time>\d{6})\.m4a$")
-TRAILING_PHONE_RE = re.compile(r"^(?P<contact>.+)_(?P<phone>\d{7,11})$")
 DOWNLOAD_TIMEOUT = 180
 DOWNLOAD_POLL_INTERVAL = 2
-
-
-def is_dataless(path: Path) -> bool:
-    return path.stat().st_blocks == 0
 
 
 def materialize(path: Path) -> bool:
@@ -67,23 +63,6 @@ def materialize(path: Path) -> bool:
             return True
         time.sleep(DOWNLOAD_POLL_INTERVAL)
     return not is_dataless(path)
-
-
-def parse_filename(name: str):
-    match = FILENAME_RE.match(name)
-    if not match:
-        return None
-    prefix = match.group("prefix")
-    phone_match = TRAILING_PHONE_RE.match(prefix)
-    contact = phone_match.group("contact") if phone_match else prefix
-    phone = phone_match.group("phone") if phone_match else ""
-    date_part = match.group("date")
-    time_part = match.group("time")
-    try:
-        parsed = datetime.strptime(f"{date_part}{time_part}", "%Y%m%d%H%M%S")
-    except ValueError:
-        return None
-    return contact, phone, date_part, time_part, parsed
 
 
 def transcript_has_body(path: Path) -> bool:
@@ -113,8 +92,9 @@ def transcribe(
     )
 
 
-def generate_markdown(contact: str, phone: str, dt: datetime, name: str, text: str) -> str:
-    date_string = dt.strftime("%Y-%m-%d %H:%M:%S")
+def generate_markdown(call: CallName, name: str, text: str) -> str:
+    contact, phone = call.contact, call.phone
+    date_string = call.dt.strftime("%Y-%m-%d %H:%M:%S" if call.has_time else "%Y-%m-%d")
     contact_label = contact[:-1] if contact.endswith("님") else contact
     return "\n".join(
         [
@@ -139,12 +119,11 @@ def process_file(path: Path, force: bool = False) -> Outcome:
     snapshot_path: Path | None = None
     try:
         mode = stt_mode()
-        parsed = parse_filename(path.name)
+        parsed = parse_call_name(path.name)
         if parsed is None:
-            return Outcome(OutcomeStatus.FAILED, code="FilenameUnsupported")
+            return Outcome(OutcomeStatus.SKIPPED, code="FilenameUnsupported")
         if not path.exists():
             return Outcome(OutcomeStatus.FAILED, code="AudioFileNotFound")
-        contact, phone, _date, _time, dt = parsed
         transcript_path = path.with_name(f"{path.stem}{CALL_TRANSCRIPT_SUFFIX}")
         analysis_path = path.with_name(f"{path.stem}.analysis.json")
         run_path = path.with_name(f"{path.stem}.run.json")
@@ -210,7 +189,7 @@ def process_file(path: Path, force: bool = False) -> Outcome:
             )
             if source_sha256(path) != recording_id:
                 return Outcome(OutcomeStatus.DEFERRED, recording_id, "SourceChanged")
-            markdown = generate_markdown(contact, phone, dt, path.name, result.text)
+            markdown = generate_markdown(parsed, path.name, result.text)
             if mode == "legacy":
                 if source_sha256(path) != recording_id:
                     return Outcome(

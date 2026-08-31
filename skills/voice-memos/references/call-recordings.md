@@ -8,10 +8,12 @@ SK텔레콤 에이닷이 통화 녹음을 iCloud Drive에 올리는 소스. 파�
 ## 위치
 
 - 디렉터리: `~/Library/Mobile Documents/com~apple~CloudDocs/녹음/`
-- 파일명은 `<이름>_<YYMMDD>.txt` 또는 `<이름>_<전화번호>_<YYYYMMDD>_<HHMMSS>.txt` 형식이다.
-  - 예: `홍길동님_260726.txt`, `홍길동님_01012345678_20260407_165111.txt`
-- `search.py`는 이 디렉터리의 `.txt` 전체와 `.transcript.md`를 에이닷으로 포함한다. 날짜 정렬/필터링은 파일명 끝의 `_YYMMDD` 또는 `_YYYYMMDD_HHMMSS` suffix를 사용하며, 시각이 없는 형식은 날짜만 표시한다.
-- `.m4a` 자동 전사(`transcribe_calls.py`)는 파일명 끝의 `_YYYYMMDD_HHMMSS.m4a` suffix가 있는 통화 녹음을 대상으로 한다.
+- 파일명 파싱은 `config.parse_call_name()`이 정본이고 세 형식을 인식한다. 에이닷이 붙이는 이름과 사람이 직접 붙이는 이름이 섞이는 폴더라 날짜가 앞에 와도 받는다.
+  - `<이름>_<전화번호>_<YYYYMMDD>_<HHMMSS>` — 예: `홍길동님_01012345678_20260407_165111.txt`
+  - `<이름>_<YYMMDD>` — 예: `홍길동님_260726.txt`
+  - `<YYMMDD>-<이름>` — 예: `260819-홍길동님.m4a`
+- 세 형식 중 어느 것도 아닌 파일은 이 파이프라인의 대상이 아니므로 `SKIPPED/FilenameUnsupported`로 넘긴다. 사람이 아무 이름이나 둘 수 있는 폴더에서 실패로 올리면 워처 배치 전체가 죽는다.
+- `search.py`는 이 디렉터리의 `.txt` 전체와 `.transcript.md`를 에이닷으로 포함한다. 시각이 없는 형식은 날짜만 표시한다.
 
 ## .txt 파일 구조
 
@@ -61,8 +63,7 @@ SK텔레콤 에이닷이 통화 녹음을 iCloud Drive에 올리는 소스. 파�
 ## 검색 동작
 
 - `iter_transcript_files()`가 디렉터리를 glob해서 모든 `.txt`와 `.transcript.md`를 포함.
-- `call_to_datetime()`이 파일명 끝의 `_YYMMDD` 또는 `_YYYYMMDD_HHMMSS` suffix에서 날짜를 파싱.
-- `format_result()`에서 suffix를 제거한 prefix를 표시 이름으로 사용하되, prefix 끝의 전화번호 꼬리는 제거.
+- `call_to_datetime()`·`call_display_name()`이 `config.parse_call_name()`으로 날짜와 표시 이름을 얻는다. 전화번호 꼬리는 표시 이름에서 제거된다.
 
 ## 전문 읽기
 

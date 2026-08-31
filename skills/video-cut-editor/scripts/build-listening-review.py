@@ -25,6 +25,7 @@ JOIN_MAP_SCHEMA = "video-cut-editor.join-map.v1"
 REVIEW_SCHEMA = "video-cut-editor.listening-review.v1"
 RISK_REASONS = (
     "marker",
+    "silence",
     "full_retake",
     "local_correction",
     "cut_before_marker",
@@ -108,7 +109,13 @@ def priority_points(joins: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "id": f"join-{item.get('index', len(points) + 1)}",
             "time": round(timestamp, 6),
             "kind": kind,
-            "label": "파일 연결부" if kind == "merge_join" else "마커 접합부",
+            "label": (
+                "파일 연결부"
+                if kind == "merge_join"
+                else "무음 접합부"
+                if "silence" in reason.lower() and "marker" not in reason.lower()
+                else "마커 접합부"
+            ),
             "reason": reason or kind,
         }
         span = source_span(item)
@@ -185,6 +192,12 @@ def transcript_context(
         else:
             side = "span"
         window.append({**segment, "side": side})
+    previous = next(
+        (segment for segment in reversed(segments) if segment["end"] <= timestamp),
+        None,
+    )
+    if previous and all(segment["start"] != previous["start"] for segment in window):
+        window.insert(0, {**previous, "side": "before"})
     return window
 
 
@@ -399,7 +412,7 @@ def run_self_test() -> int:
             transcript=srt,
         )
         rendered = output.read_text(encoding="utf-8")
-        assert count == 3
+        assert count == 4
         assert "local_correction" in rendered
         assert "수동 설명" in rendered
         assert "경고 지점" in rendered
@@ -411,6 +424,10 @@ def run_self_test() -> int:
         assert "__REVIEW_CONTEXT_JSON__" not in rendered
         assert "point-transcript" in rendered
         assert "앞 문장입니다" in rendered
+        assert "15초 이전" in rendered
+        assert "15초 이후" in rendered
+        assert "이전 자막부터" not in rendered
+        assert 'data-action = "approve"' not in rendered
 
         points = priority_points(load_join_map(join_map)["joins"])
         corrected = next(point for point in points if point["id"] == "join-2")
@@ -427,6 +444,7 @@ def run_self_test() -> int:
             line["side"] for line in transcript_context(segments, corrected["time"])
         ]
         assert sides == ["before", "span", "after"], sides
+        assert transcript_context(segments, 40)[0]["text"] == "뒤 문장입니다"
 
         transcript_json = root / "lesson.stt.json"
         transcript_json.write_text(
@@ -445,6 +463,7 @@ def run_self_test() -> int:
                     "status": "approved",
                     "full_listen": True,
                     "items": [
+                        {"id": "join-1", "status": "approved"},
                         {"id": "join-2", "status": "approved"},
                         {"id": "join-3", "status": "approved"},
                         {"id": "manual-2", "status": "approved"},

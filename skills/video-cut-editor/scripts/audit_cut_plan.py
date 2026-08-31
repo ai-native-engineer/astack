@@ -125,9 +125,20 @@ def audit_plan(plan: dict[str, Any], plan_path: Path, max_marker_cut: float) -> 
                 findings.append(f"silence interval {index}: missing explicit silencedetect source")
                 continue
             for source in sources:
+                if not isinstance(source, dict) or not all(
+                    key in source for key in ("start", "end", "duration")
+                ):
+                    findings.append(
+                        f"silence interval {index}: source must record start, end, and duration"
+                    )
+                    continue
                 source_start = float(source["start"])
                 source_end = float(source["end"])
                 source_duration = source_end - source_start
+                if abs(float(source["duration"]) - source_duration) > 0.01:
+                    findings.append(
+                        f"silence interval {index}: source duration does not match start and end"
+                    )
                 if source_duration + 0.001 < min_duration:
                     findings.append(
                         f"silence interval {index}: detected silence {source_duration:.3f}s "
@@ -147,10 +158,24 @@ def audit_plan(plan: dict[str, Any], plan_path: Path, max_marker_cut: float) -> 
         start = float(item["start"])
         end = float(item["end"])
         reason = str(item.get("reason", ""))
+        reason_lower = reason.lower()
         span = end - start
+        is_speech_cut = not (
+            reason_lower.startswith("silence") and "marker" not in reason_lower
+        )
+        if is_speech_cut and not marker_hits(reason):
+            source_timestamp = item.get("source_timestamp")
+            if not isinstance(source_timestamp, (int, float)):
+                findings.append(
+                    f"interval {index}: speech cut lacks detected marker or numeric source_timestamp"
+                )
+                continue
+            if not start <= float(source_timestamp) <= end:
+                findings.append(
+                    f"interval {index}: source_timestamp must fall inside the removal interval"
+                )
+                continue
         hits = marker_hits(reason)
-        if not hits and "marker" in reason.lower():
-            hits = [(None, (start + end) / 2.0)]
         if not hits:
             continue
 
@@ -181,8 +206,16 @@ def run_self_test() -> int:
     broad = {
         "duration": 30.0,
         "remove_intervals": [
-            {"start": 10.0, "end": 18.0, "reason": "cut_before_marker: marker 1 at 15.0s"},
-            {"start": 24.0, "end": 30.0, "reason": "cut_before_marker: marker 2 at 27.0s"},
+            {
+                "start": 10.0,
+                "end": 18.0,
+                "reason": "cut_before_marker: marker 1 at 15.0s",
+            },
+            {
+                "start": 24.0,
+                "end": 30.0,
+                "reason": "cut_before_marker: marker 2 at 27.0s",
+            },
         ],
     }
     findings = audit_plan(broad, Path("/tmp/plan.json"), 4.0)
@@ -191,16 +224,51 @@ def run_self_test() -> int:
 
     safe = {
         "remove_intervals": [
-            {"start": 14.2, "end": 15.4, "reason": "local_correction: marker 1 at 15.0s"}
+            {
+                "start": 14.2,
+                "end": 15.4,
+                "reason": "local_correction: marker 1 at 15.0s",
+            }
         ]
     }
     assert not audit_plan(safe, Path("/tmp/plan.json"), 4.0)
+    unmarked = {
+        "remove_intervals": [
+            {"start": 14.2, "end": 15.4, "reason": "local_correction: repeated phrase"}
+        ]
+    }
+    findings = audit_plan(unmarked, Path("/tmp/plan.json"), 4.0)
+    assert any("lacks detected marker or numeric source_timestamp" in item for item in findings), findings
+    user_marked = {
+        "remove_intervals": [
+            {
+                "start": 14.2,
+                "end": 15.4,
+                "source_timestamp": 15.0,
+                "reason": "local_correction: user-selected location",
+            }
+        ]
+    }
+    assert not audit_plan(user_marked, Path("/tmp/plan.json"), 4.0)
     unsafe_silence = {
         "duration": 30.0,
         "remove_intervals": [{"start": 1.0, "end": 1.2, "reason": "silence"}],
     }
     findings = audit_plan(unsafe_silence, Path("/tmp/plan.json"), 4.0)
     assert any("missing silence_policy" in item for item in findings), findings
+    reviewed_silence = {
+        "duration": 30.0,
+        "silence_policy": {"min_duration": 1.0, "padding": 0.3},
+        "remove_intervals": [
+            {
+                "start": 1.3,
+                "end": 4.7,
+                "reason": "silence",
+                "silence_sources": [{"start": 1.0, "end": 5.0, "duration": 4.0}],
+            }
+        ],
+    }
+    assert not audit_plan(reviewed_silence, Path("/tmp/plan.json"), 4.0)
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         speech = root / "speech.json"
@@ -208,7 +276,11 @@ def run_self_test() -> int:
         local_inside_segment = {
             "evidence": {"speech": str(speech)},
             "remove_intervals": [
-                {"start": 14.8, "end": 15.2, "reason": "local_correction: marker 1 at 15.0s"}
+                {
+                    "start": 14.8,
+                    "end": 15.2,
+                    "reason": "local_correction: marker 1 at 15.0s",
+                }
             ],
         }
         findings = audit_plan(local_inside_segment, root / "plan.json", 4.0)

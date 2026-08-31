@@ -144,6 +144,13 @@ cleanup() {
     if [ "$status" -ne 0 ] && [ "$ALERT_SENT" = false ]; then
         send_error_alert
     fi
+    # 실패한 pass의 단계 출력을 남긴다. 원인 없이 PipelineFailed만 쌓이면 진단할 수 없다.
+    if [ "$status" -ne 0 ] && [ -n "$TEMP_LOG" ] && [ -s "$TEMP_LOG" ]; then
+        {
+            echo "--- failed pass (last 40 lines) ---"
+            tail -40 -- "$TEMP_LOG"
+        } >> "$LOG_FILE"
+    fi
     if [ -n "$TEMP_LOG" ]; then
         rm -f -- "$TEMP_LOG"
     fi

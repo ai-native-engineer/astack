@@ -13,19 +13,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import vm_notes
-from config import CALL_RECORDINGS_DIR, TRANSCRIPTS_DIR
+from config import CALL_RECORDINGS_DIR, TRANSCRIPTS_DIR, parse_call_name
 
 # 에이닷 통화 녹음 폴더의 원본 .txt와 파생 .transcript.md를 검색 대상으로 본다.
-# 날짜 정렬/필터링은 파일명 끝의 `_YYYYMMDD_HHMMSS` 또는 `_YYMMDD` suffix를 사용한다.
+# 파일명 형식과 날짜 파싱은 config.parse_call_name이 정본이다.
 CALL_TEXT_SUFFIX = ".txt"
 CALL_TRANSCRIPT_SUFFIX = ".transcript.md"
-CALL_DATETIME_SUFFIX_RE = re.compile(
-    r"^(?P<prefix>.+)_(?P<date>\d{8})_(?P<time>\d{6})(?P<suffix>\.txt|\.transcript\.md)$"
-)
-CALL_DATE_SUFFIX_RE = re.compile(
-    r"^(?P<prefix>.+)_(?P<date>\d{6})(?P<suffix>\.txt)$"
-)
-CALL_TRAILING_PHONE_RE = re.compile(r"^(?P<contact>.+)_(?P<phone>\d{7,11})$")
 
 
 def parse_date_range(date_str: str) -> tuple[datetime, datetime]:
@@ -100,34 +93,14 @@ def is_call_transcript(path: Path) -> bool:
 
 def call_to_datetime(path: Path) -> datetime | None:
     """통화 녹음 파일명에서 datetime을 파싱합니다."""
-    match = CALL_DATETIME_SUFFIX_RE.match(path.name)
-    if match:
-        try:
-            return datetime.strptime(
-                f"{match.group('date')} {match.group('time')}", "%Y%m%d %H%M%S"
-            )
-        except ValueError:
-            return None
-
-    match = CALL_DATE_SUFFIX_RE.match(path.name)
-    if match:
-        try:
-            return datetime.strptime(match.group("date"), "%y%m%d")
-        except ValueError:
-            return None
-    return None
+    parsed = parse_call_name(path.name)
+    return parsed.dt if parsed else None
 
 
 def call_display_name(path: Path) -> str:
     """에이닷 통화 녹음 파일명에서 표시명을 추출합니다."""
-    match = CALL_DATETIME_SUFFIX_RE.match(path.name) or CALL_DATE_SUFFIX_RE.match(path.name)
-    if not match:
-        return path.stem
-    prefix = match.group("prefix")
-    contact_match = CALL_TRAILING_PHONE_RE.match(prefix)
-    if contact_match:
-        return contact_match.group("contact")
-    return prefix
+    parsed = parse_call_name(path.name)
+    return parsed.contact if parsed else path.stem
 
 
 def file_to_datetime(path: Path) -> datetime | None:
@@ -273,9 +246,10 @@ def format_result(
     미리보기를 파일 도입부 대신 매칭 위치 주변 스니펫으로 대체한다.
     """
     dt = file_to_datetime(filepath)
+    call_name = parse_call_name(filepath.name) if is_call_recording(filepath) else None
     date_str = (
         dt.strftime("%Y-%m-%d")
-        if dt and is_call_recording(filepath) and CALL_DATE_SUFFIX_RE.match(filepath.name)
+        if dt and call_name and not call_name.has_time
         else dt.strftime("%Y-%m-%d %H:%M:%S")
         if dt
         else (

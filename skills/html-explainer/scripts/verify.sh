@@ -57,3 +57,6 @@ chrome-devtools take_screenshot --fullPage --filePath "$shot" >/dev/null 2>&1
 echo
 echo "== 스크린샷 (Read로 열어 겹침·잘림 육안 확인) =="
 echo "$shot"
+
+# CLI는 탭이 아니라 자동화 Chrome 프로세스 자체를 띄운다. 검증이 끝나면 프로세스를 내린다.
+chrome-devtools stop >/dev/null 2>&1 || true

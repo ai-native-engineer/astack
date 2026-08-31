@@ -106,7 +106,9 @@ def ffmpeg_encoders(ffmpeg: str) -> set[str]:
     return names
 
 
-def choose_encoder(video: dict[str, Any], requested: str, encoders: set[str]) -> EncodePlan:
+def choose_encoder(
+    video: dict[str, Any], requested: str, encoders: set[str]
+) -> EncodePlan:
     codec = video.get("codec_name", "")
     warnings: list[str] = []
 
@@ -115,7 +117,9 @@ def choose_encoder(video: dict[str, Any], requested: str, encoders: set[str]) ->
             return EncodePlan(requested, "hevc", warnings)
         if requested in {"h264", "libx264", "h264_videotoolbox"}:
             return EncodePlan(requested, "h264", warnings)
-        warnings.append(f"custom video encoder {requested}; codec preservation cannot be verified")
+        warnings.append(
+            f"custom video encoder {requested}; codec preservation cannot be verified"
+        )
         return EncodePlan(requested, codec or "unknown", warnings)
 
     if codec == "hevc":
@@ -131,7 +135,9 @@ def choose_encoder(video: dict[str, Any], requested: str, encoders: set[str]) ->
             return EncodePlan("libx264", "h264", warnings)
 
     if "libx264" in encoders:
-        warnings.append(f"video codec {codec or 'unknown'} is not handled; falling back to h264")
+        warnings.append(
+            f"video codec {codec or 'unknown'} is not handled; falling back to h264"
+        )
         return EncodePlan("libx264", "h264", warnings)
 
     raise RuntimeError("no supported video encoder found")
@@ -205,7 +211,9 @@ def detect_silences(
     return silences
 
 
-def keep_segments(duration: float, silences: list[TimeRange], padding: float) -> list[TimeRange]:
+def keep_segments(
+    duration: float, silences: list[TimeRange], padding: float
+) -> list[TimeRange]:
     kept: list[TimeRange] = []
     current = 0.0
 
@@ -277,7 +285,11 @@ def video_output_options(
 ) -> list[str]:
     opts = ["-c:v", plan.encoder]
 
-    if plan.expected_video_codec == "hevc" and output_file.suffix.lower() in {".mp4", ".m4v", ".mov"}:
+    if plan.expected_video_codec == "hevc" and output_file.suffix.lower() in {
+        ".mp4",
+        ".m4v",
+        ".mov",
+    }:
         opts += ["-tag:v", "hvc1"]
 
     if requested_bitrate != "none":
@@ -324,7 +336,9 @@ def audio_output_options(
             encoder = "libmp3lame"
         else:
             encoder = "aac"
-            warnings.append(f"audio stream {index} codec {codec or 'unknown'} re-encoded as aac")
+            warnings.append(
+                f"audio stream {index} codec {codec or 'unknown'} re-encoded as aac"
+            )
 
         opts += [f"-c:a:{index}", encoder]
 
@@ -348,6 +362,18 @@ def audio_output_options(
     return opts, warnings
 
 
+def filter_script_options(ffmpeg: str, filter_script: Path) -> list[str]:
+    # ffmpeg 8 removed -filter_complex_script in favour of the -/<option> file syntax.
+    proc = subprocess.run(
+        [ffmpeg, "-hide_banner", "-version"], text=True, capture_output=True
+    )
+    match = re.search(r"ffmpeg version n?(\d+)", proc.stdout or "")
+    major = int(match.group(1)) if match else 0
+    if major >= 8:
+        return ["-/filter_complex", str(filter_script)]
+    return ["-filter_complex_script", str(filter_script)]
+
+
 def build_ffmpeg_command(
     ffmpeg: str,
     input_file: Path,
@@ -360,7 +386,9 @@ def build_ffmpeg_command(
 ) -> list[str]:
     cmd = [ffmpeg, "-hide_banner", "-nostdin"]
     cmd.append("-y" if overwrite else "-n")
-    cmd += ["-i", str(input_file), "-filter_complex_script", str(filter_script), "-map", "[v]"]
+    cmd += ["-i", str(input_file)]
+    cmd += filter_script_options(ffmpeg, filter_script)
+    cmd += ["-map", "[v]"]
     for index in range(audio_count):
         cmd += ["-map", f"[a{index}]"]
     cmd += video_opts
@@ -371,7 +399,9 @@ def build_ffmpeg_command(
 
 def default_output(input_file: Path, test_duration: float | None) -> Path:
     suffix = input_file.suffix or ".mp4"
-    marker = f".sample-{int(test_duration)}s.silencecut" if test_duration else ".silencecut"
+    marker = (
+        f".sample-{int(test_duration)}s.silencecut" if test_duration else ".silencecut"
+    )
     return input_file.with_name(f"{input_file.stem}{marker}{suffix}")
 
 
@@ -422,7 +452,9 @@ def verify_output(
     errors: list[str] = []
     for key in ("width", "height"):
         if input_video.get(key) != output_video.get(key):
-            errors.append(f"video {key} changed: {input_video.get(key)} -> {output_video.get(key)}")
+            errors.append(
+                f"video {key} changed: {input_video.get(key)} -> {output_video.get(key)}"
+            )
 
     if output_video.get("codec_name") != expected_video_codec:
         errors.append(
@@ -431,11 +463,16 @@ def verify_output(
         )
 
     if len(output_audio) != expected_audio_count:
-        errors.append(f"audio track count changed: {expected_audio_count} -> {len(output_audio)}")
+        errors.append(
+            f"audio track count changed: {expected_audio_count} -> {len(output_audio)}"
+        )
 
     decode = run([ffmpeg, "-v", "error", "-i", str(output_file), "-f", "null", "-"])
     if decode.returncode != 0 or (decode.stderr or "").strip():
-        errors.append("decode check failed: " + (decode.stderr or decode.stdout or "").strip()[:1000])
+        errors.append(
+            "decode check failed: "
+            + (decode.stderr or decode.stdout or "").strip()[:1000]
+        )
 
     return errors
 
@@ -459,7 +496,12 @@ def run_self_test() -> int:
     graph = build_filter_graph(segments[:2], 2)
     assert "concat=n=2:v=1:a=2[v][a0][a1]" in graph
     audio = [
-        {"codec_name": "aac", "bit_rate": "128000", "sample_rate": "48000", "channels": 2}
+        {
+            "codec_name": "aac",
+            "bit_rate": "128000",
+            "sample_rate": "48000",
+            "channels": 2,
+        }
     ]
     fixed_audio_opts, _ = audio_output_options(audio, "160k")
     assert fixed_audio_opts[fixed_audio_opts.index("-b:a:0") + 1] == "160k"
@@ -474,7 +516,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("input_file", nargs="?", type=Path)
     parser.add_argument("output_file", nargs="?", type=Path)
     parser.add_argument("--silence-db", default="-35dB")
-    parser.add_argument("--min-duration", type=float, default=0.8)
+    parser.add_argument(
+        "--min-duration",
+        type=float,
+        help="reviewed long-silence threshold; required when writing output",
+    )
     parser.add_argument("--padding", type=float, default=0.15)
     parser.add_argument("--detect-audio", type=int, default=0)
     parser.add_argument("--test-duration", type=float)
@@ -482,7 +528,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--overwrite", "-y", action="store_true")
     parser.add_argument("--open", action="store_true")
     parser.add_argument("--video-encoder", default="auto")
-    parser.add_argument("--video-bitrate", default="auto", help="auto, none, or a value like 16000k")
+    parser.add_argument(
+        "--video-bitrate", default="auto", help="auto, none, or a value like 16000k"
+    )
     parser.add_argument("--self-test", action="store_true")
     return parser.parse_args()
 
@@ -498,15 +546,24 @@ def main() -> int:
     if not input_file.exists():
         return fail(f"input not found: {input_file}")
 
-    output_file = (args.output_file or default_output(input_file, args.test_duration)).expanduser().resolve()
+    output_file = (
+        (args.output_file or default_output(input_file, args.test_duration))
+        .expanduser()
+        .resolve()
+    )
     if input_file == output_file:
         return fail("input and output must be different")
     if output_file.exists() and not args.dry_run and not args.overwrite:
         return fail(f"output exists, pass --overwrite: {output_file}")
 
+    min_duration = args.min_duration if args.min_duration is not None else 0.8
+    if not args.dry_run and args.min_duration is None:
+        return fail(
+            "--min-duration is required after dry-run review; choose a value that excludes short pauses"
+        )
     if args.padding < 0:
         return fail("--padding must be >= 0")
-    if args.min_duration <= 0:
+    if min_duration <= 0:
         return fail("--min-duration must be > 0")
 
     try:
@@ -520,16 +577,22 @@ def main() -> int:
         if not audio_streams:
             return fail("no audio stream found")
         if args.detect_audio < 0 or args.detect_audio >= len(audio_streams):
-            return fail(f"--detect-audio must be between 0 and {len(audio_streams) - 1}")
+            return fail(
+                f"--detect-audio must be between 0 and {len(audio_streams) - 1}"
+            )
 
         source_duration = parse_duration(media)
-        duration = min(source_duration, args.test_duration) if args.test_duration else source_duration
+        duration = (
+            min(source_duration, args.test_duration)
+            if args.test_duration
+            else source_duration
+        )
         if duration <= 0:
             return fail("duration is zero")
         # ponytail: scan a little past sample end so a silence that starts at
         # 59.3s in a 60s test still gets detected if it continues after 60s.
         scan_duration = (
-            min(source_duration, duration + args.min_duration + args.padding)
+            min(source_duration, duration + min_duration + args.padding)
             if args.test_duration
             else duration
         )
@@ -540,14 +603,18 @@ def main() -> int:
             args.detect_audio,
             scan_duration,
             args.silence_db,
-            args.min_duration,
+            min_duration,
         )
         silences = clamp_silences(detected_silences, duration)
         segments = keep_segments(duration, silences, args.padding)
         if not segments:
-            return fail("all content would be removed; increase padding or lower the silence threshold")
+            return fail(
+                "all content would be removed; increase padding or lower the silence threshold"
+            )
 
-        plan = choose_encoder(video_streams[0], args.video_encoder, ffmpeg_encoders(ffmpeg))
+        plan = choose_encoder(
+            video_streams[0], args.video_encoder, ffmpeg_encoders(ffmpeg)
+        )
         summarize(
             input_file,
             output_file,
@@ -563,12 +630,16 @@ def main() -> int:
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
         graph = build_filter_graph(segments, len(audio_streams))
-        video_opts = video_output_options(video_streams[0], plan, output_file, args.video_bitrate)
+        video_opts = video_output_options(
+            video_streams[0], plan, output_file, args.video_bitrate
+        )
         audio_opts, audio_warnings = audio_output_options(audio_streams)
         for warning in audio_warnings:
             print(f"warning: {warning}")
 
-        with tempfile.NamedTemporaryFile("w", suffix=".ffgraph", delete=False, encoding="utf-8") as handle:
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".ffgraph", delete=False, encoding="utf-8"
+        ) as handle:
             handle.write(graph)
             graph_path = Path(handle.name)
         try:

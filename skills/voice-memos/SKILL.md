@@ -1,12 +1,12 @@
 ---
 argument-hint: "[query]"
 name: voice-memos
-description: "Apple Voice Memos, 에이닷 통화 녹음, Apple Notes, Caret MCP 개인 노트를 추출, 전사, 교정, 검색, 요약, 전문 읽기, 알림 전송, launchd watcher 진단/재시작으로 처리. Use when user asks 음성 메모, voice memo, 전사, 녹음 내용, 메모 찾아줘, 최근/오늘 메모, 전문 가져와줘, 텔레그램으로 보내줘, 전사가 안 됐어, 알림이 안 와. Do NOT use for YouTube 자막, 회의록 작성 only from text, 일반 파일 검색, or non-personal audio production."
+description: "Apple Voice Memos, 에이닷 통화 녹음, Apple Notes, Tiro 회의 노트를 검색·읽고, 로컬 녹음은 추출·전사·교정·요약·알림·이어붙이기·워처 진단으로 처리. Use when user asks 음성 메모, voice memo, 티로, Tiro, 회의 노트, 전사, 녹음 합치기, 이어붙이기, 녹음 내용, 메모 찾아줘, 최근/오늘 메모, 전문 가져와줘, 텔레그램으로 보내줘, 전사가 안 됐어, 알림이 안 와. Do NOT use for YouTube 자막, 일반 영상/오디오 이어붙이기(ffmpeg), 붙여넣은 텍스트만으로 회의록 작성, Tiro 실시간 녹음/파일 업로드, 일반 파일 검색, or non-personal audio production."
 ---
 
 # Voice Memos
 
-음성 메모와 개인 노트를 한 곳에서 다룬다. 네 종류의 소스를 통합하며, 각 소스의 처리 규칙·자동화·필드 경로는 `references/` 아래 별도 문서에 분리되어 있다. 이 SKILL.md는 인덱스 + 공통 워크플로우 역할이다.
+음성 메모와 개인 노트를 한 곳에서 다룬다. 로컬 세 소스와 Tiro 회의 노트를 통합하며, 각 소스의 처리 규칙·자동화·필드 경로는 `references/` 아래 별도 문서에 분리되어 있다. 이 SKILL.md는 인덱스 + 공통 워크플로우 역할이다.
 
 전사 -> 검토 대기/요약 -> 알림 파이프라인 코드의 원본도 이 스킬의 `scripts/`다. launchd 워처가 새 녹음을 감지해 `scripts/run.sh`를 자동 실행한다. 설치 기본값은 `legacy`이며 strict `shadow`·`review`는 Gate 1 통과 전까지 활성화하지 않는다. 구성, 진단, 재시작은 `references/watcher.md`를 읽는다.
 
@@ -17,9 +17,9 @@ description: "Apple Voice Memos, 에이닷 통화 녹음, Apple Notes, Caret MCP
 | `[음성 메모]` | Apple Voice Memos (m4a/qta) | 추출·요약·알림 풀 파이프라인 (워처 자동) | `references/voice-memos.md` |
 | `[에이닷]` | 에이닷 통화 녹음 (.txt + .m4a) | .txt는 search 인덱싱만(원본 보존), .m4a는 워처가 자동 전사 | `references/call-recordings.md` |
 | `[메모]` | Apple Notes (NoteStore.sqlite) | search 인덱싱만 (mode=ro 직접 쿼리). 잠긴 메모는 미리보기에 안내 표시 | `references/apple-notes.md` |
-| `[Caret]` | Caret MCP (외부 지식·노트) | 요약 사전 보강 + 검색 병렬 호출 | `references/caret.md` |
+| `[티로]` | Tiro 회의 노트 (클라우드 CLI) | 검색·읽기만. 워처/전사는 타지 않는다 | `references/tiro.md` |
 
-세 종류의 raw 소스는 `search.py`가 통합 인덱싱한다. Caret은 MCP 도구라 `search.py` 안에서는 호출 불가능하고, LLM이 워크플로우 차원에서 같이 호출한다.
+로컬 세 소스는 `search.py`가 인덱싱한다. Tiro는 `scripts/tiro_notes.py`로 따로 조회한 뒤 같은 응답에서 라벨로 붙인다.
 
 ## 경로
 
@@ -35,7 +35,7 @@ description: "Apple Voice Memos, 에이닷 통화 녹음, Apple Notes, Caret MCP
 
 ## 공통 검색 명령
 
-`search.py`는 세 종류의 raw 소스를 동시에 인덱싱한다. 라벨로 출처를 구분한다.
+`search.py`는 로컬 세 소스를 인덱싱한다. 라벨로 출처를 구분한다. Tiro는 아래 워크플로의 `tiro_notes.py`다.
 
 ```bash
 python3 scripts/search.py                       # 최근 10개
@@ -47,7 +47,7 @@ python3 scripts/search.py --dates                # 녹음/메모 있는 날짜 �
 python3 scripts/search.py --recent 5 --no-preview --count
 ```
 
-`search.py`는 **이미 전사/인덱싱된 산출물 기준**이다. "최근 N건 요약"에서 사용자가 "하나 더 있다"고 정정하거나 앱에는 보이는데 검색 결과가 부족하면, 먼저 `search.py --recent N --no-preview`로 전사 산출물 상태를 확인한 뒤 `extract.py --all` / `verify_fda.sh`로 원본 접근·워처 권한 문제를 진단한다. 전사 산출물만 보고 "없다"고 단정하지 않는다.
+`search.py`는 **이미 전사/인덱싱된 로컬 산출물 기준**이다. "최근 N건 요약"에서 사용자가 "하나 더 있다"고 정정하거나 앱에는 보이는데 검색 결과가 부족하면, 먼저 `search.py --recent N --no-preview`와 `python3 scripts/tiro_notes.py list --limit N --no-preview`를 함께 본다. 로컬이 비면 `extract.py --all` / `verify_fda.sh`로 원본 접근·워처를 진단한다. Tiro가 비면 `references/tiro.md` 실패 표를 본다. 한쪽 산출물만 보고 "없다"고 단정하지 않는다.
 
 미리보기 출력 중 iCloud 파일이 `Resource deadlock avoided`를 내면 `--no-preview`로 목록만 확인한다. 본문이 필요하면 해당 파일을 `brctl download`로 내려받고 `/tmp`로 복사한 뒤 읽는다(자세한 절차는 `references/voice-memos.md`의 전문 읽기 절).
 
@@ -60,7 +60,7 @@ python3 scripts/search.py --recent 5 --no-preview --count
 워처가 보통 이미 기본 `legacy`로 자동 처리했다. `search.py --recent`로 transcript/summary 존재부터 확인한다. 수동 처리가 필요할 때:
 
 1. `bash scripts/run.sh --skip-notify` - 음성 메모와 통화 녹음을 순차 처리한다. 개별 실행은 `references/voice-memos.md` 1절, 3절을 읽는다.
-2. LLM이 직접 요약할 때는 `caret_search_knowledge` / `caret_search_notes`를 병렬 호출하고 `caret_get_note`로 관련 노트 전문을 확보한 뒤 `references/voice-memos.md` 3절 템플릿으로 `summary.md`를 저장한다.
+2. LLM이 직접 요약할 때는 `references/voice-memos.md` 3절 템플릿으로 `summary.md`를 저장한다.
 
 ### "화자 분리해줘" / "누가 말한 건지 알고 싶어"
 
@@ -78,16 +78,16 @@ bash scripts/diarize.sh <audio.m4a> <transcript_dir> [start] [end]
 
 ### "메모 찾아줘" / "최근 메모" / "X 관련 메모"
 
-세 채널을 병렬로 호출하고 결과를 합쳐 라벨별로 제시한다.
+로컬 `search.py`와 Tiro `tiro_notes.py`를 함께 돌리고 결과를 라벨별로 제시한다.
 
-1. `search.py --keyword <키워드>` 또는 `--date <날짜>` 또는 `--recent <N>` 실행
-2. **같은 메시지에서** `caret_search_knowledge` + `caret_search_notes` 병렬 호출 (`references/caret.md` 2절)
-3. 결과를 라벨별로 묶어서 보여줌:
+1. 요청에 맞춰 `search.py --keyword <키워드>`, `--date <날짜>`, `--recent <N>` 중 하나를 실행한다.
+2. 같은 조건으로 `python3 scripts/tiro_notes.py list` 또는 `search`를 실행한다. 옵션·인증은 `references/tiro.md`.
+3. 결과를 라벨별로 묶어서 보여준다.
    - `[음성 메모]` — Apple Voice Memos
    - `[에이닷]` — 에이닷 통화 녹음
    - `[메모]` — Apple Notes (잠긴 메모는 미리보기 자리에 안내 표시)
-   - `[Caret]` — Caret 지식 / 노트
-4. 사용자가 특정 항목을 선택하면 Read(파일) 또는 `caret_get_note`(Caret)로 본문을 가져온다
+   - `[티로]` — Tiro 회의 노트
+4. 사용자가 특정 항목을 선택하면 로컬 파일은 Read로, Apple Notes는 `scripts/vm_notes.py`의 `note_body()`로, Tiro는 `tiro_notes.py transcript <guid>`가 저장한 경로를 접어서 읽는다.
 
 ### "이 날짜 녹음 다시 확인해줘" / "voice-memos 재검토해줘"
 
@@ -123,12 +123,15 @@ Telegram 에러 알림을 붙여주면 마지막 `[ERROR]` 단계부터 본다. 
 
 Voice Memos 앱 안에서 보이는 표시 이름만 변경 (원본 .m4a 파일명은 그대로). `references/voice-memos.md` 7절의 AX 접근성 절차를 따른다.
 
+### "녹음 합쳐줘" / "이어붙여줘"
+
+앱에는 합치기가 없다. 원본은 덮어쓰지 않고 복사본을 이어 새 파일을 만든다. 절차·함정은 `references/voice-memos.md` 8절. 일반 mp4/오디오 이어붙이기는 `ffmpeg` 스킬.
+
 ## 공통 원칙
 
 - **응답 언어**: 한국어. 영어·일본어 원문 인용은 원문 유지.
 - **화자 분리 한계**: Voice Memos 전사본에는 화자 라벨이 없다. 사용자의 발언·의사결정·심리를 추론·요약하기 전에 어느 발언이 본인 것인지 사용자에게 먼저 확인한다. 알려진 사용자 호칭이 등장해도 그 문장이 사용자의 **발화**인지 사용자**에 대한 언급**인지 구분한다. 상세 절차는 `references/voice-memos.md` 3절.
-- **원본 보존**: Voice Memos 원본, 에이닷 통화 녹음(.txt/.m4a), Apple Notes는 변형하지 않는다. 파생 위치는 소스별로 다르다. Voice Memos 산출물은 `voice-memos/transcripts/`, 에이닷 `.m4a` 산출물은 원본 옆 `.analysis.json`/`.run.json`/`.transcript.md`/`.summary.md`, Notes는 `mode=ro` 직접 쿼리.
-- **Caret 사전 보강 필수**: LLM이 채팅에서 직접 요약·검토할 때 Caret MCP 검색을 건너뛰지 않는다. 자동 `summarize.py`는 Caret을 호출하지 않는다. 관련 지식이 없는 경우에만 생략 가능하며, 검색 결과의 `summary` 필드만으로 판단하지 말고 `caret_get_note`로 전문을 확보한다.
+- **원본 보존**: Voice Memos 원본, 에이닷 통화 녹음(.txt/.m4a), Apple Notes, Tiro 클라우드 노트는 변형하지 않는다. 파생 위치는 소스별로 다르다. Voice Memos 산출물은 `voice-memos/transcripts/`, 에이닷 `.m4a` 산출물은 원본 옆 `.analysis.json`/`.run.json`/`.transcript.md`/`.summary.md`, Notes는 `mode=ro` 직접 쿼리, Tiro 전사는 `~/.voice-memos/tiro/`. 합친 뒤 소스 녹음을 목록에서 빼라는 명시 요청만 예외이며 절차는 `references/voice-memos.md` 8절.
 
 ## scripts/ 인덱스
 
@@ -142,8 +145,8 @@ Voice Memos 앱 안에서 보이는 표시 이름만 변경 (원본 .m4a 파일�
 | `summarize.py` | claude-agent-sdk 요약·제목 생성 | `references/voice-memos.md` 3절 |
 | `notify.py` | Discord/Telegram 전송 | `references/voice-memos.md` 5절 |
 | `config.py` | 파이프라인 공통 경로 정의 | — |
-| `search.py` | 3개 raw 소스 통합 검색 | 본 문서 "공통 검색 명령" |
+| `search.py` | 로컬 3개 소스 통합 검색 | 본 문서 "공통 검색 명령" |
 | `vm_notes.py` | Apple Notes 저수준 모듈 (search.py가 사용) | `references/apple-notes.md` |
-| `caret_to_md.py` | Caret get_note 결과 (>10K) JSON -> md | `references/caret.md` |
+| `tiro_notes.py` | Tiro 회의 노트 검색·전사 파일 저장 | `references/tiro.md` |
 | `check_fda.py`, `verify_fda.sh` | 워처 FDA 권한 진단 | `references/watcher.md` |
 | `trigger_tsrp.sh`, `transcribe_visible.swift`, `click_transcription.swift`, `stt_fallback.swift` | 비실행 legacy reference. runner/문서 명령에서 호출 금지 | `references/voice-memos.md` 6절 |

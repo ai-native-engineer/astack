@@ -225,10 +225,10 @@ def write_review_md(
             "",
             "## Markerless Review",
             "",
-            "Marker detection found no candidates. This is not evidence that the source has no retakes.",
+            "Marker detection found no candidates. Preserve speech by default.",
             "",
-            "- Review a full-source transcript for unmarked false starts or repeated takes.",
-            "- Inspect the full visual timeline before approving a preserve-all plan.",
+            "- Do not create speech cuts from unmarked false starts or repeated takes.",
+            "- Use the transcript and visual timeline only to validate long-silence context.",
         ]
 
     lines += [
@@ -243,6 +243,9 @@ def write_review_md(
         "- `cut_after_marker`: marker is followed by filler such as 다시 할게요 before the real retake.",
         "- `skip`: marker is accidental or no retake exists.",
         "- `needs_manual`: evidence is ambiguous; do not auto-render.",
+        "",
+        "Tie every speech interval to its marker ID/time or a numeric source_timestamp.",
+        "Preview both complete utterances before marking the plan reviewed.",
         "",
         "For marker + silence work, review marker cuts first, then build the final mixed plan from the remaining speech timeline.",
         "",
@@ -331,13 +334,14 @@ def analyze(args: argparse.Namespace) -> int:
         "evidence": {"markers": str(marker_json), "speech": str(speech_json), "windows": windows},
         "render_notes": [
             "Review marker windows before adding remove_intervals.",
+            "Preview every planned speech join before setting status to reviewed.",
             "Use original source timeline seconds.",
             "Render once from the original timeline.",
         ],
     }
     if not predictions:
         plan["render_notes"][0] = (
-            "No marker candidates: review full-source STT and the full visual timeline before preserve-all."
+            "No marker candidates: preserve speech; use STT and visual review only for long-silence context."
         )
     write_json(plan_json, plan)
     write_review_md(review_md, media, marker_json, speech_json, plan_json, predictions, windows)
@@ -439,7 +443,10 @@ def run_self_test() -> int:
         assert evidence == (markers, 0.93), evidence
         review = root / "review.md"
         write_review_md(review, Path("in.mp4"), markers, Path("speech.json"), Path("plan.json"), [], [])
-        assert "## Markerless Review" in review.read_text(encoding="utf-8")
+        review_text = review.read_text(encoding="utf-8")
+        assert "## Markerless Review" in review_text
+        assert "Preserve speech by default" in review_text
+        assert "Review a full-source transcript for unmarked" not in review_text
     print("self_test: ok")
     return 0
 

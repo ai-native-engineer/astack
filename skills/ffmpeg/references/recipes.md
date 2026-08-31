@@ -119,7 +119,9 @@ ffmpeg -y -i in.mp4 -i sub.srt -c copy -c:s mov_text out.mp4
 ffmpeg -y -i in.mp4 -vf "subtitles=sub.srt" -c:a copy out.mp4
 ```
 
-**함정**: mp4의 자막 코덱은 `mov_text`. mkv는 `srt`/`ass` 그대로 copy. 하드섭은 폰트·스타일을 ass로 제어.
+**함정**: mp4의 자막 코덱은 `mov_text`. mkv는 `srt`/`ass` 그대로 copy. 하드섭은 폰트·스타일을 ass로 제어. Homebrew ffmpeg에 libass/freetype가 없으면 `subtitles`/`ass`/`drawtext` 필터가 없다. `ffmpeg -hide_banner -filters`로 확인하고 없으면 Pillow RGBA를 만든 뒤 `overlay`만 쓴다.
+
+`amix` 기본 `duration=first`는 첫 입력 길이에 맞춰 나머지를 자른다. TTS처럼 짧은 클립과 긴 영상을 섞을 때는 `duration=longest`와 짧은 쪽 `apad`를 쓴다.
 
 ## 프레임 / 썸네일 추출
 

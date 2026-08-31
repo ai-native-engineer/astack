@@ -1,6 +1,6 @@
 ---
 name: html-explainer
-description: "Local single-file HTML explainer in two types - visual (Mermaid/ELK diagrams, ECharts, Iconify; static, at-a-glance) and interactive walkthrough (React single-file; click-through steps, learner-driven). Both dark/light with headless render verification. Use when user asks HTML로 설명/정리, 시각화 자료, 구조도, 아키텍처 그림, flow diagram, comparison chart, 인터랙티브 튜토리얼, 단계별 설명, 클릭하며 보는 설명, step-through explainer, or complex explanation as a local HTML file. Do NOT use for production websites, Remotion/video motion graphics, Marp/PPT slide deck files, raw markdown docs, or frontend app implementation."
+description: "Local single-file HTML explainer in two types - visual (Mermaid/ELK diagrams, ECharts, Iconify; static, at-a-glance) and interactive walkthrough (React single-file; click-through steps, learner-driven). Both dark/light. After writing, open the file in the user's browser with `open`; do not start chrome-devtools for routine visualization. Use when user asks HTML로 설명/정리, 시각화 자료, 구조도, 아키텍처 그림, flow diagram, comparison chart, 인터랙티브 튜토리얼, 단계별 설명, 클릭하며 보는 설명, step-through explainer, or complex explanation as a local HTML file. Do NOT use for production websites, Remotion/video motion graphics, Marp/PPT slide deck files, raw markdown docs, or frontend app implementation."
 argument-hint: "[visual|interactive] [topic]"
 ---
 
@@ -20,8 +20,8 @@ argument-hint: "[visual|interactive] [topic]"
 
 1. **타입 선택**: 시각형/인터랙티브형은 위 표의 시작 템플릿을 출력 경로로 복사해 내용만 채운다. **위키/지식베이스형은 템플릿 강제 금지** - source 문서를 구조화해 커스텀 단일 HTML로 만든다.
 2. **내용 작성**: 작성 전 그 타입의 reference에서 쓸 기능의 함정·레시피를 읽는다. 템플릿에 없는 표면·버튼·이미지·아이콘을 새로 만들면 `references/ui-polish.md`도 함께 읽는다. 용도별 정보 구조가 필요하면 `assets/AGENTS.md`에서 가장 가까운 번호형 HTML을 골라 참고하되, 타입별 시작 템플릿과 철칙은 유지한다.
-3. **검증**: `scripts/verify.sh <파일>` - 콘솔 에러·렌더를 확인하고, 출력된 스크린샷을 Read로 열어 겹침·잘림을 육안 확인한다. 통과 전에는 사용자에게 열어주지 않는다. 검증 스크립트 의존성이 아직 준비되지 않은 환경이면 브라우저로 직접 열어 콘솔 에러, 주요 인터랙션, 가로 overflow, 스크린샷/시각 검사를 확인하고 그 결과를 보고한다. 위키형은 검색, Enter 이동, 해시 라우팅, 대표 문서 상세 페이지까지 확인한다.
-4. **열기**: `open <파일>`.
+3. **열기**: `open <파일>`. 사용자 브라우저가 정본이다.
+4. **CDP 검수는 명시 요청만**: 콘솔·스크린샷·Lighthouse를 사용자가 요청한 경우에만 chrome-devtools CLI 또는 `scripts/verify.sh`를 쓴다. CLI를 호출하는 순간 자동화 Chrome 프로세스가 따로 뜬다. 탭을 닫아도 프로세스는 남는다. 썼으면 그 작업 끝에 `chrome-devtools stop`으로 프로세스를 내린다.
 5. **공개 링크가 필요할 때만 배포**: 사용자가 지정한 정적 호스팅·배포 도구로 넘긴다. 배포 단계는 파일 배치·버전 백업·실제 URL 검증만 맡고, 디자인·카피·레이아웃 판단은 이 스킬 안에서 끝낸다.
 
 출력 경로는 기본 `/tmp/<slug>.html`(1회성 열람). 보관·공유를 원하면 프로젝트 폴더에 둔다.
@@ -33,6 +33,7 @@ argument-hint: "[visual|interactive] [topic]"
 - CDN 라이브러리는 메이저 버전 고정(시각형 `@11`·`@6`·`@3`, 인터랙티브형 React `@18.3.1`·Babel `@7.26.4`). `@latest` 금지.
 - **애니메이션은 이해 보조만** - 데이터 흐름·상태 전환·값 변화·단계 진행처럼 정보를 운반할 때만. 장식적 fade-in·슬라이드인 금지.
 - 표면 깊이는 `--shadow-border`, 보더는 구분선·상태에만. 이미지 아웃라인·누름 피드백·transition 속성 명시 등 마감 규칙은 `references/ui-polish.md`가 정본이고 양 템플릿에 토큰으로 배선돼 있다.
+- 시각화 HTML의 기본 확인은 사용자 브라우저 `open`이다. chrome-devtools CLI를 검증 기본값으로 쓰지 않는다.
 
 ## 시각형 전용 철칙
 
@@ -52,4 +53,5 @@ argument-hint: "[visual|interactive] [topic]"
 | 새 표면·버튼·이미지·아이콘 추가 | `references/ui-polish.md` |
 | 새 파일 시작 | `assets/template.html`(시각형) / `assets/interactive-template.html`(인터랙티브형) / 커스텀 단일 HTML(위키형) |
 | 용도별 단일 HTML 예시 | `assets/AGENTS.md`에서 20개 번호형 템플릿의 용도 확인 |
-| 생성 후 검증 | `scripts/verify.sh <파일.html>` 또는 브라우저 직접 검증 |
+| 생성 후 열기 | `open <파일.html>` |
+| 사용자가 CDP 검수를 요청할 때만 | `scripts/verify.sh <파일.html>` 후 `chrome-devtools stop` |
