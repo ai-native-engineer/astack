@@ -1,100 +1,80 @@
 ---
 argument-hint: "[query]"
 name: session-history
-description: "Claude Code, Codex, and Grok local session history lookup: lists, timelines, full conversation details, tool calls, grep/search, token usage, API-equivalent cost, model rollups, and subscription quota. Use for Claude/Codex/Grok 작업 내역, 오늘 한 일, 뭐 했더라, history, grok session, 토큰 사용량, API 비용, 이번 달 얼마, 구독 한도. Do NOT use for Hermes Agent/Discord/Gateway conversations in ~/.hermes/state.db — use session_search instead. Do NOT use for personal reflection synthesis, automation packaging, memory updates, or searching current repo files."
+description: "Searches local AI agent history across Claude Code/Desktop Cowork, Codex, Grok, Cursor, Gemini CLI/Antigravity, opencode, Aside, OpenClaw, and GitHub Copilot: lists, timelines, full transcripts, tool calls, changed files, token usage, API-equivalent cost, model rollups, and quota. Also scrubs API keys already written into those logs. Use for 작업 내역, 오늘 한 일, 뭐 했더라, past agent chat, cursor/grok/gemini/copilot session, 토큰 사용량, API 비용, 이번 달 얼마, 대화 로그에 남은 키 지워줘, 세션 로그 마스킹. Do NOT use for Hermes Agent/Discord/Gateway conversations in ~/.hermes/state.db - use session_search instead. Do NOT use for personal reflection synthesis, memory updates, or searching current repo files."
 ---
 
 # Session History
 
-Claude Code (`~/.claude/`) + Codex (`~/.codex/`) + Grok (`~/.grok/sessions/`) 통합 세션 히스토리.
+Claude Code/Desktop Cowork, Codex, Grok, Cursor, Gemini CLI/Antigravity, opencode, Aside, OpenClaw/senpi/gjc, GitHub Copilot(CLI/VS Code)의 로컬 대화 로그를 하나의 CLI로 조회한다.
 
 Hermes Agent 자체 대화(Discord/Telegram/Gateway/CLI)는 이 스크립트 대상이 아니다. Hermes 대화는 `session_search` 도구가 `~/.hermes/state.db`를 검색한다.
 
+## 빠른 사용
+
+```bash
+SH="scripts/session_history.py"
+python3 $SH sources
+python3 $SH list --cwd
+python3 $SH rg "gcloud" --days 30 --limit 5
+python3 $SH show --last --full
+python3 $SH show <session-id> --files
+python3 $SH redact
+```
+
+서브커맨드는 `sources`, `list`, `timeline`, `rg`/`grep`, `show`, `redact`다. `--tool`은 `all|claude|codex|grok|cursor|gemini|opencode|aside|openclaw|copilot`을 받으며 기본값은 `all`이다. 전체 옵션은 `python3 $SH <subcommand> -h`를 먼저 본다.
+
+## 워크플로
+
+1. **현재 프로젝트 복원**: `list --cwd`로 후보를 좁히고 `show <session-id>`로 대화를 읽는다.
+2. **특정 작업 검색**: `rg "키워드"`로 실제 대화와 도구 기록을 검색하고 필요하면 `show --full`로 확장한다.
+3. **오늘 작업 정리**: `timeline`을 시간순 데일리 노트 초안으로 쓴다.
+4. **장기 현황**: `list --days 30 --summary`로 범위를 좁힌 뒤 필요한 날짜·프로젝트만 `list`로 확인
+
+## 핵심 동작
+
+- `rg`는 preview가 아니라 실제 transcript의 대화·도구 호출·도구 결과를 검색한다.
+- 모든 출력은 시크릿을 가린 뒤 나간다. 원문이 필요하면 `--raw`를 붙인다. 로그에는 사용자가 붙여넣은 키가 그대로 있어, 무심코 검색하면 그 값이 다시 컨텍스트와 새 로그로 번진다.
+- 세션 ID는 prefix 매칭한다. 충돌을 피하려면 목록의 12자리 이상을 그대로 쓴다.
+- 모든 도구의 주입 컨텍스트는 사용자 의도가 아니다. `<user_query>`·`<USER_REQUEST>` 블록을 우선하고 Claude의 `<system-reminder>`, `<command-args>`, hook 출력은 걷어낸다.
+- subagent/internal 세션은 기본 제외한다. Claude `subagents/`, Cursor `subagents/`와 chats의 `subagentInfo`, OpenClaw `.jsonl.reset.*`, Codex `exec` 세션이 모두 여기 해당하며 `--include-subagents`로 켠다.
+- `show --files`는 구조화된 편집 호출과 mutation 형태의 shell 호출을 모은다. Gemini는 안정적인 changed-file event 계약이 없어 빈 결과가 무변경을 보장하지 않는다.
+- `sources`는 지원 adapter의 저장소와 인덱싱 수를 보여준다. adapter가 못 읽는 부분은 `·` 주석으로 함께 밝힌다(Claude의 transcript 없는 세션, Antigravity IDE 암호화 본문 등). 임의 형식 로그를 자동 해석하지는 않는다.
+- `sources`의 Claude 수치는 transcript 기준이라 `list` 결과보다 작다. 프롬프트 기록만 남은 세션은 `list`에 나오지만 `show`는 실패한다.
+
+소스별 경로, capability, project 복원, 제한 환경 fallback이 필요하면 `references/session-sources.md`를 읽는다.
+
+## 로그에 남은 키 지우기
+
+마스킹은 화면만 가리고 파일에는 원문이 남는다. 키가 실제로 노출돼 회수해야 하면 `redact`가 로그 파일 자체를 고친다.
+
+```bash
+python3 $SH redact                                  # 세기만 한다
+python3 $SH redact --path ~/proj --exclude <live>   # 대상 추가, 특정 경로 제외
+python3 $SH redact --apply                          # 백업 후 치환
+```
+
+- 기본은 세기만 한다. `--apply`가 있어야 파일을 고치고, 고치기 전에 대상 전체를 `tar.gz`로 백업한 뒤 되돌리는 명령을 찍는다.
+- 지울 때는 `sk-`·`ntn_`·`AIza`처럼 **모양이 확실한 키만** 건드린다. 화면 마스킹이 함께 쓰는 `token=...` 이름 기반 휴리스틱은 `token=3` 같은 멀쩡한 기록까지 덮어써, 되돌릴 수 없는 쪽에서는 놓치는 것보다 부수는 것이 비싸다.
+- 지금 돌고 있는 세션 파일은 `--exclude`로 빼고 세션이 끝난 뒤 다시 돌린다. 대화 중에는 계속 append되므로 통째로 갈아 끼우면 그 세션 기록이 깨진다.
+- 텍스트 로그만 고친다. sqlite처럼 바이너리로 저장하는 소스는 건너뛰므로 그쪽 키는 이 명령으로 사라지지 않는다.
+- 파일을 지워도 그 키가 외부로 나간 사실은 남는다. 회수는 교체를 대신하지 못한다.
+
 ## 토큰·비용
 
-토큰/비용만 필요하면 스킬 루트에서 `python3 scripts/token_usage.py`를 실행한다.
-
-- 기본: 최근 1일 토큰 합산 (`--days`, `--date`, `--month`, `--all-time`, `--tool`)
-- `--cost`: list API 단가 환산($). Grok은 로그의 `costUsdTicks` 우선. 표에 없는 실모델은 unpriced(합계 미포함)
-- `--by-model`: 모델별 상위
-- `--quota`: Claude OAuth / Codex wham 구독 한도 live (Grok 미지원)
-- 단가·모델 해석(placeholder/default/unpriced)·캐시 5m/1h 세부는 `references/cost-measurement.md`
+토큰/비용만 필요하면 `python3 scripts/token_usage.py`를 실행한다.
 
 ```bash
 python3 scripts/token_usage.py --days 7 --cost --by-model
 python3 scripts/token_usage.py --month --cost --quota
 ```
 
-## 사용법
-
-네 서브커맨드: `list`(목록)·`timeline`(시간순, 데일리 노트용)·`rg`(세션 전문 검색)·`show`(대화 보기). `grep`도 같은 검색의 호환 alias다. 대표 호출:
-
-```bash
-SH="scripts/session_history.py"  # 설치된 session-history 스킬 루트에서 실행
-python3 $SH list --cwd                # 현재 프로젝트 오늘 세션 (절대 경로 포함)
-python3 $SH list --days 30 --summary  # 메시지 없이 도구별 수와 상위 프로젝트만
-python3 $SH list --tool grok --days 7 # Grok 세션만
-python3 $SH rg "gcloud" --days 30     # 30일간 세션 JSONL 전문 검색 (맥락 발췌)
-python3 $SH rg "error" --days 30 --limit 5  # 실패 신호가 있는 세션 5개만 보기
-python3 $SH show --last --files       # 가장 최근 세션의 수정 파일 목록
-```
-
-서브커맨드별 옵션은 다르다. 특히 `--limit`은 `show`·`rg`에만 있고 `list`엔 없다(목록 범위는 `--days`/`--date`로 조절). 긴 기간의 현황만 볼 때는 `list --summary`를 쓴다. `--tool`은 `all|claude|codex|grok`(기본 `all`). 출력 형식은 `--format text|json`만 받는다(`compact` 값 없음. 압축 출력은 `timeline --compact` 전용 플래그). 페이지네이션용 `--offset`은 없다. 그 밖의 플래그는 실행 전 `python3 $SH <subcommand> -h`로 확인한다.
-
-비자명한 동작:
-
-- `rg`는 `list --search`(history/prompt preview)와 달리 **실제 세션 JSONL의 대화·도구 호출·도구 결과**를 검색한다.
-- `list`와 `timeline`의 메시지 미리보기는 일반적인 API 키, 토큰, JWT 형태를 마스킹한다. 원문이 필요한 `show`와 `rg`는 마스킹하지 않는다.
-- `rg --limit N`은 매칭 세션 수를 제한한다. 세션 안에서는 앞 3개 매칭만 요약하고, 전체 맥락은 `show <ID> --full`로 본다.
-- 세션 ID는 prefix 매칭. 목록의 12자리를 그대로 붙여넣는 것을 권장 (UUID v7 특성상 앞 8자리는 동시 생성 세션끼리 충돌 가능).
-- Grok 실제 사용자 발화는 `chat_history.jsonl`의 `<user_query>`(또는 synthetic이 아닌 user 메시지)만 취한다. 시스템 주입·스킬 목록 등 synthetic user는 목록/검색 preview에서 제외한다.
-- `--files`는 두 섹션을 출력한다:
-  - **구조화된 파일 변경** — Claude `Edit`/`Write`/`MultiEdit`/`NotebookEdit` + Codex `apply_patch`/`patch_apply_begin` + Grok `search_replace`/`write`에서 경로 추출.
-  - **Bash/shell 변경 의심** — `rm`/`mv`/`cp`/`sed -i`/`tee`/`>` 등 파일 변경 패턴이 든 Claude `Bash`, Codex `shell`, Grok `run_terminal_command` 호출.
-
-## 워크플로우
-
-1. **현재 프로젝트 맥락 복원**: `list --cwd` → `show <ID>` 또는 `show --last`
-2. **특정 작업 찾기**: `rg "키워드"` (7일 기본) → `show <ID>`
-3. **오늘 데일리 노트**: `timeline` → 출력 복사 붙여넣기
-4. **장기 현황**: `list --days 30 --summary`로 범위를 좁힌 뒤 필요한 날짜·프로젝트만 `list`로 확인
+Cursor, Gemini, VS Code Copilot Chat transcript에는 안정적인 token usage가 없어 토큰·비용 집계에서 제외한다. 단가, 모델 해석, cache, quota 세부는 `references/cost-measurement.md`를 읽는다.
 
 ## 대화 맥락 교정 대응
 
-사용자가 “이전에 이 내용으로 대화했어”, “전에 확인했잖아”, “면밀하게 확인해봐”처럼 과거 대화 기반으로 교정하면, 바로 추측성 답을 고치지 말고 **세션 검색을 먼저 수행**한다. 특히 Hermes 설정/모드/게이트웨이 상태처럼 현재값과 과거 합의가 함께 중요한 질문은:
+사용자가 “이전에 이 내용으로 대화했어”, “전에 확인했잖아”, “면밀하게 확인해봐”처럼 과거 대화 기반으로 교정하면 추측보다 세션 검색을 먼저 수행한다.
 
-1. `session_search` 또는 이 스킬의 `rg`로 과거 발화/키워드를 찾는다.
-2. 찾은 세션의 핵심 메시지와 현재 live config/state를 각각 확인한다.
-3. 답변은 “과거 대화에서 무엇을 확인했는지”와 “현재 상태가 그와 일치하는지”를 짧게 구분해 말한다.
-
-이 패턴은 사용자의 교정 신호가 강한 경우 우선 적용한다. 단순히 현재 컨텍스트에 플래그가 안 보인다는 이유로 “확인 불가”라고 끝내면 안 된다.
-
-## 데이터 소스
-
-### Claude Code
-- `~/.claude/history.jsonl`: user 메시지 인덱스 (display, timestamp(ms), sessionId, project)
-- `~/.claude/projects/{path}/{sessionId}.jsonl`: 전체 대화 (user/assistant/tool_result)
-
-### Codex
-- `~/.codex/history.jsonl`: user 메시지 인덱스 (text, ts(sec), session_id)
-- `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`: 전체 대화 (event_msg/response_item)
-
-### Grok
-- `~/.grok/sessions/{url-encoded-cwd}/{sessionId}/summary.json`: 세션 메타 (cwd, created_at, title)
-- `~/.grok/sessions/{url-encoded-cwd}/{sessionId}/chat_history.jsonl`: 전체 대화 (user/assistant/tool_result + tool_calls)
-- `~/.grok/sessions/{url-encoded-cwd}/prompt_history.jsonl`: cwd 단위 user prompt 인덱스 (list/timeline preview)
-- `~/.grok/sessions/{url-encoded-cwd}/{sessionId}/updates.jsonl`: 토큰 집계 정본. `sessionUpdate=turn_completed`의 `usage`(`inputTokens`/`outputTokens`/`cachedReadTokens`/`reasoningTokens`/`costUsdTicks` 등)를 턴 단위로 합산한다. `chat_history`/`summary`에는 호출별 usage가 없다.
-- `~/.grok/sessions/session_search.sqlite`는 Grok TUI 자체 FTS이며 이 스킬의 정본이 아니다. 목록·검색은 summary/chat_history/prompt_history를 직접 읽는다.
-
-토큰·API 환산·쿼터 필드 매핑은 `references/cost-measurement.md`.
-
-## 제한 환경 fallback (Restricted environment)
-
-서브에이전트·샌드박스에서 `session_history.py`/`claude` CLI가 Bash 권한으로 막히거나, `show <ID> --full`이 세션 상세 대신 날짜 목록만 반환할 때:
-
-1. **JSONL 직접 Read**: 스크립트 대신 해당 소스 파일을 Read 도구로 직접 읽는다.
-   - Claude: `~/.claude/projects/<cwd-매핑-디렉토리>/<sessionId>.jsonl` (cwd의 `/`는 `-`로 치환, 예: cwd `/` → `-` 디렉토리)
-   - Codex: `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`
-   - Grok: `~/.grok/sessions/<url-encoded-cwd>/<sessionId>/chat_history.jsonl`
-2. **ID 형식 불일치**: Claude `history.jsonl`의 sessionId는 uuid-v4, transcript 파일명은 `ses_*` 형식이라 직접 매칭이 안 될 수 있다. 안 맞으면 **timestamp + cwd**로 교차 탐색해 같은 세션을 찾는다.
-3. **세션 파일 부재**: 요청한 session_id가 로컬 transcript에 없으면, 같은 cwd의 형제 세션·회고(`~/.agents/memory/retros/`)를 timestamp 기준으로 교차 참조해 맥락을 복원하고, 로컬에 파일이 없다는 한계를 명시한다.
+1. 이 스킬의 `rg` 또는 Hermes의 `session_search`로 과거 발화와 키워드를 찾는다.
+2. 찾은 메시지와 현재 live config/state를 각각 확인한다.
+3. 답변에서 과거 합의와 현재 상태를 짧게 구분한다.
