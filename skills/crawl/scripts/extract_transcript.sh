@@ -1,58 +1,11 @@
 #!/bin/bash
-# YouTube 자막 추출
+# YouTube 자막 추출 진입점. 실제 구현은 youtube 스킬 공용 fetch-subs.sh 하나에 있다.
+# 이 경로는 crawl/transcribe-ids.sh 등 외부 소비자가 참조하므로 파일명을 유지한다.
 # Usage: ./extract_transcript.sh <URL> [output_dir]
-# 1단계: 수동 자막 시도 → 2단계: 자동 자막 폴백
-# 영어 원본 영상이면 영어 자막, 한국어 원본이면 한국어 자막 우선
-
-URL="$1"
-OUTPUT_DIR="${2:-.}"
-
-if [ -z "$URL" ]; then
-  echo "Usage: $0 <YouTube URL> [output_dir]"
-  exit 1
-fi
-
-echo "$OUTPUT_DIR"
-
-# 사용 가능한 자막 목록 확인
-SUBS_INFO=$(yt-dlp --list-subs --skip-download "$URL" 2>&1)
-
-# 원본 언어 감지 (en-orig가 있으면 영어 원본)
-if echo "$SUBS_INFO" | grep -q "en-orig"; then
-  LANG_PRIORITY="en-orig,en,ko"
-elif echo "$SUBS_INFO" | grep -q "ko-orig"; then
-  LANG_PRIORITY="ko-orig,ko,en"
-else
-  # 수동 자막에 ko가 있으면 한국어 우선, 아니면 영어 우선
-  if echo "$SUBS_INFO" | grep -B100 "Available automatic captions" | grep -q "^ko "; then
-    LANG_PRIORITY="ko,en"
-  else
-    LANG_PRIORITY="en,ko"
-  fi
-fi
-
-echo "자막 우선순위: $LANG_PRIORITY"
-
-# 1단계: 수동 자막 시도
-yt-dlp --write-sub --sub-lang "$LANG_PRIORITY" --skip-download --sub-format srt \
-  --cookies-from-browser chrome \
-  -o "$OUTPUT_DIR/%(id)s.%(ext)s" "$URL" 2>&1
-
-# 수동 자막 파일이 있는지 확인
-ID=$(yt-dlp --print id --skip-download "$URL" 2>/dev/null)
-FOUND_SUB=false
-for lang in ${LANG_PRIORITY//,/ }; do
-  if [ -f "$OUTPUT_DIR/${ID}.${lang}.srt" ]; then
-    echo "수동 자막 발견: ${lang}"
-    FOUND_SUB=true
-    break
-  fi
+D="$(cd "$(dirname "$0")" && pwd)"
+# astack 플러그인은 이 파일을 crawl/scripts/로 평면 복사하므로 같은 폴더도 후보에 넣는다.
+for c in "$D/fetch-subs.sh" "$D/../../scripts/fetch-subs.sh"; do
+  [ -f "$c" ] && exec bash "$c" "$@"
 done
-
-# 2단계: 수동 자막이 없으면 자동 자막 폴백
-if [ "$FOUND_SUB" = false ]; then
-  echo "수동 자막 없음 → 자동 자막 추출 시도"
-  yt-dlp --write-auto-sub --sub-lang "$LANG_PRIORITY" --skip-download --sub-format srt \
-    --cookies-from-browser chrome \
-    -o "$OUTPUT_DIR/%(id)s.%(ext)s" "$URL" 2>&1
-fi
+echo "fetch-subs.sh를 찾지 못했습니다 (탐색: $D, $D/../../scripts)" >&2
+exit 69

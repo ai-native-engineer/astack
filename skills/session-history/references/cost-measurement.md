@@ -1,6 +1,6 @@
 # 비용·쿼터 측정 (token_usage)
 
-로컬 세션 로그로 **토큰 실사용**과 **API 환산 비용**, 선택적으로 **구독 한도(live)** 를 본다. 구독 청구서가 아니라 같은 사용량을 list API 단가로 환산한 대체비용이다.
+Claude, Codex, Grok 로컬 세션 로그로 **토큰 실사용**과 **API 환산 비용**, 선택적으로 **구독 한도(live)** 를 본다. 구독 청구서가 아니라 같은 사용량을 list API 단가로 환산한 대체비용이다.
 
 ## 목차
 
@@ -38,6 +38,14 @@ python3 scripts/token_usage.py --days 7 --cost --quota --format json
 | Claude | projects `*.jsonl` assistant `usage` (requestId dedupe) | `message.model` | 단가표 + cache 5m/1h split |
 | Codex | rollout `event_msg.token_count` | `thread_settings_applied.thread_settings.model` (provider 이름 아님) | 단가표 |
 | Grok | `updates.jsonl` `turn_completed.usage` | summary/`modelUsage` 키 | **`costUsdTicks` 우선** (10_000_000_000 ticks = $1), 없으면 단가표 |
+| opencode | `part.data` assistant token 필드 | `message.data.modelID` | 단가표 |
+| Aside | `session_runs.token_usage` JSON (`input`/`output`/`cacheRead`/`cacheWrite`) | `sessions.model` JSON | 단가표 |
+| OpenClaw | message `usage` (`input`/`output`/`cacheRead`/`cacheWrite`) | `message.model` | 단가표 |
+| Copilot | `session.shutdown.data.modelMetrics[model].tokenDetails` | modelMetrics 키 | 단가표 |
+
+`token_usage.py`는 위 adapter만 집계한다. Cursor, Gemini CLI/Antigravity, VS Code Copilot Chat 로컬 transcript는 안정적인 token usage를 제공하지 않아 token과 cost 합계에서 제외된다.
+
+Copilot의 `modelMetrics[model].usage.inputTokens`는 cache read/write를 이미 더한 값이다. `tokenDetails.input`(순수 input)을 쓰지 않으면 캐시가 이중 계상된다. 표에 보이는 합계 열은 cache를 뺀 `pure_tokens`(input+output)이고, cache 포함 처리량은 `전체처리량` 줄에 따로 나온다.
 
 Claude `usage.cache_creation.ephemeral_5m_input_tokens` / `ephemeral_1h_input_tokens`가 있으면 각각 5m·1h write 단가로 잡는다. split이 없고 total만 있으면 5m 단가로 합산(1h 비중을 과소평가할 수 있음).
 
@@ -97,6 +105,7 @@ Anthropic 스타일은 `cache_write_5m`, `cache_write_1h`, `cache_read` 키를 �
 | Claude | `api.anthropic.com/api/oauth/usage` | `~/.claude/.credentials.json` 또는 Keychain `Claude Code-credentials` |
 | Codex | `chatgpt.com/backend-api/wham/usage` | `~/.codex/auth.json` tokens |
 | Grok | 미지원 | — |
+| 그 외 | 미지원 | — |
 
 토큰 값을 출력하지 않는다. 401/만료면 에러 문구만 남긴다.
 
@@ -113,5 +122,6 @@ Anthropic 스타일은 `cache_write_5m`, `cache_write_1h`, `cache_read` 키를 �
 - `scripts/token_usage.py` — CLI (토큰+비용 단일 패스 집계)
 - `scripts/pricing.py` — 단가·해석·환산
 - `scripts/quota.py` — live 한도
-- `scripts/adapters/{claude,codex,grok}.py` — 로그 파서
+- `scripts/adapters/{claude,codex,grok,opencode,aside,openclaw,copilot}.py` — 토큰을 남기는 로그 파서
+- `scripts/adapters/{cursor,gemini}.py` — 대화만 있고 토큰은 없는 파서
 - `tests/test_pricing.py`, `tests/test_token_cost_integration.py`

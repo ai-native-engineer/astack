@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Claude Code + Codex + Grok token usage parser.
+"""Token usage parser for local session adapters that expose usage fields.
 
 Aggregation notes:
 - Claude Code: sum assistant message usage, deduplicated by requestId.
@@ -107,7 +107,11 @@ def pad_cell(text, width: int, align: str = "left") -> str:
 
 
 def supports_color() -> bool:
-    return sys.stdout.isatty() and os.environ.get("NO_COLOR") is None and os.environ.get("TERM") != "dumb"
+    return (
+        sys.stdout.isatty()
+        and os.environ.get("NO_COLOR") is None
+        and os.environ.get("TERM") != "dumb"
+    )
 
 
 COLOR_ENABLED = supports_color()
@@ -140,19 +144,34 @@ def make_table(headers, rows, aligns=None):
     top = "┌" + "┬".join("─" * (width + 2) for width in widths) + "┐"
     sep = "├" + "┼".join("─" * (width + 2) for width in widths) + "┤"
     bottom = "└" + "┴".join("─" * (width + 2) for width in widths) + "┘"
-    header = "│ " + " │ ".join(pad_cell(h, widths[i], "center") for i, h in enumerate(headers)) + " │"
+    header = (
+        "│ "
+        + " │ ".join(pad_cell(h, widths[i], "center") for i, h in enumerate(headers))
+        + " │"
+    )
     body = [
-        "│ " + " │ ".join(pad_cell(cell, widths[i], aligns[i]) for i, cell in enumerate(row)) + " │"
+        "│ "
+        + " │ ".join(pad_cell(cell, widths[i], aligns[i]) for i, cell in enumerate(row))
+        + " │"
         for row in rows
     ]
     return "\n".join([top, header, sep, *body, bottom])
 
 
 def make_panel(title: str, lines):
-    content_width = max([display_width(title), *(display_width(line) for line in lines)], default=0)
-    content_width = min(max(content_width, 42), max(42, shutil.get_terminal_size((120, 20)).columns - 4))
+    content_width = max(
+        [display_width(title), *(display_width(line) for line in lines)], default=0
+    )
+    content_width = min(
+        max(content_width, 42), max(42, shutil.get_terminal_size((120, 20)).columns - 4)
+    )
     title_text = f" {title} "
-    top = "╭" + title_text + "─" * max(0, content_width + 2 - display_width(title_text)) + "╮"
+    top = (
+        "╭"
+        + title_text
+        + "─" * max(0, content_width + 2 - display_width(title_text))
+        + "╮"
+    )
     body = ["│ " + pad_cell(line, content_width, "left") + " │" for line in lines]
     bottom = "╰" + "─" * (content_width + 2) + "╯"
     return "\n".join([top, *body, bottom])
@@ -229,15 +248,21 @@ def summarize(rows, pricing_table: PricingTable | None = None):
         "effective_tokens": effective_total,
         "pure_tokens": pure_total,
         "by_tool": {tool: dict(values) for tool, values in by_tool.items()},
-        "by_cwd": {f"{tool}\t{cwd}": dict(values) for (tool, cwd), values in by_cwd.items()},
-        "by_session": {f"{tool}\t{sid}": dict(values) for (tool, sid), values in by_session.items()},
+        "by_cwd": {
+            f"{tool}\t{cwd}": dict(values) for (tool, cwd), values in by_cwd.items()
+        },
+        "by_session": {
+            f"{tool}\t{sid}": dict(values) for (tool, sid), values in by_session.items()
+        },
         "by_model": {
             f"{tool}\t{display}\t{key}": dict(values)
             for (tool, display, key), values in by_model.items()
         },
         "cost_by_model_display": dict(cost_by_model_display),
         "unpriced_by_model_display": dict(unpriced_by_model_display),
-        "session_meta": {f"{tool}\t{sid}": meta for (tool, sid), meta in session_meta.items()},
+        "session_meta": {
+            f"{tool}\t{sid}": meta for (tool, sid), meta in session_meta.items()
+        },
         "cost": cost_summary,
     }
 
@@ -312,17 +337,21 @@ def format_quota_section(quotas) -> str:
                 reset_s = ts.strftime("%m-%d %H:%M") if ts else reset[:16]
             else:
                 reset_s = ""
-            rows.append([
-                short if i == 0 else "",
-                plan if i == 0 else "",
-                f"{label} {pct_s}",
-                reset_s,
-            ])
-    lines.append(make_table(
-        ["도구", "플랜", "사용률", "리셋"],
-        rows,
-        ["left", "left", "left", "left"],
-    ))
+            rows.append(
+                [
+                    short if i == 0 else "",
+                    plan if i == 0 else "",
+                    f"{label} {pct_s}",
+                    reset_s,
+                ]
+            )
+    lines.append(
+        make_table(
+            ["도구", "플랜", "사용률", "리셋"],
+            rows,
+            ["left", "left", "left", "left"],
+        )
+    )
     return "\n".join(lines)
 
 
@@ -341,7 +370,9 @@ def format_text(summary, rows, label, args, cost_summary=None, quotas=None):
     if args.main_only:
         filters.append("main-only")
     if getattr(args, "month", None):
-        filters.append(f"month={args.month if args.month not in (True, 'current', '') else label}")
+        filters.append(
+            f"month={args.month if args.month not in (True, 'current', '') else label}"
+        )
 
     panel_lines = [
         f"실사용  {fmt_int(pure_total)} tokens  ({fmt_compact_tokens(pure_total)}, 캐시 읽기/생성 제외)",
@@ -359,7 +390,10 @@ def format_text(summary, rows, label, args, cost_summary=None, quotas=None):
         )
         sources = cost_summary.get("by_source") or {}
         if sources:
-            src = ", ".join(f"{k} {fmt_usd(v)}" for k, v in sorted(sources.items(), key=lambda x: -x[1]))
+            src = ", ".join(
+                f"{k} {fmt_usd(v)}"
+                for k, v in sorted(sources.items(), key=lambda x: -x[1])
+            )
             panel_lines.insert(1, f"비용출처  {src}")
     if filters:
         panel_lines.append("필터  " + ", ".join(filters))
@@ -376,7 +410,9 @@ def format_text(summary, rows, label, args, cost_summary=None, quotas=None):
         if not values:
             continue
         adapter = ADAPTERS[tool]
-        tokens = values.get("pure_tokens", values.get("effective_tokens", values.get("total_tokens", 0)))
+        tokens = values.get(
+            "pure_tokens", values.get("effective_tokens", values.get("total_tokens", 0))
+        )
         share = f"{(tokens / pure_total * 100):.1f}%" if pure_total else "0.0%"
         cost_cell = ""
         if cost_summary is not None:
@@ -418,19 +454,34 @@ def format_text(summary, rows, label, args, cost_summary=None, quotas=None):
             tool = parts[0] if parts else ""
             display = parts[1] if len(parts) > 1 else ""
             model_key = parts[2] if len(parts) > 2 else display
-            tokens = values.get("pure_tokens", values.get("effective_tokens", values.get("total_tokens", 0)))
+            tokens = values.get(
+                "pure_tokens",
+                values.get("effective_tokens", values.get("total_tokens", 0)),
+            )
             display_key = f"{tool}\t{display}"
             unpriced_n = int(unpriced_by_display.get(display_key, 0) or 0)
-            usd = float(cost_by_display.get(display_key, 0.0)) if cost_summary is not None else 0.0
-            model_items.append((tokens, usd, unpriced_n, tool, display, model_key, values))
+            usd = (
+                float(cost_by_display.get(display_key, 0.0))
+                if cost_summary is not None
+                else 0.0
+            )
+            model_items.append(
+                (tokens, usd, unpriced_n, tool, display, model_key, values)
+            )
         model_items.sort(
-            key=lambda x: (x[1] if cost_summary is not None else x[0]),
+            key=lambda x: x[1] if cost_summary is not None else x[0],
             reverse=True,
         )
         model_rows = []
-        for rank, (tokens, usd, unpriced_n, tool, display, model_key, values) in enumerate(
-            model_items[: args.limit], 1
-        ):
+        for rank, (
+            tokens,
+            usd,
+            unpriced_n,
+            tool,
+            display,
+            model_key,
+            values,
+        ) in enumerate(model_items[: args.limit], 1):
             short = getattr(ADAPTERS.get(tool), "SHORT", tool)
             share = f"{(tokens / pure_total * 100):.1f}%" if pure_total else "0.0%"
             row = [
@@ -449,17 +500,21 @@ def format_text(summary, rows, label, args, cost_summary=None, quotas=None):
                 row.insert(4, cost_cell)
             model_rows.append(row)
         if cost_summary is not None:
-            lines.append(make_table(
-                ["#", "도구", "모델", "실사용", "API$", "%", "호출"],
-                model_rows,
-                ["right", "left", "left", "right", "right", "right", "right"],
-            ))
+            lines.append(
+                make_table(
+                    ["#", "도구", "모델", "실사용", "API$", "%", "호출"],
+                    model_rows,
+                    ["right", "left", "left", "right", "right", "right", "right"],
+                )
+            )
         else:
-            lines.append(make_table(
-                ["#", "도구", "모델", "실사용", "%", "호출"],
-                model_rows,
-                ["right", "left", "left", "right", "right", "right"],
-            ))
+            lines.append(
+                make_table(
+                    ["#", "도구", "모델", "실사용", "%", "호출"],
+                    model_rows,
+                    ["right", "left", "left", "right", "right", "right"],
+                )
+            )
         if cost_summary and cost_summary.get("missing_rows"):
             missing = cost_summary.get("missing_models") or {}
             top_missing = sorted(
@@ -468,7 +523,8 @@ def format_text(summary, rows, label, args, cost_summary=None, quotas=None):
                 reverse=True,
             )[:5]
             names = ", ".join(
-                f"{name}×{int((info or {}).get('events') or 0)}" for name, info in top_missing
+                f"{name}×{int((info or {}).get('events') or 0)}"
+                for name, info in top_missing
             )
             detail = f": {names}" if names else ""
             lines.append(
@@ -481,32 +537,43 @@ def format_text(summary, rows, label, args, cost_summary=None, quotas=None):
     by_cwd = []
     for key, values in summary["by_cwd"].items():
         tool, cwd = key.split("\t", 1)
-        by_cwd.append((
-            values.get("pure_tokens", values.get("effective_tokens", values.get("total_tokens", 0))),
-            tool,
-            cwd,
-            values,
-        ))
+        by_cwd.append(
+            (
+                values.get(
+                    "pure_tokens",
+                    values.get("effective_tokens", values.get("total_tokens", 0)),
+                ),
+                tool,
+                cwd,
+                values,
+            )
+        )
     project_rows = []
     fixed_width = 5 + 8 + 21 + 20 + 8 + 15
     project_width = max(28, min(70, terminal_width - fixed_width))
-    for rank, (total, tool, cwd, values) in enumerate(sorted(by_cwd, reverse=True)[: args.limit], 1):
+    for rank, (total, tool, cwd, values) in enumerate(
+        sorted(by_cwd, reverse=True)[: args.limit], 1
+    ):
         short = getattr(ADAPTERS.get(tool), "SHORT", tool)
         share = f"{(total / pure_total * 100):.1f}%" if pure_total else "0.0%"
-        project_rows.append([
-            str(rank),
-            short,
-            f"{fmt_compact_tokens(total)}",
-            token_bar(total, pure_total, width=14),
-            share,
-            fmt_int(values.get("calls", 0)),
-            trim_to_width(shorten_home(cwd), project_width),
-        ])
-    lines.append(make_table(
-        ["#", "도구", "실사용", "비중", "%", "호출", "프로젝트"],
-        project_rows,
-        ["right", "left", "right", "left", "right", "right", "left"],
-    ))
+        project_rows.append(
+            [
+                str(rank),
+                short,
+                f"{fmt_compact_tokens(total)}",
+                token_bar(total, pure_total, width=14),
+                share,
+                fmt_int(values.get("calls", 0)),
+                trim_to_width(shorten_home(cwd), project_width),
+            ]
+        )
+    lines.append(
+        make_table(
+            ["#", "도구", "실사용", "비중", "%", "호출", "프로젝트"],
+            project_rows,
+            ["right", "left", "right", "left", "right", "right", "left"],
+        )
+    )
 
     if args.by_session:
         lines.append("")
@@ -515,34 +582,47 @@ def format_text(summary, rows, label, args, cost_summary=None, quotas=None):
         for key, values in summary["by_session"].items():
             tool, sid = key.split("\t", 1)
             meta = summary["session_meta"].get(key, {})
-            by_session.append((
-                values.get("pure_tokens", values.get("effective_tokens", values.get("total_tokens", 0))),
-                tool,
-                sid,
-                values,
-                meta,
-            ))
+            by_session.append(
+                (
+                    values.get(
+                        "pure_tokens",
+                        values.get("effective_tokens", values.get("total_tokens", 0)),
+                    ),
+                    tool,
+                    sid,
+                    values,
+                    meta,
+                )
+            )
         session_rows = []
         session_project_width = max(24, min(56, terminal_width - fixed_width))
-        for rank, (total, tool, sid, values, meta) in enumerate(sorted(by_session, reverse=True)[: args.limit], 1):
+        for rank, (total, tool, sid, values, meta) in enumerate(
+            sorted(by_session, reverse=True)[: args.limit], 1
+        ):
             short = getattr(ADAPTERS.get(tool), "SHORT", tool)
             session_id = sid[:12] + ("*" if meta.get("subagent") else "")
             share = f"{(total / pure_total * 100):.1f}%" if pure_total else "0.0%"
-            session_rows.append([
-                str(rank),
-                short,
-                session_id,
-                f"{fmt_compact_tokens(total)}",
-                token_bar(total, pure_total, width=14),
-                share,
-                fmt_int(values.get("calls", 0)),
-                trim_to_width(shorten_home(meta.get("cwd", "")), session_project_width),
-            ])
-        lines.append(make_table(
-            ["#", "도구", "세션", "실사용", "비중", "%", "호출", "프로젝트"],
-            session_rows,
-            ["right", "left", "left", "right", "left", "right", "right", "left"],
-        ))
+            session_rows.append(
+                [
+                    str(rank),
+                    short,
+                    session_id,
+                    f"{fmt_compact_tokens(total)}",
+                    token_bar(total, pure_total, width=14),
+                    share,
+                    fmt_int(values.get("calls", 0)),
+                    trim_to_width(
+                        shorten_home(meta.get("cwd", "")), session_project_width
+                    ),
+                ]
+            )
+        lines.append(
+            make_table(
+                ["#", "도구", "세션", "실사용", "비중", "%", "호출", "프로젝트"],
+                session_rows,
+                ["right", "left", "left", "right", "left", "right", "right", "left"],
+            )
+        )
         if any(meta.get("subagent") for meta in summary["session_meta"].values()):
             lines.append("* 세션 ID 뒤의 * 표시는 subagent/sidechain입니다.")
 
@@ -557,7 +637,12 @@ def format_text(summary, rows, label, args, cost_summary=None, quotas=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Parse Claude Code + Codex + Grok token usage from local logs.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Parse token usage from supported local logs. "
+            "Cursor and Gemini transcripts currently expose no stable usage fields."
+        )
+    )
     parser.add_argument("--date", help="조회할 날짜 (YYYY-MM-DD)")
     parser.add_argument("--days", type=int, default=1, help="최근 N일 (기본: 1)")
     parser.add_argument(
@@ -566,13 +651,25 @@ def main():
         const="current",
         help="달력 월 집계 (YYYY-MM, 생략 시 이번 달). --days/--date 대신 사용",
     )
-    parser.add_argument("--all-time", action="store_true", help="날짜 필터 없이 로컬에 남은 전체 로그 집계")
-    parser.add_argument("--tool", choices=["all", "claude", "codex", "grok"], default="all")
-    parser.add_argument("--cwd", action="store_true", help="현재 작업 디렉토리 기준 프로젝트 필터")
+    parser.add_argument(
+        "--all-time",
+        action="store_true",
+        help="날짜 필터 없이 로컬에 남은 전체 로그 집계",
+    )
+    parser.add_argument("--tool", choices=["all", *ORDER], default="all")
+    parser.add_argument(
+        "--cwd", action="store_true", help="현재 작업 디렉토리 기준 프로젝트 필터"
+    )
     parser.add_argument("--project", help="프로젝트 경로 문자열 필터")
-    parser.add_argument("--main-only", action="store_true", help="Claude/Codex subagent 세션 제외")
-    parser.add_argument("--by-session", action="store_true", help="세션별 상위 사용량 표시")
-    parser.add_argument("--by-model", action="store_true", help="모델별 상위 사용량 표시")
+    parser.add_argument(
+        "--main-only", action="store_true", help="Claude/Codex subagent 세션 제외"
+    )
+    parser.add_argument(
+        "--by-session", action="store_true", help="세션별 상위 사용량 표시"
+    )
+    parser.add_argument(
+        "--by-model", action="store_true", help="모델별 상위 사용량 표시"
+    )
     parser.add_argument(
         "--cost",
         action="store_true",
@@ -587,7 +684,9 @@ def main():
         "--pricing-file",
         help="단가 오버라이드 JSON (또는 env SESSION_HISTORY_PRICING)",
     )
-    parser.add_argument("--limit", type=int, default=10, help="표시할 상위 항목 수 (기본: 10)")
+    parser.add_argument(
+        "--limit", type=int, default=10, help="표시할 상위 항목 수 (기본: 10)"
+    )
     parser.add_argument("--format", choices=["text", "json"], default="text")
     args = parser.parse_args()
 
@@ -626,7 +725,11 @@ def main():
             out["quota"] = quotas
         print(json.dumps(out, ensure_ascii=False, indent=2))
     else:
-        print(format_text(summary, rows, label, args, cost_summary=cost_summary, quotas=quotas))
+        print(
+            format_text(
+                summary, rows, label, args, cost_summary=cost_summary, quotas=quotas
+            )
+        )
 
 
 if __name__ == "__main__":

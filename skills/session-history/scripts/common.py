@@ -11,9 +11,40 @@ HOME = Path.home()
 CLAUDE_HISTORY = HOME / ".claude" / "history.jsonl"
 CLAUDE_SESSIONS_DIR = HOME / ".claude" / "sessions"
 CLAUDE_PROJECTS_DIR = HOME / ".claude" / "projects"
+CLAUDE_DESKTOP_SESSIONS_DIR = (
+    HOME / "Library" / "Application Support" / "Claude" / "claude-code-sessions"
+)
+CLAUDE_DESKTOP_LOCAL_SESSIONS_DIR = (
+    HOME / "Library" / "Application Support" / "Claude" / "local-agent-mode-sessions"
+)
+CLAUDE_OPENCODE_TRANSCRIPTS_DIR = HOME / ".claude" / "transcripts"
+# CLAUDE_CONFIG_DIR을 옮겨 실행한 세션은 같은 스키마로 여기에 쌓인다.
+CLAUDE_LOCAL_PROJECT_ROOTS = (
+    HOME / ".cache" / "claude-local" / "config" / "projects",
+    HOME / ".cache" / "claude-local" / "cfg" / "projects",
+)
 CODEX_HISTORY = HOME / ".codex" / "history.jsonl"
 CODEX_SESSIONS_DIR = HOME / ".codex" / "sessions"
+CODEX_ARCHIVED_SESSIONS_DIR = HOME / ".codex" / "archived_sessions"
 GROK_SESSIONS_DIR = HOME / ".grok" / "sessions"
+CURSOR_PROJECTS_DIR = HOME / ".cursor" / "projects"
+CURSOR_CHATS_DIR = HOME / ".cursor" / "chats"
+GEMINI_DIR = HOME / ".gemini"
+GEMINI_TMP_DIR = GEMINI_DIR / "tmp"
+GEMINI_ANTIGRAVITY_DIR = GEMINI_DIR / "antigravity-cli"
+GEMINI_ANTIGRAVITY_IDE_DIR = GEMINI_DIR / "antigravity"
+COPILOT_SESSION_STATE_DIR = HOME / ".copilot" / "session-state"
+VSCODE_WORKSPACE_STORAGE_DIR = (
+    HOME / "Library" / "Application Support" / "Code" / "User" / "workspaceStorage"
+)
+OPENCODE_DB = HOME / ".local" / "share" / "opencode" / "opencode.db"
+ASIDE_PROFILES_DIR = HOME / ".aside" / "u"
+# openclaw 계보를 공유하는 도구들. 세션 JSONL 스키마가 같아 한 어댑터가 읽는다.
+OPENCLAW_ROOTS = (
+    (HOME / ".openclaw" / "agents" / "main" / "sessions", "openclaw"),
+    (HOME / ".senpi" / "agent" / "sessions", "senpi"),
+    (HOME / ".gjc" / "agent" / "sessions", "gjc"),
+)
 
 BASH_MUTATION_RE = re.compile(
     r"(?:(?:^|[;&|\s])(?:rm|mv|cp|mkdir|rmdir|touch|ln|chmod|chown|sed\s+-i|tee|apply_patch)\b)|(?:\s>>?\s*[^\s;&|])",
@@ -53,23 +84,29 @@ def shorten_home(path: str) -> str:
 
 
 def ts_to_hm(ts_ms: int) -> str:
-    return datetime.datetime.fromtimestamp(ts_ms / 1000).strftime("%H:%M")
+    return datetime.datetime.fromtimestamp(ts_ms / 1000, tz=LOCAL_TZ).strftime("%H:%M")
 
 
 def ts_to_hms(ts_ms: int) -> str:
-    return datetime.datetime.fromtimestamp(ts_ms / 1000).strftime("%H:%M:%S")
+    return datetime.datetime.fromtimestamp(ts_ms / 1000, tz=LOCAL_TZ).strftime(
+        "%H:%M:%S"
+    )
 
 
 def date_range(args):
     """session_history용: (start_ms, end_ms, label)."""
     if args.date:
-        target = datetime.datetime.strptime(args.date, "%Y-%m-%d")
+        target = datetime.datetime.strptime(args.date, "%Y-%m-%d").replace(
+            tzinfo=LOCAL_TZ
+        )
         start = target
         end = target + datetime.timedelta(days=1)
         label = args.date
     else:
-        now = datetime.datetime.now()
-        start = now.replace(hour=0, minute=0, second=0, microsecond=0) - datetime.timedelta(days=args.days - 1)
+        now = datetime.datetime.now(tz=LOCAL_TZ)
+        start = now.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ) - datetime.timedelta(days=args.days - 1)
         end = now + datetime.timedelta(days=1)
         label = (
             start.strftime("%Y-%m-%d")
@@ -117,7 +154,11 @@ def date_range_dt(args):
         today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         start = today - dt.timedelta(days=args.days - 1)
         end = now
-        label = start.strftime("%Y-%m-%d") if args.days == 1 else f"{start:%Y-%m-%d} ~ {now:%Y-%m-%d}"
+        label = (
+            start.strftime("%Y-%m-%d")
+            if args.days == 1
+            else f"{start:%Y-%m-%d} ~ {now:%Y-%m-%d}"
+        )
     return start, end, label
 
 
@@ -153,18 +194,29 @@ def in_range(timestamp, start, end) -> bool:
 def path_matches(project: str, filter_path: str) -> bool:
     """cwd 기준 프로젝트 매칭.
 
-    - project가 cwd 하위 경로 → 매칭 (서브프로젝트)
-    - cwd가 project 하위 경로 → 매칭 (하위 폴더에서 작업 중)
+    - project가 cwd 하위 경로 -> 매칭 (서브프로젝트)
+    - cwd가 project 하위 경로 -> 매칭 (하위 폴더에서 작업 중)
       단, project가 홈 디렉토리와 동일하면 제외 (너무 광범위)
     """
     if not project or not filter_path:
         return False
-    p = project.rstrip("/")
-    f = filter_path.rstrip("/")
-    home = str(HOME)
-    if p == home:
+    try:
+        project_path = Path(project).expanduser()
+        filter_path_obj = Path(filter_path).expanduser()
+        if not project_path.is_absolute() or not filter_path_obj.is_absolute():
+            return False
+        project_path = project_path.resolve(strict=False)
+        filter_path_obj = filter_path_obj.resolve(strict=False)
+        home_path = HOME.resolve(strict=False)
+    except (OSError, RuntimeError):
         return False
-    return p.startswith(f) or f.startswith(p)
+    if project_path == home_path:
+        return False
+    return (
+        project_path == filter_path_obj
+        or project_path in filter_path_obj.parents
+        or filter_path_obj in project_path.parents
+    )
 
 
 def iso_to_ms(value) -> int:

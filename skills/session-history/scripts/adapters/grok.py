@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import functools
 import json
-import re
 from collections import defaultdict
 from pathlib import Path
 from urllib.parse import unquote
@@ -21,8 +20,8 @@ from common import (
 TOOL = "grok"
 DISPLAY = "Grok"
 TAG = "[G]"
+SOURCE_PATHS = (GROK_SESSIONS_DIR,)
 EDIT_TOOLS = {"search_replace", "write"}
-USER_QUERY_RE = re.compile(r"<user_query>\s*(.*?)\s*</user_query>", re.DOTALL | re.IGNORECASE)
 
 
 def grok_content_text(content) -> str:
@@ -51,13 +50,19 @@ def grok_content_text(content) -> str:
         return json.dumps(content, ensure_ascii=False)
     return str(content)
 
+
 def extract_user_query_text(text: str) -> str:
     if not text:
         return ""
-    match = USER_QUERY_RE.search(text)
-    if match:
-        return match.group(1).strip()
+    lowered = text.lower()
+    start = lowered.rfind("<user_query>")
+    if start >= 0:
+        start += len("<user_query>")
+        end = lowered.find("</user_query>", start)
+        if end >= 0:
+            return text[start:end].strip()
     return text.strip()
+
 
 def is_real_grok_user_message(entry: dict) -> bool:
     if entry.get("type") != "user":
@@ -70,9 +75,8 @@ def is_real_grok_user_message(entry: dict) -> bool:
     if "<user_query>" in text:
         return True
     stripped = text.lstrip()
-    if stripped.startswith(("<user_info>", "<system-reminder>", "You are Grok")):
-        return False
-    return True
+    return not stripped.startswith(("<user_info>", "<system-reminder>", "You are Grok"))
+
 
 @functools.lru_cache(maxsize=1)
 def grok_session_index():
@@ -93,26 +97,27 @@ def grok_session_index():
             continue
         cwd = info.get("cwd") or ""
         if not cwd:
-            try:
-                cwd = unquote(summary.parent.parent.name)
-            except Exception:
-                cwd = ""
+            cwd = unquote(summary.parent.parent.name)
         chat = summary.parent / "chat_history.jsonl"
-        created = data.get("created_at") or data.get("last_active_at") or data.get("updated_at") or ""
-        title = (
-            data.get("session_summary")
-            or data.get("generated_title")
+        created = (
+            data.get("created_at")
+            or data.get("last_active_at")
+            or data.get("updated_at")
             or ""
         )
+        title = data.get("session_summary") or data.get("generated_title") or ""
         idx[sid] = {
             "path": chat if chat.exists() else None,
             "summary_path": summary,
             "cwd": cwd,
             "ts": created,
             "title": title,
-            "updated_at": data.get("updated_at") or data.get("last_active_at") or created,
+            "updated_at": data.get("updated_at")
+            or data.get("last_active_at")
+            or created,
         }
     return idx
+
 
 def find_grok_session_file(session_id: str) -> Path | None:
     idx = grok_session_index()
@@ -122,6 +127,7 @@ def find_grok_session_file(session_id: str) -> Path | None:
         if sid.startswith(session_id):
             return info.get("path")
     return None
+
 
 def grok_first_user_message(fpath: Path | None, max_lines: int = 300) -> str:
     if not fpath or not fpath.exists():
@@ -143,6 +149,7 @@ def grok_first_user_message(fpath: Path | None, max_lines: int = 300) -> str:
     except OSError:
         pass
     return ""
+
 
 def read_grok_conversation(session_id: str, full: bool = False):
     """(messages, fpath) 반환. chat_history 항목에는 타임스탬프가 없을 수 있다."""
@@ -184,12 +191,14 @@ def read_grok_conversation(session_id: str, full: bool = False):
                     if labels:
                         text = (text + "\n" if text else "") + "\n".join(labels)
                 if text.strip():
-                    messages.append({
-                        "role": "assistant",
-                        "text": text.strip(),
-                        "ts": ts,
-                        "model": d.get("model_id") or "",
-                    })
+                    messages.append(
+                        {
+                            "role": "assistant",
+                            "text": text.strip(),
+                            "ts": ts,
+                            "model": d.get("model_id") or "",
+                        }
+                    )
                 continue
 
             if entry_type == "tool_result" and full:
@@ -198,6 +207,7 @@ def read_grok_conversation(session_id: str, full: bool = False):
                     messages.append({"role": "tool", "text": result[:500], "ts": ts})
 
     return messages, fpath
+
 
 def extract_grok_changed_files(session_id: str):
     fpath = find_grok_session_file(session_id)
@@ -240,10 +250,16 @@ def extract_grok_changed_files(session_id: str):
                         bash_hints.append({"cmd": cmd, "ts": ts})
     return changes, bash_hints
 
+
 def extract_grok_history(start_ms, end_ms, project_filter=None, cwd_filter=None):
-    sessions = defaultdict(lambda: {
-        "project": "", "messages": [], "tool": "grok", "first_ts_ms": 0,
-    })
+    sessions = defaultdict(
+        lambda: {
+            "project": "",
+            "messages": [],
+            "tool": "grok",
+            "first_ts_ms": 0,
+        }
+    )
     index = grok_session_index()
 
     # prompt_history.jsonl: cwd 폴더 단위 user prompt 인덱스
@@ -275,12 +291,16 @@ def extract_grok_history(start_ms, end_ms, project_filter=None, cwd_filter=None)
                         if not sessions[sid]["first_ts_ms"]:
                             sessions[sid]["first_ts_ms"] = ts_ms
                         else:
-                            sessions[sid]["first_ts_ms"] = min(sessions[sid]["first_ts_ms"], ts_ms)
+                            sessions[sid]["first_ts_ms"] = min(
+                                sessions[sid]["first_ts_ms"], ts_ms
+                            )
                         if text:
-                            sessions[sid]["messages"].append({
-                                "time": ts_to_hm(ts_ms),
-                                "text": text[:300],
-                            })
+                            sessions[sid]["messages"].append(
+                                {
+                                    "time": ts_to_hm(ts_ms),
+                                    "text": text[:300],
+                                }
+                            )
             except OSError:
                 continue
 
@@ -318,7 +338,8 @@ def extract_grok_history(start_ms, end_ms, project_filter=None, cwd_filter=None)
 
 # ─── Claude Code session IO ────────────────────────────────────
 
-def grep_grok_session(fpath: Path, keyword: str):
+
+def grep_grok_session(fpath: Path, keyword: str, session_id: str | None = None):
     """Grok chat_history.jsonl에서 keyword 포함 대화·도구 기록 반환."""
     hits = []
     keyword_lower = keyword.lower()
@@ -329,12 +350,18 @@ def grep_grok_session(fpath: Path, keyword: str):
         idx = text.lower().find(keyword_lower)
         start = max(0, idx - 60)
         end = min(len(text), idx + len(keyword) + 90)
-        excerpt = ("..." if start > 0 else "") + text[start:end] + ("..." if end < len(text) else "")
-        hits.append({
-            "role": role,
-            "ts": ts,
-            "excerpt": excerpt.replace("\n", " "),
-        })
+        excerpt = (
+            ("..." if start > 0 else "")
+            + text[start:end]
+            + ("..." if end < len(text) else "")
+        )
+        hits.append(
+            {
+                "role": role,
+                "ts": ts,
+                "excerpt": excerpt.replace("\n", " "),
+            }
+        )
 
     with open(fpath, encoding="utf-8") as f:
         for line in f:
@@ -405,7 +432,9 @@ def add_token_usage(totals, usage):
         # defaultdict(int) truncates floats; store milli-USD cents as int micros.
         # Keep float sum on a parallel key when present as float-capable dict.
         try:
-            totals["cost_usd"] = float(totals.get("cost_usd") or 0) + float(usage.get("cost_usd") or 0)
+            totals["cost_usd"] = float(totals.get("cost_usd") or 0) + float(
+                usage.get("cost_usd") or 0
+            )
         except (TypeError, ValueError):
             pass
 
@@ -426,10 +455,7 @@ def _grok_session_cwd(session_dir: Path, summary: dict | None = None) -> str:
     cwd = info.get("cwd") or ""
     if cwd:
         return cwd
-    try:
-        return unquote(session_dir.parent.name)
-    except Exception:
-        return ""
+    return unquote(session_dir.parent.name)
 
 
 def collect_token_rows(start, end, args):
@@ -473,7 +499,9 @@ def collect_token_rows(start, end, args):
                     continue
                 timestamp = parse_ts(entry.get("timestamp"))
                 if timestamp is None:
-                    timestamp = parse_ts(summary.get("last_active_at") or summary.get("created_at"))
+                    timestamp = parse_ts(
+                        summary.get("last_active_at") or summary.get("created_at")
+                    )
                 if not in_range(timestamp, start, end):
                     continue
 
@@ -482,7 +510,9 @@ def collect_token_rows(start, end, args):
                 cached_read = int(usage.get("cachedReadTokens") or 0)
                 cache_create = int(usage.get("cacheCreationTokens") or 0)
                 reasoning = int(usage.get("reasoningTokens") or 0)
-                total_tokens = int(usage.get("totalTokens") or (input_tokens + output_tokens))
+                total_tokens = int(
+                    usage.get("totalTokens") or (input_tokens + output_tokens)
+                )
                 model_usage = usage.get("modelUsage") or {}
                 if isinstance(model_usage, dict) and model_usage:
                     model = next(iter(model_usage.keys()), model) or model
@@ -499,24 +529,26 @@ def collect_token_rows(start, end, args):
 
                 meta = params.get("_meta") or {}
                 event_id = meta.get("eventId") or f"{session_id}:{line_no}"
-                rows.append({
-                    "tool": TOOL,
-                    "timestamp": timestamp.isoformat() if timestamp else None,
-                    "session_id": session_id,
-                    "cwd": cwd,
-                    "path": str(updates_path),
-                    "model": model,
-                    "subagent": False,
-                    "event_id": event_id,
-                    "input_tokens": input_tokens,
-                    "output_tokens": output_tokens,
-                    "cached_read_tokens": cached_read,
-                    "cache_creation_tokens": cache_create,
-                    "reasoning_tokens": reasoning,
-                    "total_tokens": total_tokens,
-                    "model_calls": int(usage.get("modelCalls") or 0),
-                    "cost_usd_ticks": cost_ticks,
-                    "cost_usd": cost_usd,
-                })
+                rows.append(
+                    {
+                        "tool": TOOL,
+                        "timestamp": timestamp.isoformat() if timestamp else None,
+                        "session_id": session_id,
+                        "cwd": cwd,
+                        "path": str(updates_path),
+                        "model": model,
+                        "subagent": False,
+                        "event_id": event_id,
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "cached_read_tokens": cached_read,
+                        "cache_creation_tokens": cache_create,
+                        "reasoning_tokens": reasoning,
+                        "total_tokens": total_tokens,
+                        "model_calls": int(usage.get("modelCalls") or 0),
+                        "cost_usd_ticks": cost_ticks,
+                        "cost_usd": cost_usd,
+                    }
+                )
 
     return rows

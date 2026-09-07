@@ -1,16 +1,32 @@
-"""Tool adapters for session-history (claude / codex / grok)."""
+"""Tool adapters for session-history."""
 
 from __future__ import annotations
 
-from . import claude, codex, grok
+from . import aside, claude, codex, copilot, cursor, gemini, grok, openclaw, opencode
 
 ADAPTERS = {
     "claude": claude,
     "codex": codex,
     "grok": grok,
+    "cursor": cursor,
+    "gemini": gemini,
+    "opencode": opencode,
+    "aside": aside,
+    "openclaw": openclaw,
+    "copilot": copilot,
 }
 
-ORDER = ("claude", "codex", "grok")
+ORDER = (
+    "claude",
+    "codex",
+    "grok",
+    "cursor",
+    "gemini",
+    "opencode",
+    "aside",
+    "openclaw",
+    "copilot",
+)
 
 
 def get_adapter(tool: str):

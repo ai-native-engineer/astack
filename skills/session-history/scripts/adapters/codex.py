@@ -11,6 +11,7 @@ from pathlib import Path
 
 from common import (
     BASH_MUTATION_RE,
+    CODEX_ARCHIVED_SESSIONS_DIR,
     CODEX_HISTORY,
     CODEX_SESSIONS_DIR,
     include_subagents,
@@ -22,18 +23,25 @@ from common import (
 TOOL = "codex"
 DISPLAY = "Codex"
 TAG = "[X]"
+SOURCE_PATHS = (CODEX_HISTORY, CODEX_SESSIONS_DIR, CODEX_ARCHIVED_SESSIONS_DIR)
 APPLY_PATCH_HEADER_RE = re.compile(
     r"^\*\*\*\s+(Update|Add|Delete|Move)\s+(?:File|to):\s+(.+?)\s*$", re.MULTILINE
 )
+
+
+def _iter_codex_rollouts():
+    """활성 세션과 archived_sessions는 같은 rollout 포맷이라 함께 인덱싱한다."""
+    for root in (CODEX_SESSIONS_DIR, CODEX_ARCHIVED_SESSIONS_DIR):
+        if not root.exists():
+            continue
+        yield from root.rglob("rollout-*.jsonl")
 
 
 @functools.lru_cache(maxsize=1)
 def codex_session_index():
     """session_meta.payload.id → {"path", "cwd", "ts"}."""
     idx = {}
-    if not CODEX_SESSIONS_DIR.exists():
-        return idx
-    for f in CODEX_SESSIONS_DIR.rglob("rollout-*.jsonl"):
+    for f in _iter_codex_rollouts():
         try:
             with open(f, encoding="utf-8") as fh:
                 first = fh.readline().strip()
@@ -65,6 +73,7 @@ def codex_session_index():
 
 # ─── Grok session IO ───────────────────────────────────────────
 
+
 def find_codex_session_file(session_id: str) -> Path | None:
     idx = codex_session_index()
     if session_id in idx:
@@ -73,6 +82,7 @@ def find_codex_session_file(session_id: str) -> Path | None:
         if sid.startswith(session_id):
             return info["path"]
     return None
+
 
 def read_codex_conversation(session_id: str, full: bool = False):
     """(messages, fpath) 반환."""
@@ -97,12 +107,21 @@ def read_codex_conversation(session_id: str, full: bool = False):
                 if msg_type == "user_message":
                     text = payload.get("message", "")
                     if text.strip():
-                        messages.append({"role": "user", "text": text.strip(), "ts": ts})
+                        messages.append(
+                            {"role": "user", "text": text.strip(), "ts": ts}
+                        )
                 elif msg_type == "agent_message":
                     phase = payload.get("phase", "")
                     text = payload.get("message", "")
                     if text.strip():
-                        messages.append({"role": "assistant", "text": text.strip(), "ts": ts, "phase": phase})
+                        messages.append(
+                            {
+                                "role": "assistant",
+                                "text": text.strip(),
+                                "ts": ts,
+                                "phase": phase,
+                            }
+                        )
 
             elif entry_type == "response_item" and full:
                 rtype = payload.get("type", "")
@@ -114,13 +133,18 @@ def read_codex_conversation(session_id: str, full: bool = False):
                         cmd = args_obj.get("command", args_obj.get("cmd", ""))[:200]
                     except (json.JSONDecodeError, TypeError):
                         cmd = args_str[:200]
-                    messages.append({"role": "tool_call", "text": f"[{name}] {cmd}", "ts": ts})
+                    messages.append(
+                        {"role": "tool_call", "text": f"[{name}] {cmd}", "ts": ts}
+                    )
                 elif rtype == "function_call_output":
                     output = payload.get("output", "")[:500]
                     if output.strip():
-                        messages.append({"role": "tool_result", "text": output.strip(), "ts": ts})
+                        messages.append(
+                            {"role": "tool_result", "text": output.strip(), "ts": ts}
+                        )
 
     return messages, fpath
+
 
 def extract_codex_changed_files(session_id: str):
     fpath = find_codex_session_file(session_id)
@@ -172,7 +196,11 @@ def extract_codex_changed_files(session_id: str):
                     args_str = payload.get("arguments", "")
                     try:
                         args_obj = json.loads(args_str) if args_str else {}
-                        raw = args_obj.get("input", "") if isinstance(args_obj, dict) else ""
+                        raw = (
+                            args_obj.get("input", "")
+                            if isinstance(args_obj, dict)
+                            else ""
+                        )
                     except (json.JSONDecodeError, TypeError):
                         raw = ""
                 if not raw:
@@ -187,8 +215,14 @@ def extract_codex_changed_files(session_id: str):
                     args_obj = json.loads(args_str) if args_str else {}
                 except (json.JSONDecodeError, TypeError):
                     args_obj = {}
-                cmd_field = args_obj.get("command", "") if isinstance(args_obj, dict) else ""
-                cmd = " ".join(cmd_field) if isinstance(cmd_field, list) else str(cmd_field)
+                cmd_field = (
+                    args_obj.get("command", "") if isinstance(args_obj, dict) else ""
+                )
+                cmd = (
+                    " ".join(cmd_field)
+                    if isinstance(cmd_field, list)
+                    else str(cmd_field)
+                )
                 if cmd and BASH_MUTATION_RE.search(cmd):
                     bash_hints.append({"cmd": cmd, "ts": ts})
 
@@ -196,6 +230,7 @@ def extract_codex_changed_files(session_id: str):
 
 
 # ─── History extraction ────────────────────────────────────────
+
 
 def codex_first_user_message(fpath, max_lines=500):
     try:
@@ -216,10 +251,16 @@ def codex_first_user_message(fpath, max_lines=500):
         pass
     return ""
 
+
 def extract_codex_history(start_ms, end_ms, project_filter=None, cwd_filter=None):
-    sessions = defaultdict(lambda: {
-        "project": "", "messages": [], "tool": "codex", "first_ts_ms": 0,
-    })
+    sessions = defaultdict(
+        lambda: {
+            "project": "",
+            "messages": [],
+            "tool": "codex",
+            "first_ts_ms": 0,
+        }
+    )
     index = codex_session_index()
     cwd_map = {sid: info["cwd"] for sid, info in index.items() if info["cwd"]}
 
@@ -248,9 +289,13 @@ def extract_codex_history(start_ms, end_ms, project_filter=None, cwd_filter=None
                 if not sessions[sid]["first_ts_ms"]:
                     sessions[sid]["first_ts_ms"] = ts_ms
                 else:
-                    sessions[sid]["first_ts_ms"] = min(sessions[sid]["first_ts_ms"], ts_ms)
+                    sessions[sid]["first_ts_ms"] = min(
+                        sessions[sid]["first_ts_ms"], ts_ms
+                    )
                 if text:
-                    sessions[sid]["messages"].append({"time": ts_to_hm(ts_ms), "text": text[:300]})
+                    sessions[sid]["messages"].append(
+                        {"time": ts_to_hm(ts_ms), "text": text[:300]}
+                    )
 
     for sid, info in index.items():
         ts_str = info.get("ts", "")
@@ -284,7 +329,8 @@ def extract_codex_history(start_ms, end_ms, project_filter=None, cwd_filter=None
 
 # ─── list 서브커맨드 ──────────────────────────────────────────
 
-def grep_codex_session(fpath: Path, keyword: str):
+
+def grep_codex_session(fpath: Path, keyword: str, session_id: str | None = None):
     """Codex rollout JSONL에서 keyword 포함 대화·도구 기록 반환."""
     hits = []
     keyword_lower = keyword.lower()
@@ -295,12 +341,18 @@ def grep_codex_session(fpath: Path, keyword: str):
         idx = text.lower().find(keyword_lower)
         start = max(0, idx - 60)
         end = min(len(text), idx + len(keyword) + 90)
-        excerpt = ("..." if start > 0 else "") + text[start:end] + ("..." if end < len(text) else "")
-        hits.append({
-            "role": role,
-            "ts": ts,
-            "excerpt": excerpt.replace("\n", " "),
-        })
+        excerpt = (
+            ("..." if start > 0 else "")
+            + text[start:end]
+            + ("..." if end < len(text) else "")
+        )
+        hits.append(
+            {
+                "role": role,
+                "ts": ts,
+                "excerpt": excerpt.replace("\n", " "),
+            }
+        )
 
     with open(fpath, encoding="utf-8") as f:
         for line in f:
@@ -317,7 +369,13 @@ def grep_codex_session(fpath: Path, keyword: str):
                     role = "user" if msg_type == "user_message" else "assistant"
                     add_hit(role, (payload.get("message", "") or "").strip(), ts)
                 elif msg_type == "patch_apply_begin":
-                    add_hit("tool", json.dumps(payload.get("changes", {}) or {}, ensure_ascii=False), ts)
+                    add_hit(
+                        "tool",
+                        json.dumps(
+                            payload.get("changes", {}) or {}, ensure_ascii=False
+                        ),
+                        ts,
+                    )
                 continue
             if entry_type != "response_item":
                 continue
@@ -397,13 +455,10 @@ def _extract_thread_model(payload: dict) -> str:
 def collect_token_rows(start, end, args):
     from pathlib import Path
 
-    from common import CODEX_SESSIONS_DIR, in_range, parse_ts, path_matches
+    from common import in_range, parse_ts, path_matches
 
     rows = []
-    if not CODEX_SESSIONS_DIR.exists():
-        return rows
-
-    for path in CODEX_SESSIONS_DIR.rglob("rollout-*.jsonl"):
+    for path in _iter_codex_rollouts():
         meta = _read_codex_meta(path)
         cwd = meta.get("cwd") or ""
         source = meta.get("source")
@@ -420,11 +475,7 @@ def collect_token_rows(start, end, args):
             continue
 
         # Prefer real model from thread_settings_applied; never use model_provider.
-        current_model = (
-            meta.get("model")
-            or meta.get("default_model")
-            or ""
-        )
+        current_model = meta.get("model") or meta.get("default_model") or ""
         # Provider/tool labels are not model ids (openai/codex/…).
         if current_model in ("", "openai", "codex", "anthropic", "xai"):
             current_model = ""
@@ -458,11 +509,7 @@ def collect_token_rows(start, end, args):
                 if not usage:
                     continue
                 # Some token_count events may carry model on info
-                model = (
-                    current_model
-                    or info.get("model")
-                    or ""
-                )
+                model = current_model or info.get("model") or ""
                 row = {
                     "tool": TOOL,
                     "timestamp": timestamp.isoformat() if timestamp else None,
@@ -474,7 +521,9 @@ def collect_token_rows(start, end, args):
                     "input_tokens": int(usage.get("input_tokens") or 0),
                     "cached_input_tokens": int(usage.get("cached_input_tokens") or 0),
                     "output_tokens": int(usage.get("output_tokens") or 0),
-                    "reasoning_output_tokens": int(usage.get("reasoning_output_tokens") or 0),
+                    "reasoning_output_tokens": int(
+                        usage.get("reasoning_output_tokens") or 0
+                    ),
                     "total_tokens": int(usage.get("total_tokens") or 0),
                 }
                 if not row["total_tokens"]:
