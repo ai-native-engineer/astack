@@ -71,10 +71,14 @@ for skill in "${SKILLS[@]}"; do
     "$source/" "$stage/skills/$skill/"
 done
 
-youtube_helpers="$SOURCE_ROOT/youtube/youtube-digest/scripts"
-for helper in extract_transcript.sh srt-to-md.sh; do
-  [[ -f "$youtube_helpers/$helper" ]] || { echo "error: missing crawl helper: $youtube_helpers/$helper" >&2; exit 1; }
-  rsync -a "$youtube_helpers/$helper" "$stage/skills/crawl/scripts/$helper"
+# extract_transcript.sh는 fetch-subs.sh에 위임하므로 둘을 같이 옮긴다. 여기서는 평면 배치라
+# 위임자가 같은 폴더의 fetch-subs.sh를 찾는다.
+for helper in \
+  "$SOURCE_ROOT/youtube/youtube-digest/scripts/extract_transcript.sh" \
+  "$SOURCE_ROOT/youtube/youtube-digest/scripts/srt-to-md.sh" \
+  "$SOURCE_ROOT/youtube/scripts/fetch-subs.sh"; do
+  [[ -f "$helper" ]] || { echo "error: missing crawl helper: $helper" >&2; exit 1; }
+  rsync -a "$helper" "$stage/skills/crawl/scripts/$(basename "$helper")"
 done
 
 find "$stage/skills" -type f \( -name 'SKILL.md' -o -path '*/references/*.md' \) -exec sed -i.bak \

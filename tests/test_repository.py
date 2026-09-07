@@ -32,11 +32,17 @@ def main() -> None:
         assert skill_md.is_file(), f"missing SKILL.md: {skill_dir}"
         metadata = frontmatter(skill_md)
         name = re.search(r"^name:\s*[\"']?([^\"'\n]+)", metadata, re.MULTILINE)
-        assert name and name.group(1).strip() == skill_dir.name, f"name mismatch: {skill_md}"
-        assert re.search(r"^description:\s*\S", metadata, re.MULTILINE), f"missing description: {skill_md}"
+        assert name and name.group(1).strip() == skill_dir.name, (
+            f"name mismatch: {skill_md}"
+        )
+        assert re.search(r"^description:\s*\S", metadata, re.MULTILINE), (
+            f"missing description: {skill_md}"
+        )
 
-    for helper in ("extract_transcript.sh", "srt-to-md.sh"):
-        assert (SKILLS / "crawl" / "scripts" / helper).is_file(), f"missing bundled crawl helper: {helper}"
+    for helper in ("extract_transcript.sh", "srt-to-md.sh", "fetch-subs.sh"):
+        assert (SKILLS / "crawl" / "scripts" / helper).is_file(), (
+            f"missing bundled crawl helper: {helper}"
+        )
 
     forbidden_paths = {
         "/Users/": "user-specific absolute path",
@@ -68,14 +74,26 @@ def main() -> None:
     forbidden = []
     for relative in filter(None, tracked):
         path = ROOT / relative
-        if path.is_symlink() or path.name in {".env", ".venv", "__pycache__"} or path.suffix == ".pyc":
+        if (
+            path.is_symlink()
+            or path.name in {".env", ".venv", "__pycache__"}
+            or path.suffix == ".pyc"
+        ):
             forbidden.append(relative)
     assert not forbidden, f"forbidden runtime artifacts: {forbidden}"
 
-    plugin = json.loads((ROOT / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
-    marketplace = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
-    codex_plugin = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
-    codex_marketplace = json.loads((ROOT / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
+    plugin = json.loads(
+        (ROOT / ".claude-plugin/plugin.json").read_text(encoding="utf-8")
+    )
+    marketplace = json.loads(
+        (ROOT / ".claude-plugin/marketplace.json").read_text(encoding="utf-8")
+    )
+    codex_plugin = json.loads(
+        (ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8")
+    )
+    codex_marketplace = json.loads(
+        (ROOT / ".agents/plugins/marketplace.json").read_text(encoding="utf-8")
+    )
     assert plugin["name"] == "astack"
     assert plugin["version"] == codex_plugin["version"] == "0.2.1"
     assert marketplace["name"] == "astack"
