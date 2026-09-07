@@ -4,7 +4,6 @@ name: find-skills
 description: 'Helps users discover and install agent skills when they ask questions like "how do I do X", "find a skill for X", "is there a skill that can...", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill. Do NOT use for looking up API/library documentation - use context7-cli instead.'
 ---
 
-
 # Find Skills
 
 This skill helps you discover skills - first among the ones already installed locally, then in the open agent skills ecosystem - and route installation through the local skill policy.
@@ -22,12 +21,10 @@ Use this skill when the user:
 
 ## Step 1: Check Installed Skills First
 
-Most requests are already covered locally. List what is installed and match by name and description before searching outside:
+Most requests are already covered locally. Match by name and description before searching outside:
 
-```bash
-ls ~/.agents/skills/shared   # shared originals (Claude, Codex, Grok, Cursor)
-claude plugin list           # installed plugins and the skills they carry
-```
+1. The skill list already loaded in this session (the available-skills listing).
+2. `claude plugin list` for installed plugins - their skills appear in the session list with a `name:` prefix.
 
 If a local skill fits, use it and stop here. Continue to external search only when nothing local matches.
 
@@ -45,7 +42,11 @@ For example:
 - User asks "can you help me with PR reviews?" -> `bunx skills find pr review`
 - User asks "I need to create a changelog" -> `bunx skills find changelog`
 
-The command returns matching skills with their source (`owner/repo@skill`) and a skills.sh link. Identify the domain and the specific task first so the query is specific ("react testing" beats "testing"); try alternative terms ("deployment", "ci-cd") when the first query misses.
+The command returns matching skills with their source (`owner/repo@skill`) and a skills.sh link.
+
+- Identify the domain and the specific task first so the query is specific ("react testing" beats "testing").
+- Try alternative terms ("deployment", "ci-cd") when the first query misses.
+- Skills that were installed earlier by the installer (`.skill-lock.json` present) are updated with `bunx skills check` / `bunx skills update`; do not use the installer for new installs.
 
 ## Step 3: Present Options to the User
 
@@ -69,11 +70,12 @@ Want me to install it?
 
 ## Step 4: Install Through the Local Policy
 
-External skills are installed as plugins, never copied into `~/.claude/skills/` by hand - the plugin structure is what gives a skill its source prefix (`name:skill`) and lets it be removed as a unit.
+External skills are installed as plugins, never copied or symlinked into agent skill directories by hand - the plugin structure is what gives a skill its source prefix (`name:skill`) and lets it be removed as a unit.
 
-1. If the source publishes a Claude Code plugin or marketplace, run `claude plugin install <plugin>` after the user approves.
-2. Otherwise hand the repository to the `skill-manager` skill: it reviews the external code with `references/security-review.md` and installs the reviewed copy with `install-skill.sh`.
-3. Do not run `bunx skills add`; it writes straight into agent skill directories and bypasses both steps above.
+1. Review the external code first with the `skill-manager` skill's `references/security-review.md`; installation waits for the user's approval of that review.
+2. If the source publishes a Claude Code plugin or marketplace: `claude plugin marketplace add <source>`, then `claude plugin install <plugin>@<marketplace>` (details in the `skill-manager` skill's `references/plugin-validation.md`).
+3. If the source has no plugin, wrap it as a local marketplace plugin by the same reference and install it the same way. Placing an external skill in the shared skills root without a prefix is an exception that only the user can grant explicitly.
+4. Do not run `bunx skills add`; it writes straight into agent skill directories and bypasses the review and the plugin structure.
 
 ## Common Skill Categories
 
