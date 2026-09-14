@@ -12,7 +12,7 @@ description: chrome-devtools CLI(chrome-devtools-mcp 패키지의 standalone CLI
 
 **권장**: 같은 패키지를 MCP 서버로도 등록할 수 있지만 도구가 컨텍스트에 상주한다. 기본은 이 CLI를 on-demand로 호출하고, MCP 도구가 없어도 정상으로 본다.
 
-설치 확인: `which chrome-devtools` (없으면 `pnpm add -g chrome-devtools-mcp@latest`).
+설치 확인: `command -v chrome-devtools` (없으면 `pnpm add -g chrome-devtools-mcp@latest`).
 
 ## 데몬 모델 (먼저 이해할 것)
 

@@ -42,3 +42,4 @@ description: "Humanize Korean AI-generated text by detecting and rewriting AI-is
 - 슬림 룰북: `references/quick-rules.md` — S1·S2 핵심 패턴 + 자체검증 체크리스트
 - 분류 체계 본진: `references/ai-tell-taxonomy.md` — 10대분류 × 40+ 패턴 전수
 - 윤문 처방: `references/rewriting-playbook.md` — 카테고리별 치환 레시피
+- 학술 근거: `references/scholarship.md` — 패턴별 출처 전문

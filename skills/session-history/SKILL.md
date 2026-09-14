@@ -1,7 +1,7 @@
 ---
 argument-hint: "[query]"
 name: session-history
-description: "Searches local AI agent history across Claude Code/Desktop Cowork, Codex, Grok, Cursor, Gemini CLI/Antigravity, opencode, Aside, OpenClaw, and GitHub Copilot: lists, timelines, full transcripts, tool calls, changed files, token usage, API-equivalent cost, model rollups, and quota. Also scrubs API keys already written into those logs. Use for 작업 내역, 오늘 한 일, 뭐 했더라, past agent chat, cursor/grok/gemini/copilot session, 토큰 사용량, API 비용, 이번 달 얼마, 대화 로그에 남은 키 지워줘, 세션 로그 마스킹. Do NOT use for Hermes Agent/Discord/Gateway conversations in ~/.hermes/state.db - use session_search instead. Do NOT use for personal reflection synthesis, memory updates, or searching current repo files."
+description: "Claude, Codex, Cursor 등 로컬 AI 에이전트 세션의 목록·전사·도구 호출·변경 파일·토큰·비용을 검색하고 로그의 키를 마스킹한다. Use for 과거 작업·세션·사용량 조회. Do not use for Hermes state.db, 현재 저장소 검색, 회고 작성, 메모리 갱신."
 ---
 
 # Session History
