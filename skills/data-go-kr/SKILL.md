@@ -1,6 +1,6 @@
 ---
 name: data-go-kr
-description: "Korean data.go.kr public API direct provider skill for 공공데이터포털/data.go.kr recipes, 나라장터 입찰공고정보서비스·낙찰정보서비스·계약정보서비스, 국민연금 사업장, 국세청 사업자등록 상태조회, 건축물대장, SERVICE_ACCESS_DENIED 활용신청 errors, and public-data portal API calls. Use when user asks data.go.kr, 공공데이터포털, 나라장터 낙찰/입찰/계약, or a known public-data portal recipe. For broader Korean official/public API routing use open-api. Do NOT use for DART, KIPRIS, NTIS, Snowflake, Google Sheets, SimilarWeb, generic web crawling, or non-Korean APIs."
+description: "Calls Korean data.go.kr public APIs, including procurement, business registration, pension, and building records. Use for data.go.kr, 공공데이터포털, 나라장터, or a known Korean public-data recipe. Use open-api for multi-provider routing; do not use for DART, KIPRIS, NTIS, Snowflake, or generic crawling."
 argument-hint: "[할 작업]"
 license: MIT
 ---

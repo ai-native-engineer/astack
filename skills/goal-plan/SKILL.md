@@ -1,6 +1,6 @@
 ---
 name: goal-plan
-description: "Create and maintain a lightweight /goal plan for long-running agent work: GOAL.md completion instructions, AGENTS.md harness rules, and a progress.tsv scoreboard. Use when the user asks for a goal plan, goal workspace, goal harness, /goal setup, durable progress tracking, completion conditions, or resumable long-running task state. Do NOT use for short one-shot tasks that do not need persistent state."
+description: "Creates and maintains a lightweight /goal plan with GOAL.md instructions, AGENTS.md harness rules, and progress.tsv state. Use for resumable long-running work or explicit goal setup. Do not use for short one-shot tasks without persistent state."
 ---
 
 # Goal Plan

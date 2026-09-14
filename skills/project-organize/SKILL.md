@@ -1,7 +1,7 @@
 ---
 argument-hint: "[project-root]"
 name: project-organize
-description: "프로젝트 폴더를 읽히게 유지한다 - 정본/낡은 파일 가리기(hygiene), nn- 번호 루트 재편(layout), AGENTS.md와 context README 인덱스 맞춤(index). Use when user asks 프로젝트 정리, 루트 재편, 번호 폴더, nn-폴더, 레거시 확인, 정본 찾기, stale 파일, cleanup candidates, AGENTS.md 인덱스, or project-organize. Do NOT use for collecting new context from Slack, Notion, Google Workspace, or other external sources (project-collect), or for rule sentences in AGENTS.md - stale, duplicate, oversized 지침 (update-agents-md)."
+description: "Organizes a project folder by identifying canonical and stale files, applying numbered layout, and syncing AGENTS.md and context indexes. Use for project cleanup, root reorganization, stale-file review, or index repair. Do not use for collecting external context or editing rule sentences."
 ---
 
 # Project Organize

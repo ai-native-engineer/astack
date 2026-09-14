@@ -1,6 +1,6 @@
 ---
 name: meta-ads-cli
-description: "Meta Facebook/Instagram ads CLI workflow for campaign/adset/ad/creative CRUD, insights, breakdowns, pixels, conversion tracking, catalogs, and page lookup. Use when user asks 메타 광고, 페이스북/인스타 광고, Meta ads, campaign/adset/ad/creative, 광고 성과/인사이트, ROAS/CTR/CPC, pixel, catalog, or ad automation. Do NOT use for Google Ads, organic social posting, general marketing strategy, SimilarWeb traffic, or non-Meta analytics."
+description: "Manages Meta Facebook/Instagram ads through the CLI: campaigns, creatives, insights, pixels, catalogs, and page lookup. Use for Meta ads, ROAS/CTR/CPC, pixels, catalogs, or campaign CRUD. Do not use for Google Ads, organic posting, general marketing strategy, or non-Meta analytics."
 ---
 
 # Meta Ads CLI (`meta`)
