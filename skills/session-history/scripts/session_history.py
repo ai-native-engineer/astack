@@ -415,7 +415,13 @@ def cmd_grep(args):
     sessions = collect_history(args.tool, start_ms, end_ms, cwd_filter=cwd_filter)
 
     results = []
-    for sid, info in sessions.items():
+    ordered_sessions = sorted(
+        sessions.items(), key=lambda item: item[1].get("first_ts_ms", 0)
+    )
+    result_limit = getattr(args, "limit", None)
+    for sid, info in ordered_sessions:
+        if result_limit is not None and 0 <= result_limit <= len(results):
+            break
         tool = info["tool"]
         adapter = ADAPTERS.get(tool)
         if not adapter:
@@ -438,10 +444,8 @@ def cmd_grep(args):
                     "fpath": fpath,
                 }
             )
-
-    results.sort(key=lambda r: r["first_ts_ms"])
-    if getattr(args, "limit", None) is not None:
-        results = results[: args.limit]
+    if result_limit is not None:
+        results = results[:result_limit]
 
     if args.format == "json":
         out = [{**r, "fpath": str(r["fpath"]), "sid": r["sid"]} for r in results]
