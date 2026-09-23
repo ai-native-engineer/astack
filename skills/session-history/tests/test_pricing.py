@@ -38,14 +38,14 @@ class TestNormalize(unittest.TestCase):
 
     def test_default_when_empty(self):
         key, src = resolve_model_key("", "codex")
-        self.assertEqual(key, "gpt-5.6-sol")
+        self.assertEqual(key, "gpt-6-astra")
         self.assertEqual(src, "default")
 
     def test_non_model_placeholders_default(self):
         for placeholder in ("openai", "codex", "<synthetic>", "synthetic"):
             self.assertTrue(is_non_model_id(placeholder), placeholder)
             key, src = resolve_model_key(placeholder, "codex")
-            self.assertEqual(key, "gpt-5.6-sol", placeholder)
+            self.assertEqual(key, "gpt-6-astra", placeholder)
             self.assertEqual(src, "default", placeholder)
 
     def test_unmatched_real_model_is_unknown_not_default(self):
@@ -68,7 +68,7 @@ class TestNormalize(unittest.TestCase):
         # "o3" is a substring of "openai"; must not resolve via loose prefix.
         key, src = resolve_model_key("openai", "codex")
         self.assertEqual(src, "default")
-        self.assertEqual(key, "gpt-5.6-sol")
+        self.assertEqual(key, "gpt-6-astra")
 
     def test_fable_rates(self):
         key, src = resolve_model_key("fable", "claude")
@@ -95,6 +95,24 @@ class TestNormalize(unittest.TestCase):
 
 
 class TestCostEstimate(unittest.TestCase):
+    def test_gpt6_family_rates(self):
+        expected = {
+            "gpt-6-astra": 60.0,
+            "gpt-6-sol": 12.0,
+            "gpt-6-luna": 0.60,
+        }
+        for model, usd in expected.items():
+            result = estimate_row_cost(
+                {
+                    "tool": "codex",
+                    "model": model,
+                    "input_tokens": 1_000_000,
+                    "output_tokens": 1_000_000,
+                }
+            )
+            self.assertFalse(result.missing, model)
+            self.assertAlmostEqual(result.usd, usd, places=4, msg=model)
+
     def test_grok_ticks_priority(self):
         row = {
             "tool": "grok",

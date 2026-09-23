@@ -60,9 +60,9 @@ class TestCodexModelExtract(unittest.TestCase):
         }
         result = estimate_row_cost(row)
         self.assertFalse(result.missing)
-        self.assertEqual(result.model_key, "gpt-5.6-sol")
+        self.assertEqual(result.model_key, "gpt-6-astra")
         self.assertEqual(result.source, "default")
-        self.assertAlmostEqual(result.usd, 5.0, places=4)
+        self.assertAlmostEqual(result.usd, 10.0, places=4)
 
     def test_empty_model_uses_tool_default(self):
         row = {
@@ -74,7 +74,7 @@ class TestCodexModelExtract(unittest.TestCase):
         }
         result = estimate_row_cost(row)
         self.assertFalse(result.missing)
-        self.assertEqual(result.model_key, "gpt-5.6-sol")
+        self.assertEqual(result.model_key, "gpt-6-astra")
         self.assertEqual(result.source, "default")
 
     def test_unmatched_model_not_priced_as_flagship(self):

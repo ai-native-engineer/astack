@@ -4,11 +4,13 @@ Codex가 coordinator일 때 적용한다. 다른 coordinator가 Codex를 worker 
 
 ## 모델과 팀
 
-- lead는 Sol을 사용한다.
-- worker는 Terra를 사용한다.
-- 모델 인자: Sol=`gpt-5.6-sol`, Terra=`gpt-5.6-terra`. codex CLI는 Sol/Terra라는 별칭을 해석하지 못하므로 `-m`에는 이 인자를 쓴다.
+- 현재 coordinator의 모델을 유지한다. 특정 모델이 아니라 작업의 품질·비용·지연 요구로 역할을 고른다.
+- `gpt-6-astra`는 복잡한 통합, 높은 위험, 깊은 검토에 쓴다.
+- `gpt-6-sol`은 일반적인 코딩, 조사, 판단이 필요한 worker에 쓴다.
+- `gpt-6-luna`는 범위가 좁고 반복적이며 비용·지연에 민감한 worker에 쓴다.
+- 모델을 지정할 때는 Codex가 해석하는 실제 모델 ID를 `-m`에 전달한다. `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`를 사용한다.
+- coordinator가 Astra가 아니라는 이유만으로 세션을 재시작하지 않는다.
 - 네이티브 subagent thread를 사용한다.
-- lead가 Sol이 아니면 작업 전에 `codex-team`으로 다시 시작하라고 안내한다.
 
 ## 실행
 

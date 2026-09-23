@@ -278,15 +278,16 @@ def format_list_text(sessions, date_label):
         width = short_id_width(tool_sessions)
         for sid, info in sorted_items:
             proj = shorten_home(info["project"])
+            label = info.get("name") or (info.get("provider") and f"provider={info['provider']}") or ""
             msg_count = len(info["messages"])
             if not info["messages"]:
-                lines.append(f"  {sid[:width]}  {proj}  (메시지 없음)")
+                lines.append(f"  {sid[:width]}  {proj}  {label}  (메시지 없음)")
             else:
                 first = info["messages"][0]["time"]
                 last = info["messages"][-1]["time"]
                 first_msg = info["messages"][0]["text"].replace("\n", " ")[:80]
                 lines.append(
-                    f"  {sid[:width]}  {proj}  {first}~{last}  ({msg_count}건)  {first_msg}"
+                    f"  {sid[:width]}  {proj}  {label}  {first}~{last}  ({msg_count}건)  {first_msg}"
                 )
             fpath = adapter_session_path(adapter, sid)
             if fpath:
@@ -313,7 +314,9 @@ def cmd_list(args):
         sessions = {
             sid: info
             for sid, info in sessions.items()
-            if any(keyword in m["text"].lower() for m in info["messages"])
+            if keyword in info.get("name", "").lower()
+            or keyword in info.get("provider", "").lower()
+            or any(keyword in m["text"].lower() for m in info["messages"])
         }
 
     if getattr(args, "summary", False):

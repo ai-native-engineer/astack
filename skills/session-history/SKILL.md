@@ -28,6 +28,7 @@ python3 $SH redact
 
 1. **현재 프로젝트 복원**: `list --cwd`로 후보를 좁히고 `show <session-id>`로 대화를 읽는다.
 2. **특정 작업 검색**: `rg "키워드"`로 실제 대화와 도구 기록을 검색하고 필요하면 `show --full`로 확장한다.
+   Codex 세션 이름과 provider도 `list --search` 검색 대상이며 목록에 함께 표시된다.
 3. **오늘 작업 정리**: `timeline`을 시간순 데일리 노트 초안으로 쓴다.
 4. **장기 현황**: `list --days 30 --summary`로 범위를 좁힌 뒤 필요한 날짜·프로젝트만 `list`로 확인
 
@@ -40,6 +41,8 @@ python3 $SH redact
 - subagent/internal 세션은 기본 제외한다. Claude `subagents/`, Cursor `subagents/`와 chats의 `subagentInfo`, OpenClaw `.jsonl.reset.*`, Codex `exec` 세션이 모두 여기 해당하며 `--include-subagents`로 켠다.
 - `show --files`는 구조화된 편집 호출과 mutation 형태의 shell 호출을 모은다. Gemini는 안정적인 changed-file event 계약이 없어 빈 결과가 무변경을 보장하지 않는다.
 - `sources`는 지원 adapter의 저장소와 인덱싱 수를 보여준다. adapter가 못 읽는 부분은 `·` 주석으로 함께 밝힌다(Claude의 transcript 없는 세션, Antigravity IDE 암호화 본문 등). 임의 형식 로그를 자동 해석하지는 않는다.
+- Codex의 세션 이름과 provider는 보조 SQLite 인덱스에서 읽어 보충한다. 이 값은 검색·표시용이며 transcript를 대체하지 않는다.
+- Codex provider가 `myproxy` 등으로 표시된 세션은 일반 `codex resume` 목록에서 숨을 수 있다. 목록의 세션 ID와 provider를 확인한 뒤 같은 profile/실행 래퍼로 재개한다.
 - `sources`의 Claude 수치는 transcript 기준이라 `list` 결과보다 작다. 프롬프트 기록만 남은 세션은 `list`에 나오지만 `show`는 실패한다.
 
 소스별 경로, capability, project 복원, 제한 환경 fallback이 필요하면 `references/session-sources.md`를 읽는다.

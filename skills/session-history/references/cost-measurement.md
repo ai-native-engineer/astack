@@ -55,7 +55,7 @@ Claude `usage.cache_creation.ephemeral_5m_input_tokens` / `ephemeral_1h_input_to
 
 | 입력 | 결과 | 비용 출처 |
 |---|---|---|
-| 빈 모델, 또는 provider/synthetic placeholder (`openai`, `codex`, `<synthetic>` 등) | 도구 기본 모델 | `default` (Codex→`gpt-5.6-sol`, Claude→`claude-opus-5`, Grok→`grok-4.5`) |
+| 빈 모델, 또는 provider/synthetic placeholder (`openai`, `codex`, `<synthetic>` 등) | 도구 기본 모델 | `default` (Codex→`gpt-6-astra`, Claude→`claude-opus-5`, Grok→`grok-4.5`) |
 | 표에 있는 id / alias / safe prefix | 해당 단가 | `rate_card` (Grok ticks 있으면 `provider_ticks`) |
 | **실모델 id인데 표에 없음** | unpriced | 합계 **미포함**, `missing_models`에 이름·event 수 표시 |
 
@@ -69,7 +69,7 @@ Codex는 `thread_settings.model`만 모델로 쓴다. `model_provider` 필드는
 
 가격 출처(유지보수 시 대조):
 
-- OpenAI GPT-5.6 Sol/Terra/Luna, Codex 계열: OpenAI API / GPT-5.6 pricing 공지
+- OpenAI GPT-6 Astra/Sol/Luna와 GPT-5.6 Sol/Terra/Luna: OpenAI API pricing 공지
 - Anthropic Opus/Sonnet/Haiku 및 Fable 5 (`claude-fable-5`, $10/$50): Anthropic list price
 - xAI Grok: xAI 공개 단가; 세션에 `costUsdTicks`가 있으면 공급자 집계 우선
 
@@ -86,10 +86,10 @@ JSON 형식 예:
 ```json
 {
   "models": {
-    "gpt-5.6-sol": {
-      "input": 5.0,
-      "output": 30.0,
-      "cached_input": 0.5,
+    "gpt-6-astra": {
+      "input": 10.0,
+      "output": 50.0,
+      "cached_input": 1.0,
       "style": "openai"
     }
   }
