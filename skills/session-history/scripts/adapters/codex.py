@@ -8,6 +8,7 @@ import json
 import re
 import sqlite3
 from collections import defaultdict
+from contextlib import closing
 from pathlib import Path
 
 from common import (
@@ -81,21 +82,27 @@ def _backfill_state_metadata(index):
     if not CODEX_STATE_DB.exists() or not index:
         return
     try:
-        with sqlite3.connect(f"file:{CODEX_STATE_DB}?mode=ro", uri=True) as db:
+        with closing(sqlite3.connect(f"file:{CODEX_STATE_DB}?mode=ro", uri=True)) as db:
             columns = {row[1] for row in db.execute("pragma table_info(threads)")}
             wanted = [c for c in ("id", "name", "model_provider") if c in columns]
             if "id" not in wanted:
                 return
-            rows = db.execute(
-                f"select {', '.join(wanted)} from threads where id in ({','.join('?' for _ in index)})",
-                tuple(index),
-            )
-            for row in rows:
-                data = dict(zip(wanted, row))
-                item = index.get(data["id"])
-                if item:
-                    item["name"] = data.get("name") or item.get("name", "")
-                    item["provider"] = data.get("model_provider") or item.get("provider", "")
+            ids = list(index)
+            for offset in range(0, len(ids), 500):
+                batch = ids[offset : offset + 500]
+                placeholders = ",".join("?" for _ in batch)
+                rows = db.execute(
+                    f"select {', '.join(wanted)} from threads where id in ({placeholders})",
+                    batch,
+                )
+                for row in rows:
+                    data = dict(zip(wanted, row))
+                    item = index.get(data["id"])
+                    if item:
+                        item["name"] = data.get("name") or item.get("name", "")
+                        item["provider"] = data.get("model_provider") or item.get(
+                            "provider", ""
+                        )
     except (OSError, sqlite3.Error):
         return
 
