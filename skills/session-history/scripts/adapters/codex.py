@@ -6,7 +6,9 @@ import datetime
 import functools
 import json
 import re
+import sqlite3
 from collections import defaultdict
+from contextlib import closing
 from pathlib import Path
 
 from common import (
@@ -24,6 +26,7 @@ TOOL = "codex"
 DISPLAY = "Codex"
 TAG = "[X]"
 SOURCE_PATHS = (CODEX_HISTORY, CODEX_SESSIONS_DIR, CODEX_ARCHIVED_SESSIONS_DIR)
+CODEX_STATE_DB = CODEX_SESSIONS_DIR.parent / "state_5.sqlite"
 APPLY_PATCH_HEADER_RE = re.compile(
     r"^\*\*\*\s+(Update|Add|Delete|Move)\s+(?:File|to):\s+(.+?)\s*$", re.MULTILINE
 )
@@ -67,8 +70,41 @@ def codex_session_index():
             "path": f,
             "cwd": payload.get("cwd", ""),
             "ts": payload.get("timestamp", ""),
+            "provider": payload.get("model_provider", ""),
+            "name": payload.get("name", ""),
         }
+    _backfill_state_metadata(idx)
     return idx
+
+
+def _backfill_state_metadata(index):
+    """보조 인덱스의 이름/provider를 읽어 목록 검색에 보충한다."""
+    if not CODEX_STATE_DB.exists() or not index:
+        return
+    try:
+        with closing(sqlite3.connect(f"file:{CODEX_STATE_DB}?mode=ro", uri=True)) as db:
+            columns = {row[1] for row in db.execute("pragma table_info(threads)")}
+            wanted = [c for c in ("id", "name", "model_provider") if c in columns]
+            if "id" not in wanted:
+                return
+            ids = list(index)
+            for offset in range(0, len(ids), 500):
+                batch = ids[offset : offset + 500]
+                placeholders = ",".join("?" for _ in batch)
+                rows = db.execute(
+                    f"select {', '.join(wanted)} from threads where id in ({placeholders})",
+                    batch,
+                )
+                for row in rows:
+                    data = dict(zip(wanted, row))
+                    item = index.get(data["id"])
+                    if item:
+                        item["name"] = data.get("name") or item.get("name", "")
+                        item["provider"] = data.get("model_provider") or item.get(
+                            "provider", ""
+                        )
+    except (OSError, sqlite3.Error):
+        return
 
 
 # ─── Grok session IO ───────────────────────────────────────────
@@ -259,6 +295,8 @@ def extract_codex_history(start_ms, end_ms, project_filter=None, cwd_filter=None
             "messages": [],
             "tool": "codex",
             "first_ts_ms": 0,
+            "name": "",
+            "provider": "",
         }
     )
     index = codex_session_index()
@@ -286,6 +324,8 @@ def extract_codex_history(start_ms, end_ms, project_filter=None, cwd_filter=None
                     continue
                 if not sessions[sid]["project"] and project:
                     sessions[sid]["project"] = project
+                sessions[sid]["name"] = index[sid].get("name", "")
+                sessions[sid]["provider"] = index[sid].get("provider", "")
                 if not sessions[sid]["first_ts_ms"]:
                     sessions[sid]["first_ts_ms"] = ts_ms
                 else:
@@ -319,6 +359,8 @@ def extract_codex_history(start_ms, end_ms, project_filter=None, cwd_filter=None
             continue
         entry = sessions[sid]
         entry["project"] = project
+        entry["name"] = info.get("name", "")
+        entry["provider"] = info.get("provider", "")
         entry["first_ts_ms"] = ts_ms
         first_msg = codex_first_user_message(info["path"])
         if first_msg:

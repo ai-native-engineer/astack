@@ -1,6 +1,6 @@
 ---
 name: html-explainer
-description: "Local single-file HTML explainer in three types - visual (Mermaid/ELK diagrams, ECharts, Iconify; static, at-a-glance), interactive walkthrough (React single-file; click-through steps, learner-driven), and wiki/knowledge-base (searchable glossary/handbook, hash routing). All dark/light. After writing, open the file in the user's browser with `open`; do not start chrome-devtools for routine visualization. Use when user asks HTML로 설명/정리, 시각화 자료, 구조도, 아키텍처 그림, flow diagram, comparison chart, 인터랙티브 튜토리얼, 단계별 설명, 클릭하며 보는 설명, step-through explainer, 위키처럼 정리, 용어집/사전 HTML, searchable handbook, or complex explanation as a local HTML file. Do NOT use for production websites, Remotion/video motion graphics, Marp/PPT slide deck files, raw markdown docs, or frontend app implementation."
+description: "로컬 단일 HTML로 시각 설명물, 인터랙티브 walkthrough, 검색 가능한 위키/용어집을 만든다. Use for 구조도·플로우·비교·단계별 설명·시각화 요청. Do not use for 운영 웹사이트, 영상·슬라이드·마크다운, 일반 프론트엔드 구현."
 argument-hint: "[visual|interactive|wiki] [topic]"
 ---
 

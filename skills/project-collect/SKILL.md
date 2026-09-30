@@ -1,6 +1,6 @@
 ---
 name: project-collect
-description: "프로젝트 맥락을 Slack, Notion, Google Workspace, Obsidian, 음성 메모, 통화/미팅 녹음과 녹화, 로컬 소스에서 검색해 프로젝트 context 폴더에 소스당 1개 통합 아카이브와 attachments 원본으로 수집한다. Use when user asks 프로젝트 맥락 모아줘, 맥락 가져와줘, context 수집, 자료 모아줘, 슬랙/노션 관련 자료 수집, collect project context, or project-collect. Do NOT use for organizing what is already in the project - 정본/stale 판정, 루트 재편, 인덱스 갱신 (project-organize); inside an Obsidian vault (use the vault's ingest workflow); external web/YouTube research; or company public research."
+description: "Collects project context from Slack, Notion, Google Workspace, Obsidian, recordings, and local sources into a source-faithful context folder with attachments. Use for project context collection or context gathering. Do not use for organizing existing files, vault ingest, external web research, or company research."
 ---
 
 # Project Collect

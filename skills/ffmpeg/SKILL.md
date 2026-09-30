@@ -1,6 +1,6 @@
 ---
 name: ffmpeg
-description: "Standalone local ffmpeg/ffprobe media utility for command-level media operations: explicit time-range cutting/joining, compressing, converting, extracting tracks, resizing, FPS, rotating, GIFs, subtitles, thumbnails, audio normalization, HDR-to-SDR, HEIC conversion, and advanced ffmpeg encoding/filter questions. Use for ffmpeg, ffprobe, 코덱, 인코딩, 필터, 압축/변환, MP4/MOV/webm, 오디오 추출, mp3, GIF, 자막, 프레임/썸네일, HDR 제거, or HEIC 변환. Do NOT use for 무음 제거, 무음 컷, content-aware cut editing, marker-based retake cleanup, 컷 마커/편집점 효과음 workflow, speech/VAD review cut plans, speech-to-text, text-to-speech, CapCut draft editing, YouTube strategy, or image generation."
+description: "로컬 ffmpeg/ffprobe로 미디어를 자르고 합치고 변환·압축·리사이즈·인코딩·자막·썸네일·오디오 처리를 한다. Use for ffmpeg, 코덱, 필터, MP4/MOV/WebM, 오디오·GIF·HEIC 요청. Do not use for 내용 인식 컷편집, STT/TTS, CapCut 편집, 영상 전략, 이미지 생성."
 ---
 
 # ffmpeg

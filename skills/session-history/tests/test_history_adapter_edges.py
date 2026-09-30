@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -147,6 +148,29 @@ class TestCodexSubagentFiltering(unittest.TestCase):
                     set(codex.codex_session_index()),
                     {main_sid, exec_sid},
                 )
+
+    def test_state_metadata_backfill_batches_large_indexes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            db_path = Path(temp) / "state.sqlite"
+            rows = [(f"sid-{i}", f"session-{i}", "openai") for i in range(1005)]
+            db = sqlite3.connect(db_path)
+            try:
+                db.execute(
+                    "create table threads (id text primary key, name text, model_provider text)"
+                )
+                db.executemany("insert into threads values (?, ?, ?)", rows)
+                db.commit()
+            finally:
+                db.close()
+
+            index = {sid: {"name": "", "provider": ""} for sid, _, _ in rows}
+            with mock.patch.object(codex, "CODEX_STATE_DB", db_path):
+                codex._backfill_state_metadata(index)
+
+            self.assertEqual(
+                index["sid-1004"],
+                {"name": "session-1004", "provider": "openai"},
+            )
 
 
 class TestClaudeChangedFiles(unittest.TestCase):

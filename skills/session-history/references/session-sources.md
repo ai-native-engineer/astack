@@ -52,6 +52,8 @@
 - `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`: 메타, 대화, tool record, patch event, token event
 - `~/.codex/archived_sessions/rollout-*.jsonl`: 보관된 세션. 포맷이 같아 함께 인덱싱한다.
 - 변경 파일은 `apply_patch`, `patch_apply_begin`, mutation 형태의 `shell` 호출에서 추출한다.
+- 세션 이름과 `model_provider`는 `~/.codex/state_5.sqlite`에서 읽어 목록·검색에 보충한다. SQLite가 없거나 읽을 수 없으면 rollout 메타와 첫 사용자 메시지로 계속 표시한다.
+- provider가 현재 Codex와 다르면 Codex 자체 `resume` 목록에서 숨을 수 있다. 확인한 provider/profile로 재개하고 rollout이나 SQLite를 직접 수정하지 않는다.
 - 다른 앱이 codex를 감싸도 rollout은 `~/.codex/sessions`로 모인다. orca(`codex-runtime-home`)는 hardlink, AionUi는 `cwd=~/.aionui/...`로 나타나 이미 커버된다.
 
 ## Grok

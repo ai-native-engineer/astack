@@ -278,15 +278,16 @@ def format_list_text(sessions, date_label):
         width = short_id_width(tool_sessions)
         for sid, info in sorted_items:
             proj = shorten_home(info["project"])
+            label = info.get("name") or (info.get("provider") and f"provider={info['provider']}") or ""
             msg_count = len(info["messages"])
             if not info["messages"]:
-                lines.append(f"  {sid[:width]}  {proj}  (메시지 없음)")
+                lines.append(f"  {sid[:width]}  {proj}  {label}  (메시지 없음)")
             else:
                 first = info["messages"][0]["time"]
                 last = info["messages"][-1]["time"]
                 first_msg = info["messages"][0]["text"].replace("\n", " ")[:80]
                 lines.append(
-                    f"  {sid[:width]}  {proj}  {first}~{last}  ({msg_count}건)  {first_msg}"
+                    f"  {sid[:width]}  {proj}  {label}  {first}~{last}  ({msg_count}건)  {first_msg}"
                 )
             fpath = adapter_session_path(adapter, sid)
             if fpath:
@@ -313,7 +314,9 @@ def cmd_list(args):
         sessions = {
             sid: info
             for sid, info in sessions.items()
-            if any(keyword in m["text"].lower() for m in info["messages"])
+            if keyword in info.get("name", "").lower()
+            or keyword in info.get("provider", "").lower()
+            or any(keyword in m["text"].lower() for m in info["messages"])
         }
 
     if getattr(args, "summary", False):
@@ -415,7 +418,13 @@ def cmd_grep(args):
     sessions = collect_history(args.tool, start_ms, end_ms, cwd_filter=cwd_filter)
 
     results = []
-    for sid, info in sessions.items():
+    ordered_sessions = sorted(
+        sessions.items(), key=lambda item: item[1].get("first_ts_ms", 0)
+    )
+    result_limit = getattr(args, "limit", None)
+    for sid, info in ordered_sessions:
+        if result_limit is not None and 0 <= result_limit <= len(results):
+            break
         tool = info["tool"]
         adapter = ADAPTERS.get(tool)
         if not adapter:
@@ -438,10 +447,8 @@ def cmd_grep(args):
                     "fpath": fpath,
                 }
             )
-
-    results.sort(key=lambda r: r["first_ts_ms"])
-    if getattr(args, "limit", None) is not None:
-        results = results[: args.limit]
+    if result_limit is not None:
+        results = results[:result_limit]
 
     if args.format == "json":
         out = [{**r, "fpath": str(r["fpath"]), "sid": r["sid"]} for r in results]

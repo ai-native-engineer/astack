@@ -1,6 +1,7 @@
 ---
 argument-hint: "[domain]"
 name: similarweb
+disable-model-invocation: true
 description: "SimilarWeb free-endpoint domain analytics for traffic, rankings, visitor estimates, traffic sources, AI/LLM referrals, SEO keyword value, and competitor comparison. Use when user asks 사이트 트래픽, 도메인 분석, 방문자 수, monthly visits, similarweb, 경쟁사 트래픽, AI 유입, GEO, SEO keywords, or website ranking. Do NOT use for full company diligence, web crawling, Google Analytics, Meta ads, or internal product metrics."
 ---
 

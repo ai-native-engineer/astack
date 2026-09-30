@@ -30,7 +30,7 @@ GROK_TICKS_PER_USD = 10_000_000_000
 # Tool defaults when model is empty/placeholder only (never for unmatched real ids).
 TOOL_DEFAULT_MODELS = {
     "claude": "claude-opus-5",
-    "codex": "gpt-5.6-sol",
+    "codex": "gpt-6-astra",
     "grok": "grok-4.5",
 }
 
@@ -78,12 +78,15 @@ class ModelRates:
         return self.cached_input
 
 
-# Snapshot rates (2026-08 official list prices used for API-equivalent math).
+# Snapshot rates (2026-09 official list prices used for API-equivalent math).
 # Sources (human-maintained): Anthropic/OpenAI/xAI public pricing pages;
 # Fable 5 = Anthropic list $10/$50 (2x Opus 4.8 family cache multipliers).
 # Keys are normalized ids (see normalize_model_id).
 DEFAULT_RATES: dict[str, ModelRates] = {
     # OpenAI Codex CLI families
+    "gpt-6-astra": ModelRates(10.0, 50.0, cached_input=1.0, style="openai"),
+    "gpt-6-sol": ModelRates(2.0, 10.0, cached_input=0.20, style="openai"),
+    "gpt-6-luna": ModelRates(0.10, 0.50, cached_input=0.01, style="openai"),
     "gpt-5.6-sol": ModelRates(5.0, 30.0, cached_input=0.50, style="openai"),
     "gpt-5.6-terra": ModelRates(2.0, 12.0, cached_input=0.20, style="openai"),
     "gpt-5.6-luna": ModelRates(0.20, 1.20, cached_input=0.02, style="openai"),
@@ -160,6 +163,9 @@ DEFAULT_RATES: dict[str, ModelRates] = {
 
 # Alias fragments -> canonical key (first match wins after normalize).
 _ALIAS_RULES: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"gpt-6-astra"), "gpt-6-astra"),
+    (re.compile(r"gpt-6-sol"), "gpt-6-sol"),
+    (re.compile(r"gpt-6-luna"), "gpt-6-luna"),
     (re.compile(r"gpt-5\.6-sol|gpt-5-6-sol|5\.6-sol"), "gpt-5.6-sol"),
     (re.compile(r"gpt-5\.6-terra|gpt-5-6-terra|5\.6-terra"), "gpt-5.6-terra"),
     (re.compile(r"gpt-5\.6-luna|gpt-5-6-luna|5\.6-luna"), "gpt-5.6-luna"),

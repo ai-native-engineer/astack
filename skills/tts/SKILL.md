@@ -1,6 +1,6 @@
 ---
 name: tts
-description: "Local text-to-speech, voice cloning, preset speakers, and voice design with Qwen3-TTS/mlx-audio, full/chunk generation, and partial regeneration. Use when user asks TTS, 텍스트 음성으로, 음성 합성, 음성 복제, voice clone, 내 목소리로, 성우 음성, 목소리 디자인, 더빙, narration, Qwen3-TTS, or 음성 생성. Do NOT use for speech-to-text transcription, podcast publishing workflow, video editing, audio cleanup, or non-voice media conversion."
+description: "Generates local speech with Qwen3-TTS or mlx-audio, including voice cloning, preset speakers, voice design, and partial regeneration. Use for TTS, narration, dubbing, or voice cloning. Do not use for transcription, podcast publishing, video editing, audio cleanup, or generic media conversion."
 compatibility: "macOS on Apple Silicon. Requires Python 3, ffmpeg, and mlx-audio; apple-stt is optional for automatic reference transcription."
 ---
 

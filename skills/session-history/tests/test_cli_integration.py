@@ -649,6 +649,34 @@ class TestSessionHistoryCli(unittest.TestCase):
                 self.assertEqual(messages[0]["role"], "user")
                 self.assertIn("fixture needle", messages[0]["text"])
 
+    def test_rg_limit_stops_after_earliest_match(self):
+        hits = self._run_json(
+            "rg",
+            "fixture needle",
+            "--date",
+            DATE,
+            "--limit",
+            "1",
+            "--format",
+            "json",
+        )
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0]["sid"], self.ids["claude"])
+
+        self.assertEqual(
+            self._run_json(
+                "rg",
+                "fixture needle",
+                "--date",
+                DATE,
+                "--limit",
+                "0",
+                "--format",
+                "json",
+            ),
+            [],
+        )
+
     def test_edit_tool_calls_reach_show_files(self):
         # 파트 타입 이름이 어긋나면 조용히 빈 결과가 된다. 도구별로 한 건씩 못 박는다.
         expected = {
