@@ -55,7 +55,7 @@ Claude `usage.cache_creation.ephemeral_5m_input_tokens` / `ephemeral_1h_input_to
 
 | 입력 | 결과 | 비용 출처 |
 |---|---|---|
-| 빈 모델, 또는 provider/synthetic placeholder (`openai`, `codex`, `<synthetic>` 등) | 도구 기본 모델 | `default` (Codex→`gpt-6-astra`, Claude→`claude-opus-5`, Grok→`grok-4.5`) |
+| 빈 모델, 또는 provider/synthetic placeholder (`openai`, `codex`, `<synthetic>` 등) | 도구 기본 모델 | `default` (Codex→`gpt-6.1-sol`, Claude→`claude-opus-5.5`, Grok→`grok-4.5`) |
 | 표에 있는 id / alias / safe prefix | 해당 단가 | `rate_card` (Grok ticks 있으면 `provider_ticks`) |
 | **실모델 id인데 표에 없음** | unpriced | 합계 **미포함**, `missing_models`에 이름·event 수 표시 |
 
@@ -69,8 +69,9 @@ Codex는 `thread_settings.model`만 모델로 쓴다. `model_provider` 필드는
 
 가격 출처(유지보수 시 대조):
 
-- OpenAI GPT-6 Astra/Sol/Luna와 GPT-5.6 Sol/Terra/Luna: OpenAI API pricing 공지
-- Anthropic Opus/Sonnet/Haiku 및 Fable 5 (`claude-fable-5`, $10/$50): Anthropic list price
+- OpenAI GPT-6.1 Sol, GPT-6 Astra/Sol/Luna, GPT-5.6 Sol/Terra/Luna: OpenAI API 모델 페이지의 가격표
+- Anthropic Opus/Sonnet/Haiku/Fable: Anthropic pricing 문서. Opus 5.5와 Fable 5.1은 cache hit 배율이 다른 모델(0.1x)과 달라(0.05x, 0.025x) 표에 따로 둔다
+- 점 릴리스(`claude-opus-5-5`, `claude-fable-5-1` 등)는 계열 alias(`opus-5`, `fable-5`)에도 걸리므로 `_ALIAS_RULES`에서 계열 규칙보다 앞에 둔다
 - xAI Grok: xAI 공개 단가; 세션에 `costUsdTicks`가 있으면 공급자 집계 우선
 
 오버라이드:
