@@ -6,9 +6,9 @@ Codex가 coordinator일 때 적용한다. 다른 coordinator가 Codex를 worker 
 
 - 현재 coordinator의 모델을 유지한다. 특정 모델이 아니라 작업의 품질·비용·지연 요구로 역할을 고른다.
 - `gpt-6-astra`는 복잡한 통합, 높은 위험, 깊은 검토에 쓴다.
-- `gpt-6-sol`은 일반적인 코딩, 조사, 판단이 필요한 worker에 쓴다.
+- `gpt-6.1-sol`은 일반적인 코딩, 조사, 판단이 필요한 worker에 쓴다. Astra에 가까운 성능을 Astra 단가의 5분의 1로 내므로 worker 기본값이다.
 - `gpt-6-luna`는 범위가 좁고 반복적이며 비용·지연에 민감한 worker에 쓴다.
-- 모델을 지정할 때는 Codex가 해석하는 실제 모델 ID를 `-m`에 전달한다. `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`를 사용한다.
+- 모델을 지정할 때는 Codex가 해석하는 실제 모델 ID를 `-m`에 전달한다. `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6-luna`를 사용한다.
 - coordinator가 Astra가 아니라는 이유만으로 세션을 재시작하지 않는다.
 - 네이티브 subagent thread를 사용한다.
 

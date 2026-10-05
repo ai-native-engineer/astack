@@ -38,14 +38,17 @@ class TestNormalize(unittest.TestCase):
 
     def test_default_when_empty(self):
         key, src = resolve_model_key("", "codex")
-        self.assertEqual(key, "gpt-6-astra")
+        self.assertEqual(key, "gpt-6.1-sol")
+        self.assertEqual(src, "default")
+        key, src = resolve_model_key("", "claude")
+        self.assertEqual(key, "claude-opus-5.5")
         self.assertEqual(src, "default")
 
     def test_non_model_placeholders_default(self):
         for placeholder in ("openai", "codex", "<synthetic>", "synthetic"):
             self.assertTrue(is_non_model_id(placeholder), placeholder)
             key, src = resolve_model_key(placeholder, "codex")
-            self.assertEqual(key, "gpt-6-astra", placeholder)
+            self.assertEqual(key, "gpt-6.1-sol", placeholder)
             self.assertEqual(src, "default", placeholder)
 
     def test_unmatched_real_model_is_unknown_not_default(self):
@@ -68,7 +71,24 @@ class TestNormalize(unittest.TestCase):
         # "o3" is a substring of "openai"; must not resolve via loose prefix.
         key, src = resolve_model_key("openai", "codex")
         self.assertEqual(src, "default")
-        self.assertEqual(key, "gpt-6-astra")
+        self.assertEqual(key, "gpt-6.1-sol")
+
+    def test_point_releases_not_folded_into_family(self):
+        # The family rules (opus-5, sonnet-5, fable-5, gpt-6-sol) would also match these ids.
+        expected = {
+            "claude-opus-5-5": "claude-opus-5.5",
+            "claude-opus-5-5[1m]": "claude-opus-5.5",
+            "claude-sonnet-5-5": "claude-sonnet-5.5",
+            "claude-fable-5-1": "claude-fable-5.1",
+            "gpt-6.1-sol": "gpt-6.1-sol",
+            "claude-opus-5": "claude-opus-5",
+            "claude-opus-5-20260301": "claude-opus-5",
+            "claude-sonnet-5": "claude-sonnet-5",
+            "claude-fable-5": "claude-fable-5",
+            "gpt-6-sol": "gpt-6-sol",
+        }
+        for model, key in expected.items():
+            self.assertEqual(resolve_model_key(model, None)[0], key, model)
 
     def test_fable_rates(self):
         key, src = resolve_model_key("fable", "claude")
@@ -91,7 +111,9 @@ class TestNormalize(unittest.TestCase):
         self.assertEqual(result.model_key, "claude-fable-5")
 
     def test_normalize_strips_date(self):
-        self.assertNotIn("20260301", normalize_model_id("claude-opus-5-20260301") or "x")
+        self.assertNotIn(
+            "20260301", normalize_model_id("claude-opus-5-20260301") or "x"
+        )
 
 
 class TestCostEstimate(unittest.TestCase):

@@ -29,8 +29,8 @@ GROK_TICKS_PER_USD = 10_000_000_000
 
 # Tool defaults when model is empty/placeholder only (never for unmatched real ids).
 TOOL_DEFAULT_MODELS = {
-    "claude": "claude-opus-5",
-    "codex": "gpt-6-astra",
+    "claude": "claude-opus-5.5",
+    "codex": "gpt-6.1-sol",
     "grok": "grok-4.5",
 }
 
@@ -78,12 +78,13 @@ class ModelRates:
         return self.cached_input
 
 
-# Snapshot rates (2026-09 official list prices used for API-equivalent math).
+# Snapshot rates (2026-10 official list prices used for API-equivalent math).
 # Sources (human-maintained): Anthropic/OpenAI/xAI public pricing pages;
 # Fable 5 = Anthropic list $10/$50 (2x Opus 4.8 family cache multipliers).
 # Keys are normalized ids (see normalize_model_id).
 DEFAULT_RATES: dict[str, ModelRates] = {
     # OpenAI Codex CLI families
+    "gpt-6.1-sol": ModelRates(2.0, 10.0, cached_input=0.10, style="openai"),
     "gpt-6-astra": ModelRates(10.0, 50.0, cached_input=1.0, style="openai"),
     "gpt-6-sol": ModelRates(2.0, 10.0, cached_input=0.20, style="openai"),
     "gpt-6-luna": ModelRates(0.10, 0.50, cached_input=0.01, style="openai"),
@@ -91,33 +92,88 @@ DEFAULT_RATES: dict[str, ModelRates] = {
     "gpt-5.6-terra": ModelRates(2.0, 12.0, cached_input=0.20, style="openai"),
     "gpt-5.6-luna": ModelRates(0.20, 1.20, cached_input=0.02, style="openai"),
     "gpt-5.5": ModelRates(1.75, 14.0, cached_input=0.175, style="openai"),
-    "gpt-5.4": ModelRates(1.75, 14.0, cached_input=0.175, style="openai", note="approx"),
+    "gpt-5.4": ModelRates(
+        1.75, 14.0, cached_input=0.175, style="openai", note="approx"
+    ),
     "gpt-5": ModelRates(1.25, 10.0, cached_input=0.125, style="openai", note="approx"),
     "o3": ModelRates(2.0, 8.0, cached_input=0.50, style="openai", note="approx"),
-    "o4-mini": ModelRates(1.10, 4.40, cached_input=0.275, style="openai", note="approx"),
+    "o4-mini": ModelRates(
+        1.10, 4.40, cached_input=0.275, style="openai", note="approx"
+    ),
     # Anthropic Claude Code
+    # Opus 5.5 cache hits are 0.05x input (other Claude models use 0.1x).
+    "claude-opus-5.5": ModelRates(
+        4.0,
+        20.0,
+        cache_write_5m=5.0,
+        cache_write_1h=8.0,
+        cache_read=0.20,
+        style="anthropic",
+    ),
     "claude-opus-5": ModelRates(
-        5.0, 25.0, cache_write_5m=6.25, cache_write_1h=10.0, cache_read=0.50, style="anthropic"
+        5.0,
+        25.0,
+        cache_write_5m=6.25,
+        cache_write_1h=10.0,
+        cache_read=0.50,
+        style="anthropic",
     ),
     "claude-opus-4.8": ModelRates(
-        5.0, 25.0, cache_write_5m=6.25, cache_write_1h=10.0, cache_read=0.50, style="anthropic"
+        5.0,
+        25.0,
+        cache_write_5m=6.25,
+        cache_write_1h=10.0,
+        cache_read=0.50,
+        style="anthropic",
     ),
     "claude-opus-4.7": ModelRates(
-        5.0, 25.0, cache_write_5m=6.25, cache_write_1h=10.0, cache_read=0.50, style="anthropic"
+        5.0,
+        25.0,
+        cache_write_5m=6.25,
+        cache_write_1h=10.0,
+        cache_read=0.50,
+        style="anthropic",
     ),
     "claude-opus-4.6": ModelRates(
-        5.0, 25.0, cache_write_5m=6.25, cache_write_1h=10.0, cache_read=0.50, style="anthropic"
+        5.0,
+        25.0,
+        cache_write_5m=6.25,
+        cache_write_1h=10.0,
+        cache_read=0.50,
+        style="anthropic",
     ),
     "claude-opus-4.5": ModelRates(
-        5.0, 25.0, cache_write_5m=6.25, cache_write_1h=10.0, cache_read=0.50, style="anthropic"
+        5.0,
+        25.0,
+        cache_write_5m=6.25,
+        cache_write_1h=10.0,
+        cache_read=0.50,
+        style="anthropic",
     ),
     "claude-opus-4.1": ModelRates(
-        15.0, 75.0, cache_write_5m=18.75, cache_write_1h=30.0, cache_read=1.50, style="anthropic"
+        15.0,
+        75.0,
+        cache_write_5m=18.75,
+        cache_write_1h=30.0,
+        cache_read=1.50,
+        style="anthropic",
     ),
     "claude-opus-4": ModelRates(
-        15.0, 75.0, cache_write_5m=18.75, cache_write_1h=30.0, cache_read=1.50, style="anthropic"
+        15.0,
+        75.0,
+        cache_write_5m=18.75,
+        cache_write_1h=30.0,
+        cache_read=1.50,
+        style="anthropic",
     ),
-    # Sonnet 5 intro through 2026-08-31; table uses intro rates (document in note).
+    "claude-sonnet-5.5": ModelRates(
+        2.0,
+        10.0,
+        cache_write_5m=2.50,
+        cache_write_1h=4.0,
+        cache_read=0.20,
+        style="anthropic",
+    ),
     "claude-sonnet-5": ModelRates(
         2.0,
         10.0,
@@ -125,25 +181,63 @@ DEFAULT_RATES: dict[str, ModelRates] = {
         cache_write_1h=4.0,
         cache_read=0.20,
         style="anthropic",
-        note="intro $2/$10 through 2026-08-31; then $3/$15",
     ),
     "claude-sonnet-4.6": ModelRates(
-        3.0, 15.0, cache_write_5m=3.75, cache_write_1h=6.0, cache_read=0.30, style="anthropic"
+        3.0,
+        15.0,
+        cache_write_5m=3.75,
+        cache_write_1h=6.0,
+        cache_read=0.30,
+        style="anthropic",
     ),
     "claude-sonnet-4.5": ModelRates(
-        3.0, 15.0, cache_write_5m=3.75, cache_write_1h=6.0, cache_read=0.30, style="anthropic"
+        3.0,
+        15.0,
+        cache_write_5m=3.75,
+        cache_write_1h=6.0,
+        cache_read=0.30,
+        style="anthropic",
     ),
     "claude-sonnet-4": ModelRates(
-        3.0, 15.0, cache_write_5m=3.75, cache_write_1h=6.0, cache_read=0.30, style="anthropic"
+        3.0,
+        15.0,
+        cache_write_5m=3.75,
+        cache_write_1h=6.0,
+        cache_read=0.30,
+        style="anthropic",
     ),
     "claude-haiku-4.5": ModelRates(
-        1.0, 5.0, cache_write_5m=1.25, cache_write_1h=2.0, cache_read=0.10, style="anthropic"
+        1.0,
+        5.0,
+        cache_write_5m=1.25,
+        cache_write_1h=2.0,
+        cache_read=0.10,
+        style="anthropic",
     ),
     "claude-haiku-4": ModelRates(
-        1.0, 5.0, cache_write_5m=1.25, cache_write_1h=2.0, cache_read=0.10, style="anthropic"
+        1.0,
+        5.0,
+        cache_write_5m=1.25,
+        cache_write_1h=2.0,
+        cache_read=0.10,
+        style="anthropic",
     ),
     "claude-haiku-3.5": ModelRates(
-        0.80, 4.0, cache_write_5m=1.0, cache_write_1h=1.6, cache_read=0.08, style="anthropic"
+        0.80,
+        4.0,
+        cache_write_5m=1.0,
+        cache_write_1h=1.6,
+        cache_read=0.08,
+        style="anthropic",
+    ),
+    # Claude Fable 5.1 (list $10/$50; cache hits 0.025x input)
+    "claude-fable-5.1": ModelRates(
+        10.0,
+        50.0,
+        cache_write_5m=12.5,
+        cache_write_1h=20.0,
+        cache_read=0.25,
+        style="anthropic",
     ),
     # Claude Fable 5 (list $10/$50; cache 1.25x / 2x / 0.1x input)
     "claude-fable-5": ModelRates(
@@ -163,6 +257,7 @@ DEFAULT_RATES: dict[str, ModelRates] = {
 
 # Alias fragments -> canonical key (first match wins after normalize).
 _ALIAS_RULES: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"gpt-6[.-]1-sol|6\.1-sol"), "gpt-6.1-sol"),
     (re.compile(r"gpt-6-astra"), "gpt-6-astra"),
     (re.compile(r"gpt-6-sol"), "gpt-6-sol"),
     (re.compile(r"gpt-6-luna"), "gpt-6-luna"),
@@ -173,7 +268,10 @@ _ALIAS_RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"gpt-5\.4"), "gpt-5.4"),
     (re.compile(r"\bo3\b"), "o3"),
     (re.compile(r"o4-mini"), "o4-mini"),
+    # Point releases (5-1, 5-5) before their family rules, which would also match them.
+    (re.compile(r"claude-fable-5[.-]1|fable-5[.-]1"), "claude-fable-5.1"),
     (re.compile(r"claude-fable-5|fable-5|\bfable\b"), "claude-fable-5"),
+    (re.compile(r"claude-opus-5[.-]5|opus-5[.-]5"), "claude-opus-5.5"),
     (re.compile(r"claude-opus-5|opus-5|opus\[1m\]|opus-1m"), "claude-opus-5"),
     (re.compile(r"claude-opus-4[.-]?8|opus-4\.8"), "claude-opus-4.8"),
     (re.compile(r"claude-opus-4[.-]?7|opus-4\.7"), "claude-opus-4.7"),
@@ -181,6 +279,7 @@ _ALIAS_RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"claude-opus-4[.-]?5|opus-4\.5"), "claude-opus-4.5"),
     (re.compile(r"claude-opus-4[.-]?1|opus-4\.1"), "claude-opus-4.1"),
     (re.compile(r"claude-opus-4(?![.\-\d])|opus-4\b"), "claude-opus-4"),
+    (re.compile(r"claude-sonnet-5[.-]5|sonnet-5[.-]5"), "claude-sonnet-5.5"),
     (re.compile(r"claude-sonnet-5|sonnet-5"), "claude-sonnet-5"),
     (re.compile(r"claude-sonnet-4[.-]?6|sonnet-4\.6"), "claude-sonnet-4.6"),
     (re.compile(r"claude-sonnet-4[.-]?5|sonnet-4\.5"), "claude-sonnet-4.5"),
@@ -249,7 +348,9 @@ def _rates_from_dict(data: dict[str, Any]) -> ModelRates:
     return ModelRates(
         input=float(data.get("input") or data.get("input_per_mtok") or 0),
         output=float(data.get("output") or data.get("output_per_mtok") or 0),
-        cached_input=float(data.get("cached_input") or data.get("cached_input_per_mtok") or 0),
+        cached_input=float(
+            data.get("cached_input") or data.get("cached_input_per_mtok") or 0
+        ),
         cache_write_5m=_opt_float(data.get("cache_write_5m")),
         cache_write_1h=_opt_float(data.get("cache_write_1h")),
         cache_read=_opt_float(data.get("cache_read")),
@@ -291,7 +392,9 @@ class PricingTable:
         if overrides:
             self.rates.update(overrides)
 
-    def lookup(self, model: str | None, tool: str | None = None) -> tuple[ModelRates | None, str, str]:
+    def lookup(
+        self, model: str | None, tool: str | None = None
+    ) -> tuple[ModelRates | None, str, str]:
         key, source = resolve_model_key(model, tool)
         rates = self.rates.get(key)
         if rates is None:
@@ -324,7 +427,9 @@ def _mtok(tokens: int | float, rate: float) -> float:
     return (float(tokens) / 1_000_000.0) * float(rate)
 
 
-def estimate_row_cost(row: dict[str, Any], table: PricingTable | None = None) -> CostResult:
+def estimate_row_cost(
+    row: dict[str, Any], table: PricingTable | None = None
+) -> CostResult:
     """Estimate API-equivalent USD for one token_usage row."""
     table = table or PricingTable()
     tool = row.get("tool") or ""
@@ -337,7 +442,9 @@ def estimate_row_cost(row: dict[str, Any], table: PricingTable | None = None) ->
         key, _ = resolve_model_key(model, tool)
         return CostResult(
             usd=float(row["cost_usd"]),
-            model_key=key if key != "unknown" else (normalize_model_id(model) or "grok-4.5"),
+            model_key=key
+            if key != "unknown"
+            else (normalize_model_id(model) or "grok-4.5"),
             source="provider_ticks",
             components={"provider_ticks_usd": float(row["cost_usd"])},
             raw_model=raw_model,
@@ -347,7 +454,9 @@ def estimate_row_cost(row: dict[str, Any], table: PricingTable | None = None) ->
         key, _ = resolve_model_key(model, tool)
         return CostResult(
             usd=usd,
-            model_key=key if key != "unknown" else (normalize_model_id(model) or "grok-4.5"),
+            model_key=key
+            if key != "unknown"
+            else (normalize_model_id(model) or "grok-4.5"),
             source="provider_ticks",
             components={"provider_ticks_usd": usd, "cost_usd_ticks": float(ticks)},
             raw_model=raw_model,
@@ -375,8 +484,16 @@ def estimate_row_cost(row: dict[str, Any], table: PricingTable | None = None) ->
         if cache_5m == 0 and cache_1h == 0 and cache_create_total:
             # No 5m/1h split: bill whole write at 5m rate (underestimates 1h).
             cache_5m = cache_create_total
-        write_5m_rate = rates.cache_write_5m if rates.cache_write_5m is not None else rates.input * 1.25
-        write_1h_rate = rates.cache_write_1h if rates.cache_write_1h is not None else rates.input * 2.0
+        write_5m_rate = (
+            rates.cache_write_5m
+            if rates.cache_write_5m is not None
+            else rates.input * 1.25
+        )
+        write_1h_rate = (
+            rates.cache_write_1h
+            if rates.cache_write_1h is not None
+            else rates.input * 2.0
+        )
         read_rate = rates.resolved_cache_read()
         components["input"] = _mtok(input_tokens, rates.input)
         components["output"] = _mtok(output_tokens, rates.output)
@@ -387,9 +504,7 @@ def estimate_row_cost(row: dict[str, Any], table: PricingTable | None = None) ->
         # OpenAI / xAI / generic: input includes cached; bill uncached + cached + output.
         input_tokens = int(row.get("input_tokens") or 0)
         cached = int(
-            row.get("cached_input_tokens")
-            or row.get("cached_read_tokens")
-            or 0
+            row.get("cached_input_tokens") or row.get("cached_read_tokens") or 0
         )
         output_tokens = int(row.get("output_tokens") or 0)
         # reasoning is usually already in output_tokens; do not double-count.
@@ -443,7 +558,9 @@ def apply_cost_result(
     by_tool = summary.setdefault("by_tool", {})
     by_tool[tool] = float(by_tool.get(tool) or 0.0) + result.usd
     by_model = summary.setdefault("by_model", {})
-    by_model[result.model_key] = float(by_model.get(result.model_key) or 0.0) + result.usd
+    by_model[result.model_key] = (
+        float(by_model.get(result.model_key) or 0.0) + result.usd
+    )
     by_source = summary.setdefault("by_source", {})
     by_source[result.source] = float(by_source.get(result.source) or 0.0) + result.usd
     components_total = summary.setdefault("components", {})
@@ -453,7 +570,9 @@ def apply_cost_result(
         components_total[key] = float(components_total.get(key) or 0.0) + value
 
 
-def summarize_costs(rows: list[dict[str, Any]], table: PricingTable | None = None) -> dict[str, Any]:
+def summarize_costs(
+    rows: list[dict[str, Any]], table: PricingTable | None = None
+) -> dict[str, Any]:
     table = table or PricingTable()
     summary = empty_cost_summary()
     for row in rows:
