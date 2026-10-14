@@ -3,9 +3,9 @@ name: humanize-korean
 description: "Humanize Korean AI-generated text by detecting and rewriting AI-ish tone, translationese, mechanical parallelism, passive overuse, citation clutter, and uniform rhythm while preserving meaning. Use when user asks AI 티 없애줘, AI 윤문, ChatGPT 티 제거, 번역투 고쳐, 사람이 쓴 것처럼, or humanize Korean. Do NOT use for fact expansion, translation, proofreading only, summarization, or changing the content/claims."
 ---
 
-# Humanize Korean — Fast Path (Codex)
+# Humanize Korean
 
-5,000자 이하 한글 텍스트의 "AI 티"를 한 번에 탐지·윤문·자체검증한다. Codex는 Fast(monolith) 모드만 제공한다 — 정밀 5인 파이프라인(strict)은 Claude Code 전용이다.
+5,000자 이하 한글 텍스트의 "AI 티"를 한 번에 탐지, 윤문, 자체검증한다.
 
 ## 철칙 (위반 시 즉시 롤백)
 1. **의미 불변**: 사실·주장·수치·날짜·고유명사·인용문은 원문과 100% 일치.
@@ -22,18 +22,25 @@ description: "Humanize Korean AI-generated text by detecting and rewriting AI-is
 4. **탐지**: A~J 카테고리 패턴을 메모리에서 스캔해 (ID, span, severity, fix) 수집. Do-NOT span은 제외.
 5. **윤문**: D(관용구 삭제) → A → I → G → H → F → B → C·J → E 순서로 문단 단위 처리. 변경률을 모니터링하며 50% 임박 시 후속 edit 보류.
 6. **자체검증**: quick-rules "자체검증 체크리스트" 6항 점검. 위반 항목 발견 시 해당 edit 롤백 → 윤문 부분 재실행(최대 1회).
-7. **출력**: cwd 기준 `_workspace/{run_id}/final.md` 작성(run_id = `YYYY-MM-DD-NNN`, 당일 기존 폴더 있으면 NNN+1). 본문 끝에 빈 줄 하나 두고 `<!-- HUMANIZE-SUMMARY ... -->` HTML 주석 블록 1개 추가:
-   - 원본/윤문본 글자수·변경률
-   - 카테고리별 탐지 건수(before → after, quick-rules ID 기준)
-   - 자체검증 6항 통과 여부
-   - 등급(A/B/C/D) + 사유 1줄
-   - 주요 변경 하이라이트 3~5건(before → after, 각 100자 이내)
-8. **응답**: 사용자에게 짧게 4가지 반환 — ① 한 줄 상태(`완료. 변경률 X% / 등급 Y / 자체검증 N/6 통과`) ② 핵심 카테고리 탐지 4~6건(before → after) ③ 변경 하이라이트 1건 ④ 등급 B 이하면 "정밀 검증은 Claude Code의 strict 5인 파이프라인 권장" 안내. 윤문본 본문은 응답에 인라인하지 말고 `final.md`에만 저장.
+7. **출력**: `_workspace/{run_id}/final.md`를 작성한다(run_id = `YYYY-MM-DD-NNN`, 당일 기존 폴더 있으면 NNN+1).
+    - `_workspace/`는 cwd 아래에 둔다. cwd가 Git 작업 트리 안이면(`git rev-parse --is-inside-work-tree`) 하네스가 알려준 임시 디렉토리(없으면 `$TMPDIR`) 아래에 둔다. 저장소 안에 두면 미추적 폴더로 남아 커밋과 worktree 정리에 섞인다.
+    - 본문 끝에 빈 줄 하나 두고 `<!-- HUMANIZE-SUMMARY ... -->` HTML 주석 블록 1개를 붙인다. 블록에 담을 것:
+        - 원본/윤문본 글자수, 변경률
+        - 카테고리별 탐지 건수(before -> after, quick-rules ID 기준)
+        - 자체검증 6항 통과 여부
+        - 등급(A/B/C/D) + 사유 1줄
+        - 주요 변경 하이라이트 3~5건(before -> after, 각 100자 이내)
+8. **응답**: 사용자에게 아래를 짧게 돌려준다. 윤문본 본문은 응답에 인라인하지 말고 `final.md`에만 저장한다.
+    1. 한 줄 상태(`완료. 변경률 X% / 등급 Y / 자체검증 N/6 통과`)
+    2. 핵심 카테고리 탐지 4~6건(before -> after)
+    3. 변경 하이라이트 1건
+    4. `final.md`의 절대 경로
+    5. 등급 C/D면 남은 S1 구간과 통과하지 못한 자체검증 항목(아래 등급 절)
 
 ## 등급
 - **A**: S1 0건, S2 2건 이하, 변경률 10~25%, 자체검증 6/6.
 - **B**: S1 0건, S2 4건 이하, 자체검증 5/6 이상.
-- **C/D**: S1 잔존 또는 과윤문 시그널 — Claude Code strict 모드 권고.
+- **C/D**: S1 잔존, 자체검증 미달, 과윤문 중 하나에 해당. 남은 S1 구간(quick-rules ID)과 통과하지 못한 자체검증 항목을 응답에 적어, 사용자가 그 문단만 다시 맡길 수 있게 한다. 과윤문(변경률 50% 초과)은 철칙 5대로 롤백한다.
 
 ## 옵션 (인자 끝에 자연어로)
 - `장르: 칼럼|리포트|블로그|공적` · `강도: 보수|기본|적극` · `최소심각도: S1|S2|S3`

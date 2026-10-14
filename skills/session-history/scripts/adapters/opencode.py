@@ -18,6 +18,7 @@ from common import (
     BASH_MUTATION_RE,
     CLAUDE_OPENCODE_TRANSCRIPTS_DIR,
     OPENCODE_DB,
+    hits_from_messages,
     include_subagents,
     iso_to_ms,
     path_matches,
@@ -194,7 +195,7 @@ def _db_messages(con, sid: str, full: bool):
                 messages.append(
                     {
                         "role": "tool_result",
-                        "text": str(output).strip()[:500],
+                        "text": str(output).strip(),
                         "ts": (state.get("time") or {}).get("end") or ts,
                     }
                 )
@@ -245,7 +246,7 @@ def _transcript_messages(path: Path, full: bool):
                 )
                 if text.strip():
                     messages.append(
-                        {"role": "tool_result", "text": text.strip()[:500], "ts": ts}
+                        {"role": "tool_result", "text": text.strip(), "ts": ts}
                     )
     return messages
 
@@ -407,7 +408,7 @@ def extract_opencode_history(start_ms, end_ms, project_filter=None, cwd_filter=N
     return sessions
 
 
-def grep_opencode_session(fpath: Path, keyword: str, session_id: str | None = None):
+def grep_opencode_session(fpath: Path, keyword, session_id: str | None = None):
     if session_id:
         sid, info = _resolve(session_id)
     else:
@@ -426,28 +427,7 @@ def grep_opencode_session(fpath: Path, keyword: str, session_id: str | None = No
     else:
         messages = _transcript_messages(info["path"], full=True)
 
-    hits = []
-    needle = keyword.lower()
-    for message in messages:
-        text = message.get("text") or ""
-        lowered = text.lower()
-        if needle not in lowered:
-            continue
-        idx = lowered.find(needle)
-        start = max(0, idx - 60)
-        end = min(len(text), idx + len(keyword) + 90)
-        hits.append(
-            {
-                "role": message.get("role") or "",
-                "ts": message.get("ts") or "",
-                "excerpt": (
-                    ("..." if start else "")
-                    + text[start:end]
-                    + ("..." if end < len(text) else "")
-                ).replace("\n", " "),
-            }
-        )
-    return hits
+    return hits_from_messages(messages, keyword)
 
 
 def source_notes():

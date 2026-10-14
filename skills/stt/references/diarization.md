@@ -1,7 +1,7 @@
 # 화자 분리
 
 전사 텍스트와 화자 타임라인은 분리한다. Apple `SpeechTranscriber`가 텍스트의
-유일한 정본이고, Argmax는 사용자가 요청할 때 `diarize`로 RTTM만 만든다.
+유일한 정본이고, pyannote Community-1은 사용자가 요청할 때 로컬에서 RTTM만 만든다.
 
 ## 실행
 
@@ -15,13 +15,16 @@ bash scripts/stt_diarize.sh <오디오> [start초] [end초]
 다화자 품질 gate 전에는 이름 mapping을 만들지 않고 raw RTTM을 함께 보존한다.
 구간 시작값을 주면 `diarized.md` 타임스탬프는 원본 녹음 기준으로 표시하고,
 raw RTTM은 잘린 clip 기준 시간을 그대로 보존한다.
-필요한 환경값은 다음 둘뿐이다.
+실행은 `scripts/pyannote-diarize.py`를 통해 설치된 `whispermlx`의 Python 환경을 재사용한다. MPS를 사용할 수 있으면 MPS, 아니면 CPU를 쓰며 선택한 장치를 stderr에 출력한다.
 
-- `ARGMAX_CLI`: `argmax-cli`가 PATH에 없을 때 실행 파일 경로
+- `PYANNOTE_PYTHON`: 다른 환경을 명시할 때의 Python 실행 파일 경로
+- `PYANNOTE_DEVICE`: `auto`(기본), `mps`, `cpu` 중 선택
 - `STT_OUT`: 출력 루트
 
 `APPLE_STT_BIN`은 테스트나 설치 전 smoke test에서만 별도 Apple 바이너리를
 지정한다. 일반 실행은 PATH의 `apple-stt`를 쓴다.
+
+모델은 Hugging Face의 기존 `pyannote/speaker-diarization-community-1` 캐시만 읽는다. 없으면 전사를 시작하기 전에 중단한다. 모델 접근 승인과 인증은 Hugging Face 공식 절차로 준비하고, 다운로드는 `hf download pyannote/speaker-diarization-community-1`로 별도 수행한다. 실행 중에는 모델 다운로드나 오디오 외부 전송을 하지 않는다.
 
 ## 결합 규칙
 

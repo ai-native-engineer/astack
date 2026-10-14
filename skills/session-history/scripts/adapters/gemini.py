@@ -12,6 +12,7 @@ from common import (
     GEMINI_ANTIGRAVITY_DIR,
     GEMINI_ANTIGRAVITY_IDE_DIR,
     GEMINI_TMP_DIR,
+    hits_from_messages,
     include_subagents,
     iso_to_ms,
     path_matches,
@@ -529,7 +530,7 @@ def extract_gemini_history(start_ms, end_ms, project_filter=None, cwd_filter=Non
     return sessions
 
 
-def grep_gemini_session(fpath: Path, keyword: str, session_id: str | None = None):
+def grep_gemini_session(fpath: Path, keyword, session_id: str | None = None):
     info = next(
         (
             candidate
@@ -540,28 +541,7 @@ def grep_gemini_session(fpath: Path, keyword: str, session_id: str | None = None
     )
     if not info:
         return []
-    hits = []
-    needle = keyword.lower()
-    for message in _read_indexed_messages(info, full=True):
-        text = message.get("text") or ""
-        lowered = text.lower()
-        if needle not in lowered:
-            continue
-        idx = lowered.find(needle)
-        start = max(0, idx - 60)
-        end = min(len(text), idx + len(keyword) + 90)
-        hits.append(
-            {
-                "role": message.get("role") or "",
-                "ts": message.get("ts") or "",
-                "excerpt": (
-                    ("..." if start else "")
-                    + text[start:end]
-                    + ("..." if end < len(text) else "")
-                ).replace("\n", " "),
-            }
-        )
-    return hits
+    return hits_from_messages(_read_indexed_messages(info, full=True), keyword)
 
 
 def source_notes() -> list[str]:

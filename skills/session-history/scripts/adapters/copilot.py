@@ -16,6 +16,7 @@ from common import (
     BASH_MUTATION_RE,
     COPILOT_SESSION_STATE_DIR,
     VSCODE_WORKSPACE_STORAGE_DIR,
+    hits_from_messages,
     iso_to_ms,
     path_matches,
     register_cache_clearer,
@@ -251,7 +252,7 @@ def read_copilot_conversation(session_id: str, full: bool = False):
         elif etype == "tool.execution_complete" and full:
             text = str(data.get("result") or data.get("output") or "").strip()
             if text:
-                messages.append({"role": "tool_result", "text": text[:500], "ts": ts})
+                messages.append({"role": "tool_result", "text": text, "ts": ts})
     return messages, info["path"]
 
 
@@ -348,7 +349,7 @@ def extract_copilot_history(start_ms, end_ms, project_filter=None, cwd_filter=No
     return sessions
 
 
-def grep_copilot_session(fpath: Path, keyword: str, session_id: str | None = None):
+def grep_copilot_session(fpath: Path, keyword, session_id: str | None = None):
     sid = session_id
     if not sid:
         sid = next(
@@ -362,28 +363,7 @@ def grep_copilot_session(fpath: Path, keyword: str, session_id: str | None = Non
     if not sid:
         return []
     messages, _ = read_copilot_conversation(sid, full=True)
-    hits = []
-    needle = keyword.lower()
-    for message in messages or []:
-        text = message.get("text") or ""
-        lowered = text.lower()
-        if needle not in lowered:
-            continue
-        idx = lowered.find(needle)
-        start = max(0, idx - 60)
-        end = min(len(text), idx + len(keyword) + 90)
-        hits.append(
-            {
-                "role": message.get("role") or "",
-                "ts": message.get("ts") or "",
-                "excerpt": (
-                    ("..." if start else "")
-                    + text[start:end]
-                    + ("..." if end < len(text) else "")
-                ).replace("\n", " "),
-            }
-        )
-    return hits
+    return hits_from_messages(messages or [], keyword)
 
 
 def source_notes() -> list[str]:

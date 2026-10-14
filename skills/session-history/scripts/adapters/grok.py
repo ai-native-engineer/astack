@@ -11,6 +11,7 @@ from urllib.parse import unquote
 from common import (
     BASH_MUTATION_RE,
     GROK_SESSIONS_DIR,
+    hits_from_messages,
     iso_to_ms,
     path_matches,
     register_cache_clearer,
@@ -20,6 +21,8 @@ from common import (
 TOOL = "grok"
 DISPLAY = "Grok"
 TAG = "[G]"
+# grep_session이 chat_history 파일 하나만 읽는다. rg 사전 필터를 걸어도 결과가 같다
+GREP_READS_SESSION_FILE = True
 SOURCE_PATHS = (GROK_SESSIONS_DIR,)
 EDIT_TOOLS = {"search_replace", "write"}
 
@@ -204,7 +207,7 @@ def read_grok_conversation(session_id: str, full: bool = False):
             if entry_type == "tool_result" and full:
                 result = grok_content_text(d.get("content"))
                 if result.strip():
-                    messages.append({"role": "tool", "text": result[:500], "ts": ts})
+                    messages.append({"role": "tool", "text": result.strip(), "ts": ts})
 
     return messages, fpath
 
@@ -339,29 +342,13 @@ def extract_grok_history(start_ms, end_ms, project_filter=None, cwd_filter=None)
 # ─── Claude Code session IO ────────────────────────────────────
 
 
-def grep_grok_session(fpath: Path, keyword: str, session_id: str | None = None):
+def grep_grok_session(fpath: Path, keyword, session_id: str | None = None):
     """Grok chat_history.jsonl에서 keyword 포함 대화·도구 기록 반환."""
-    hits = []
-    keyword_lower = keyword.lower()
+    messages = []
 
-    def add_hit(role, text, ts=""):
-        if not isinstance(text, str) or keyword_lower not in text.lower():
-            return
-        idx = text.lower().find(keyword_lower)
-        start = max(0, idx - 60)
-        end = min(len(text), idx + len(keyword) + 90)
-        excerpt = (
-            ("..." if start > 0 else "")
-            + text[start:end]
-            + ("..." if end < len(text) else "")
-        )
-        hits.append(
-            {
-                "role": role,
-                "ts": ts,
-                "excerpt": excerpt.replace("\n", " "),
-            }
-        )
+    def add_message(role, text, ts="", call_id=None):
+        if isinstance(text, str) and text:
+            messages.append({"role": role, "text": text, "ts": ts, "call_id": call_id})
 
     with open(fpath, encoding="utf-8") as f:
         for line in f:
@@ -375,10 +362,10 @@ def grep_grok_session(fpath: Path, keyword: str, session_id: str | None = None):
                 if not is_real_grok_user_message(d):
                     continue
                 text = extract_user_query_text(grok_content_text(d.get("content")))
-                add_hit("user", text, ts)
+                add_message("user", text, ts)
             elif entry_type == "assistant":
                 text = grok_content_text(d.get("content"))
-                add_hit("assistant", text, ts)
+                add_message("assistant", text, ts)
                 for tc in d.get("tool_calls") or []:
                     if not isinstance(tc, dict):
                         continue
@@ -386,10 +373,15 @@ def grep_grok_session(fpath: Path, keyword: str, session_id: str | None = None):
                     args = tc.get("arguments") or ""
                     if not isinstance(args, str):
                         args = json.dumps(args, ensure_ascii=False)
-                    add_hit("tool", f"[{name}] {args}", ts)
+                    add_message("tool_call", f"[{name}] {args}", ts, tc.get("id"))
             elif entry_type == "tool_result":
-                add_hit("tool", grok_content_text(d.get("content")), ts)
-    return hits
+                add_message(
+                    "tool_result",
+                    grok_content_text(d.get("content")),
+                    ts,
+                    d.get("tool_call_id"),
+                )
+    return hits_from_messages(messages, keyword)
 
 
 session_index = grok_session_index
