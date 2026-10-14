@@ -22,7 +22,7 @@ PATH에서 확인되는 공식 `crwl` CLI(crawl4ai) + 이 스킬의 `scripts/`�
 | 섹션 → **페이지별 파일** 미러 + 크롬 정화(+`--assets` 이미지) | `scripts/crawl-mirror.py`. AI에 먹일/사람이 볼 깔끔한 문서 아카이브용 ⬇ 주력 |
 | 미러의 소유 호스트 PDF 원본 수집 | `scripts/pdf-mirror.py` (`--host` 필수, 100MB 초과 로컬 보관은 `--oversize-dir`) |
 | 대형 생성 Markdown을 순서 보존 조각으로 분할 | `scripts/split-markdown.py` |
-| 저장된 미러의 자막 fold·대용량 문서 검증 | `scripts/verify-mirror.py` |
+| 저장된 미러의 자막 fold·대용량 문서·빈 이미지·깨진 로컬 참조 검증 | `scripts/verify-mirror.py` |
 
 ⚠ `crwl crawl`의 기본 출력은 마크다운이 **아니다** — `-o`를 빼면 stdout이든 `-O` 파일이든 html 포함 JSON 덤프가 나온다(`.md` 확장자도 무시됨). `-O`는 경로만 정하고 포맷은 `-o`가 정한다. 마크다운은 항상 `-o md`(본문만은 `-o md-fit`)로 명시한다. (`crawl-mirror.py`는 포맷을 자체 처리하므로 예외.)
 

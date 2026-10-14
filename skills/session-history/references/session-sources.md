@@ -1,9 +1,10 @@
 # 세션 소스와 adapter 동작
 
-소스별 `--tool` 선택, `--cwd`/`--files` 해석, transcript 직접 읽기, 제한 환경 fallback이 필요할 때 읽는다.
+작업 상태 복원, 소스별 `--tool` 선택, `--cwd`/`--files` 해석, transcript 직접 읽기, 제한 환경 fallback이 필요할 때 읽는다.
 
 ## 목차
 
+- [작업 상태 복원](#작업-상태-복원)
 - [Capability](#capability)
 - [Claude Code와 Desktop/Cowork](#claude-code와-desktopcowork)
 - [Codex](#codex)
@@ -18,6 +19,19 @@
 - [커버 범위 밖으로 확인한 저장소](#커버-범위-밖으로-확인한-저장소)
 - [제한 환경 fallback](#제한-환경-fallback)
 
+## 작업 상태 복원
+
+마지막 보고는 전체 작업 목록이 아니라 대조할 근거 중 하나다. 앞선 미완료 항목이 마지막 보고에서 빠졌다는 이유만으로 완료가 되지는 않는다.
+
+1. 실제 사용자 요청과 이후 범위 변경, 중간 미완료 목록, 마지막 보고를 읽어 작업 후보를 합친다.
+2. 연결된 이슈의 최신 본문과 댓글, PR 상태와 검증 근거를 조회해 후보별 상태를 대조한다. 관련 없는 이슈나 PR은 복원 범위에 넣지 않는다.
+3. 항목마다 `완료 / 미완료 / 보류 / 사용자 담당 / 제외`를 나누고 판단 근거를 붙인다. 승인이나 직접 확인이 남았으면 사용자 담당으로, 사용자가 범위에서 뺐으면 제외로 적는다. 제외는 완료 실적에 넣지 않는다.
+4. 원격 머지, 배포, 실제 사용하는 live checkout/config 반영을 각각 확인한다. PR의 `MERGED`만으로 배포나 live 반영까지 완료라고 쓰지 않는다.
+5. 읽지 못한 기록이나 서로 충돌하는 근거는 미확인으로 밝힌다. 일부 전사나 마지막 메시지만 읽었다면 전체 잔여 작업이라고 단정하지 않는다.
+6. 요청 범위의 모든 후보가 상태와 근거를 가진 복원 목록으로 반환됐는지 확인한다. 조회와 복원은 작업 실행이나 이슈 편집 승인이 아니다.
+
+이슈 본문 갱신과 종료 판단은 [session-wrapup 종료 점검](../../session-wrapup/references/closing-check.md)이 맡는다. 이 스킬은 대조 결과와 연결된 추적 항목만 넘긴다.
+
 ## Capability
 
 | `--tool` | 제품 | 세션 명령 | `--cwd` | `show --files` | 안정적 토큰 |
@@ -29,7 +43,9 @@
 | `gemini` | Gemini CLI, Antigravity CLI/IDE | `list`, `timeline`, `rg`, `show` | 메타 의존 | 안정적 event 계약 없음 | 미지원 |
 | `opencode` | opencode | `list`, `timeline`, `rg`, `show` | DB 세션만 | 지원 | 지원 |
 | `aside` | Aside | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | 지원 |
-| `openclaw` | OpenClaw, senpi, gjc | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | 지원 |
+| `openclaw` | OpenClaw | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | 지원 |
+| `senpi` | senpi | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | 지원 |
+| `gjc` | gjc | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | 지원 |
 | `copilot` | GitHub Copilot CLI, VS Code Chat | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | CLI만 |
 
 `sources`는 위 adapter가 지원하는 저장소의 존재 여부와 인덱싱된 세션 수만 보고한다. adapter가 구조적으로 못 읽는 부분은 `source_notes()`로 함께 출력한다. 임의 형식 transcript를 발견하거나 해석하지 않는다.
@@ -98,8 +114,11 @@
 
 ## OpenClaw / senpi / gjc
 
-- `~/.openclaw/agents/main/sessions/*.jsonl`, `~/.senpi/agent/sessions/**/*.jsonl`, `~/.gjc/agent/sessions/**/*.jsonl`
-- 세 도구가 같은 스키마를 쓴다. 첫 줄이 `{"type":"session","id","timestamp","cwd"}` 헤더이고 이후 `{"type":"message","message":{"role","content","model","usage"}}`가 이어진다.
+- `--tool openclaw`: `~/.openclaw/agents/main/sessions/**/*.jsonl`
+- `--tool senpi`: `~/.senpi/agent/sessions/**/*.jsonl`
+- `--tool gjc`: `~/.gjc/agent/sessions/**/*.jsonl`
+- 세 도구는 `scripts/adapters/openclaw.py`의 공통 파서를 쓰되, 저장소와 인덱스는 제품별로 분리한다. 첫 줄이 `{"type":"session","id","timestamp","cwd"}` 헤더이고 이후 `{"type":"message","message":{"role","content","model","usage"}}`가 이어진다.
+- 필터는 해당 제품만 읽으며 다른 제품의 저장소로 대체하지 않는다. `--tool all`은 세 제품을 함께 읽고, 목록과 토큰 집계에는 실제 제품명을 유지한다.
 - `.jsonl.reset.<ts>`는 같은 세션의 리셋 이전 회차라 `--include-subagents`에서만 보인다.
 - `~/.omo/memory/agents/*/runtime/transcripts/*/transcript.jsonl`은 senpi와 세션 ID를 공유하는 사본이라 따로 읽지 않는다.
 

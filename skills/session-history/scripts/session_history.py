@@ -16,8 +16,10 @@ Usage:
     python3 session_history.py list --search pytest         # 키워드 검색
     python3 session_history.py timeline                     # 오늘 타임라인
     python3 session_history.py rg "gcloud"                  # 대화·도구 기록 검색
+    python3 session_history.py rg 정지 이의신청 --sort relevance  # 여러 키워드 OR, 관련도 순
     python3 session_history.py show --last                  # 가장 최근 세션
     python3 session_history.py show abc123 --full           # 도구 호출 포함
+    python3 session_history.py show abc123 --grep 정지      # 일치한 곳과 앞뒤만
     python3 session_history.py show abc123 --limit 20       # 앞 20개만
     python3 session_history.py sources                      # 감지된 로그 소스
 """
@@ -27,10 +29,13 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 import tarfile
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 # Allow `python3 scripts/session_history.py` without package install.
@@ -40,12 +45,96 @@ if str(_SCRIPTS_DIR) not in sys.path:
 
 from adapters import ADAPTERS, ORDER, iter_adapters  # noqa: E402
 from common import (  # noqa: E402
+    Matcher,
     date_range,
+    local_time,
     set_include_subagents,
     shorten_home,
     ts_to_hm,
-    ts_to_hms,
 )
+
+# 하네스가 도구 호출 환경에 넣어 주는 현재 세션 ID. 검색하는 세션은 자기 검색 명령
+# 때문에 항상 걸리므로 기본 결과에서 뺀다
+CURRENT_SESSION_ENV = ("CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", "GJC_SESSION_ID")
+
+# 경로를 명령 인자로 넘기므로 ARG_MAX(macOS 1MB)에 닿지 않게 나눠 부른다.
+# 세션 파일 경로는 200자 안팎이라 400개면 100KB 수준이다
+PREFILTER_CHUNK = 400
+
+# show가 도구 출력을 보여 주는 폭. 텍스트는 훑기용, JSON은 다른 도구가 읽을 몫이다
+TOOL_TEXT_WIDTH = 300
+TOOL_JSON_WIDTH = 500
+TOOL_ROLES = ("tool", "tool_call", "tool_result")
+TALK_ROLES = ("user", "assistant")
+
+
+def current_session_ids() -> set[str]:
+    return {os.environ[name] for name in CURRENT_SESSION_ENV if os.environ.get(name)}
+
+
+def prefilter_paths(paths, matcher):
+    """키워드가 원문에 없는 로그를 JSON 파싱 전에 ripgrep으로 거른다.
+
+    반환값은 키워드가 있는 경로 집합이다. 거를 수 없으면(rg 없음, 정규식, 오류) None을
+    돌려 모든 파일을 파싱하게 한다. 거르다 놓치는 것보다 느린 편이 낫다.
+    """
+    forms = matcher.raw_forms()
+    rg = shutil.which("rg")
+    if not forms or not rg or not paths:
+        return None
+    patterns = [arg for form in forms for arg in ("-e", form)]
+    found = set()
+    for i in range(0, len(paths), PREFILTER_CHUNK):
+        chunk = paths[i : i + PREFILTER_CHUNK]
+        command = [rg, "--no-config", "-l", "-i", "-F", "-a", "--no-messages"]
+        try:
+            proc = subprocess.run(
+                [*command, *patterns, "--", *chunk],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            return None
+        # 0은 찾음, 1은 없음. 그 밖의 종료 코드는 결과를 믿을 수 없다
+        if proc.returncode not in (0, 1):
+            return None
+        found.update(proc.stdout.splitlines())
+    return found
+
+
+def build_matcher(terms, regex: bool, skip_echo: bool = True) -> Matcher:
+    try:
+        return Matcher(terms, regex=regex, skip_echo=skip_echo)
+    except re.error as exc:
+        print(
+            f"정규식 오류: {exc}. -E를 빼면 키워드를 글자 그대로 찾습니다.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+
+def literal_pipe_note(terms, regex: bool) -> str:
+    """`a|b`를 OR로 기대하고 넘긴 경우를 짚어 준다. 결과가 비어도 원인을 알 수 있게."""
+    piped = [term for term in terms if "|" in term]
+    if regex or not piped:
+        return ""
+    return (
+        f'참고: "{piped[0]}"의 |는 글자 그대로 찾습니다. '
+        "여러 키워드는 rg A B처럼 나눠 넘기면 OR로 찾고, 정규식은 -E를 붙입니다."
+    )
+
+
+def clip_around(text: str, width: int, matcher=None) -> str:
+    """긴 도구 출력을 width로 줄인다. 일치한 곳이 있으면 그 주변을 남긴다."""
+    if len(text) <= width:
+        return text
+    found = matcher.first(text) if matcher else None
+    lo = 0
+    if found:
+        lo = max(0, min(found[1] - width // 3, len(text) - width))
+    hi = lo + width
+    return ("..." if lo else "") + text[lo:hi] + ("..." if hi < len(text) else "")
 
 
 def collect_history(
@@ -278,7 +367,11 @@ def format_list_text(sessions, date_label):
         width = short_id_width(tool_sessions)
         for sid, info in sorted_items:
             proj = shorten_home(info["project"])
-            label = info.get("name") or (info.get("provider") and f"provider={info['provider']}") or ""
+            label = (
+                info.get("name")
+                or (info.get("provider") and f"provider={info['provider']}")
+                or ""
+            )
             msg_count = len(info["messages"])
             if not info["messages"]:
                 lines.append(f"  {sid[:width]}  {proj}  {label}  (메시지 없음)")
@@ -411,93 +504,142 @@ def cmd_timeline(args):
     emit("\n".join(lines), args)
 
 
-def cmd_grep(args):
-    keyword = args.keyword
-    start_ms, end_ms, label = date_range(args)
-    cwd_filter = str(Path.cwd()) if getattr(args, "cwd", False) else None
-    sessions = collect_history(args.tool, start_ms, end_ms, cwd_filter=cwd_filter)
-
-    results = []
-    ordered_sessions = sorted(
-        sessions.items(), key=lambda item: item[1].get("first_ts_ms", 0)
-    )
-    result_limit = getattr(args, "limit", None)
-    for sid, info in ordered_sessions:
-        if result_limit is not None and 0 <= result_limit <= len(results):
-            break
-        tool = info["tool"]
-        adapter = ADAPTERS.get(tool)
+def grep_candidates(sessions, matcher):
+    """검색할 (sid, info, adapter, fpath) 목록. 최근 세션이 앞에 온다."""
+    candidates = []
+    for sid, info in sessions.items():
+        adapter = ADAPTERS.get(info.get("tool"))
         if not adapter:
             continue
         fpath = adapter_session_path(adapter, sid)
         if not fpath or not Path(fpath).exists():
             continue
+        candidates.append((sid, info, adapter, fpath))
+
+    single_file = [
+        str(fpath)
+        for _, _, adapter, fpath in candidates
+        if getattr(adapter, "GREP_READS_SESSION_FILE", False)
+    ]
+    found = prefilter_paths(single_file, matcher)
+    if found is not None:
+        candidates = [
+            row
+            for row in candidates
+            if not getattr(row[2], "GREP_READS_SESSION_FILE", False)
+            or str(row[3]) in found
+        ]
+    # sorted는 안정 정렬이라 같은 시각은 수집 순서를 유지한다
+    return sorted(
+        candidates, key=lambda row: row[1].get("first_ts_ms") or 0, reverse=True
+    )
+
+
+def grep_result(sid, info, fpath, hits):
+    first_ts_ms = info.get("first_ts_ms") or 0
+    return {
+        "sid": sid,
+        "tool": info["tool"],
+        "project": info.get("project", ""),
+        "first_ts_ms": first_ts_ms,
+        "start": local_time(first_ts_ms, "%Y-%m-%d %H:%M") if first_ts_ms else "",
+        "hit_count": len(hits),
+        "talk_count": sum(1 for h in hits if h.get("role") in TALK_ROLES),
+        "terms": dict(Counter(h["term"] for h in hits if h.get("term"))),
+        "fpath": str(fpath),
+        "hits": [
+            {**hit, "time": local_time(hit.get("ts"), "%Y-%m-%d %H:%M:%S")}
+            for hit in hits
+        ],
+    }
+
+
+def cmd_grep(args):
+    terms = args.keywords
+    matcher = build_matcher(terms, args.regex, skip_echo=not args.include_self)
+    note = literal_pipe_note(terms, args.regex)
+    start_ms, end_ms, label = date_range(args)
+    cwd_filter = str(Path.cwd()) if getattr(args, "cwd", False) else None
+    sessions = collect_history(args.tool, start_ms, end_ms, cwd_filter=cwd_filter)
+    if not args.include_self:
+        for sid in current_session_ids():
+            sessions.pop(sid, None)
+
+    limit = args.limit
+    # 최근 순이면 앞에서 limit개를 채우는 즉시 멈춘다. hit 순은 전부 세어야 순위가 나온다
+    stop_early = limit is not None and args.sort == "recent"
+    results = []
+    for sid, info, adapter, fpath in grep_candidates(sessions, matcher):
+        if stop_early and len(results) >= limit:
+            break
         try:
-            hits = adapter.grep_session(fpath, keyword, session_id=sid)
+            hits = adapter.grep_session(fpath, matcher, session_id=sid)
         except OSError:
             continue
         if hits:
-            results.append(
-                {
-                    "sid": sid,
-                    "tool": tool,
-                    "project": info["project"],
-                    "first_ts_ms": info.get("first_ts_ms", 0),
-                    "hits": hits,
-                    "fpath": fpath,
-                }
-            )
-    if result_limit is not None:
-        results = results[:result_limit]
+            results.append(grep_result(sid, info, fpath, hits))
+    if args.sort == "relevance":
+        # 흔한 키워드 하나는 그 말이 든 파일을 여러 번 읽은 세션에서 도구 출력 hit로 쌓인다.
+        # 주제를 실제로 다룬 세션은 동의어를 여러 종류 맞히고 대화에서 말한다
+        results.sort(
+            key=lambda row: (len(row["terms"]), row["talk_count"], row["hit_count"]),
+            reverse=True,
+        )
+    if limit is not None:
+        results = results[:limit]
 
     if args.format == "json":
-        out = [{**r, "fpath": str(r["fpath"]), "sid": r["sid"]} for r in results]
-        emit(json.dumps(out, ensure_ascii=False, indent=2), args)
+        if note:
+            print(note, file=sys.stderr)
+        emit(json.dumps(results, ensure_ascii=False, indent=2), args)
         return
 
     command_label = "rg" if getattr(args, "command", "") == "rg" else "grep"
-    lines = [f'# {command_label}: "{keyword}" ({label})', ""]
+    quoted = ", ".join(f'"{term}"' for term in terms)
+    lines = [f"# {command_label}: {quoted} ({label})", ""]
+    if note:
+        lines.extend([note, ""])
     if not results:
         lines.append("매칭 없음.")
         emit("\n".join(lines), args)
         return
 
-    lines.append(f"{len(results)}개 세션에서 발견")
+    order_label = (
+        "관련도 순 (맞힌 키워드 종류, 대화 hit, 전체 hit)"
+        if args.sort == "relevance"
+        else "최근 순"
+    )
+    lines.append(f"{len(results)}개 세션에서 발견, {order_label}")
     lines.append("─" * 60)
 
     hit_width = short_id_width(r["sid"] for r in results)
     for r in results:
         proj = shorten_home(r["project"])
-        time_str = ts_to_hm(r["first_ts_ms"]) if r["first_ts_ms"] else "??"
+        start = local_time(r["first_ts_ms"]) if r["first_ts_ms"] else "??"
         tool_tag = (
             f"[{ADAPTERS[r['tool']].DISPLAY}]"
             if r["tool"] in ADAPTERS
             else f"[{r['tool']}]"
         )
-        lines.append(f"\n{tool_tag} {r['sid'][:hit_width]}  {proj}  {time_str}")
+        count = f"hit {r['hit_count']}, 대화 {r['talk_count']}"
+        if len(terms) > 1 and r["terms"]:
+            count += f", 키워드 {len(r['terms'])}/{len(terms)}"
+            count += " (" + ", ".join(f"{t} {n}" for t, n in r["terms"].items()) + ")"
+        lines.append(f"\n{tool_tag} {r['sid'][:hit_width]}  {proj}  {start}  {count}")
         lines.append(f"  파일: {r['fpath']}")
         for hit in r["hits"][:3]:
             role_icon = {"user": "👤", "assistant": "🤖"}.get(hit["role"], "🔧")
-            try:
-                if isinstance(hit["ts"], str) and hit["ts"]:
-                    dt = datetime.datetime.fromisoformat(
-                        hit["ts"].replace("Z", "+00:00")
-                    )
-                    t = dt.strftime("%H:%M:%S")
-                elif hit["ts"]:
-                    t = ts_to_hms(hit["ts"])
-                else:
-                    t = ""
-            except Exception:
-                t = ""
-            lines.append(f"  {role_icon} {t}  {hit['excerpt']}")
+            lines.append(f"  {role_icon} {local_time(hit['ts'])}  {hit['excerpt']}")
         if len(r["hits"]) > 3:
             lines.append(f"  ... 외 {len(r['hits']) - 3}건 더")
 
     lines.append("")
     lines.append("─" * 60)
-    lines.append(f"총 {sum(len(r['hits']) for r in results)}건 ({len(results)}개 세션)")
-    lines.append("전체 보기: python3 session_history.py show <세션ID>")
+    lines.append(f"총 {sum(r['hit_count'] for r in results)}건 ({len(results)}개 세션)")
+    lines.append("👤 사용자  🤖 어시스턴트  🔧 도구 호출과 결과. 대화 = 👤와 🤖 hit 수")
+    lines.append(
+        "일치한 곳 읽기: python3 session_history.py show <세션ID> --grep <키워드>"
+    )
     emit("\n".join(lines), args)
 
 
@@ -521,7 +663,35 @@ def find_latest_session(tool_filter: str = "all"):
     return None, None
 
 
-def format_conversation(messages, tool_name, session_id, full, fpath=None, limit=None):
+def select_messages(messages, matcher=None, context=0, offset=0, limit=None):
+    """show에 낼 (번호, 메시지, 일치 여부) 목록. 번호는 세션 안 위치라 --offset에 그대로 쓴다."""
+    matched = set()
+    if matcher:
+        for index, message in enumerate(messages):
+            if matcher.first(message.get("text") or ""):
+                matched.add(index)
+        keep = set()
+        for index in matched:
+            keep.update(range(index - context, index + context + 1))
+        view = [(i, m) for i, m in enumerate(messages) if i in keep]
+    else:
+        view = list(enumerate(messages))
+    view = view[offset or 0 :]
+    if limit:
+        view = view[:limit]
+    return [(i, m, i in matched) for i, m in view]
+
+
+def format_conversation(
+    view,
+    total,
+    tool_name,
+    session_id,
+    mode_label,
+    fpath=None,
+    matcher=None,
+    next_hint="",
+):
     role_labels = {
         "user": "👤 USER",
         "assistant": "🤖 ASSISTANT",
@@ -535,57 +705,54 @@ def format_conversation(messages, tool_name, session_id, full, fpath=None, limit
         lines.append(f"파일: {fpath}")
         lines.append("")
 
-    if not messages:
+    if not total:
         lines.append("(대화 내역 없음)")
         return "\n".join(lines)
+    if not view:
+        if matcher:
+            lines.append("(일치하는 메시지 없음. 다른 세션은 rg로 찾습니다)")
+        else:
+            lines.append(f"(표시할 메시지 없음. 전체 {total}건)")
+        return "\n".join(lines)
 
-    total = len(messages)
-    if limit and limit < total:
-        messages = messages[:limit]
-        truncated = True
-    else:
-        truncated = False
-
-    mode_label = "전체 (도구 호출 포함)" if full else "대화만"
-    count_label = (
-        f"{len(messages)}/{total}건 (--limit {limit})" if truncated else f"{total}건"
-    )
-    lines.append(f"모드: {mode_label} | 메시지 {count_label}")
+    lines.append(f"모드: {mode_label} | 메시지 {len(view)}/{total}건")
     lines.append("─" * 60)
 
-    for msg in messages:
+    previous = None
+    for index, msg, is_match in view:
+        if previous is not None and index > previous + 1:
+            skipped = (
+                f"#{previous + 1}"
+                if index == previous + 2
+                else f"#{previous + 1}~#{index - 1}"
+            )
+            lines.append(f"\n... {skipped} 생략")
+        previous = index
+
         role = msg.get("role", "")
         label = role_labels.get(role, role.upper())
-        ts = msg.get("ts", "")
-
-        time_str = ""
-        if ts:
-            try:
-                if isinstance(ts, str):
-                    dt = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                    time_str = dt.strftime("%H:%M:%S")
-                else:
-                    time_str = datetime.datetime.fromtimestamp(ts / 1000).strftime(
-                        "%H:%M:%S"
-                    )
-            except (ValueError, OSError):
-                time_str = str(ts)[:8]
-
+        time_str = local_time(msg.get("ts"), "%m-%d %H:%M:%S")
         phase = msg.get("phase", "")
         phase_str = f" ({phase})" if phase else ""
         model = msg.get("model", "")
         model_str = f" [{model}]" if model else ""
+        match_str = "  일치" if is_match else ""
 
-        lines.append(f"\n{label}{phase_str}{model_str}  {time_str}")
+        lines.append(f"\n#{index} {label}{phase_str}{model_str}  {time_str}{match_str}")
 
         text = msg.get("text", "")
-        if role in ("tool", "tool_result") and len(text) > 300:
-            text = text[:300] + f"\n... ({len(msg.get('text', ''))}자 중 300자 표시)"
+        if role in TOOL_ROLES and len(text) > TOOL_TEXT_WIDTH:
+            text = (
+                clip_around(text, TOOL_TEXT_WIDTH, matcher)
+                + f"\n... ({len(text)}자 중 {TOOL_TEXT_WIDTH}자 표시)"
+            )
         lines.append(text)
 
     lines.append("")
     lines.append("─" * 60)
     lines.append(f"총 {total}건")
+    if next_hint:
+        lines.append(next_hint)
     return "\n".join(lines)
 
 
@@ -658,8 +825,13 @@ def cmd_show(args):
 
     tool, session_id = matches[0]
     adapter = ADAPTERS[tool]
-    full = args.full
-    limit = getattr(args, "limit", None)
+    grep_terms = getattr(args, "grep", None)
+    # 세션 하나를 고른 뒤라 지난 검색 명령도 그 세션의 맥락이다. 메아리를 거르지 않는다
+    matcher = (
+        build_matcher(grep_terms, args.regex, skip_echo=False) if grep_terms else None
+    )
+    # rg는 도구 기록까지 찾으므로, 그 hit를 따라 들어온 show --grep도 도구 기록을 읽는다
+    full = args.full or matcher is not None
 
     if getattr(args, "files", False):
         changes, bash_hints = adapter.extract_changed_files(session_id)
@@ -690,15 +862,61 @@ def cmd_show(args):
         print(f"세션 파일을 찾을 수 없습니다: {session_id}")
         sys.exit(1)
 
+    view = select_messages(messages, matcher, args.context, args.offset, args.limit)
+
     if args.format == "json":
-        emit(json.dumps(messages, ensure_ascii=False, indent=2), args)
-    else:
-        emit(
-            format_conversation(
-                messages, adapter.DISPLAY, session_id, full, fpath=fpath, limit=limit
-            ),
-            args,
+        out = []
+        for index, msg, is_match in view:
+            row = {**msg, "index": index}
+            row.pop("call_id", None)
+            text = row.get("text") or ""
+            if row.get("role") in TOOL_ROLES and len(text) > TOOL_JSON_WIDTH:
+                row["text"] = clip_around(text, TOOL_JSON_WIDTH, matcher)
+                row["chars"] = len(text)
+            if matcher:
+                row["match"] = is_match
+            out.append(row)
+        emit(json.dumps(out, ensure_ascii=False, indent=2), args)
+        return
+
+    # #번호는 모드마다 기준이 다르다(대화만 / 도구 기록 포함). 이어 읽기 명령에 기준을 박아 둔다
+    base = f"python3 session_history.py show {session_id[:12]}"
+    next_hint = ""
+    if matcher:
+        matched = sum(1 for _, _, is_match in view if is_match)
+        mode_label = (
+            f"--grep 일치 {matched}건과 앞뒤 {args.context}건 "
+            "(도구 기록 포함, #번호는 --full 기준)"
         )
+        first = next((index for index, _, is_match in view if is_match), None)
+        if first is not None:
+            start = max(first - args.context, 0)
+            next_hint = f"주변 이어 읽기: {base} --full --offset {start} --limit 20"
+    else:
+        mode_label = (
+            "전체 (도구 호출 포함, #번호는 --full 기준)"
+            if full
+            else "대화만 (#번호는 대화 기준이라 --full과 다름)"
+        )
+        consumed = (args.offset or 0) + len(view)
+        if args.limit and view and consumed < len(messages):
+            flag = " --full" if full else ""
+            next_hint = (
+                f"이어 보기: {base}{flag} --offset {consumed} --limit {args.limit}"
+            )
+    emit(
+        format_conversation(
+            view,
+            len(messages),
+            adapter.DISPLAY,
+            session_id,
+            mode_label,
+            fpath=fpath,
+            matcher=matcher,
+            next_hint=next_hint,
+        ),
+        args,
+    )
 
 
 # 텍스트로 안전하게 다시 쓸 수 있는 로그만 고친다. sqlite 같은 바이너리 저장소를
@@ -778,6 +996,25 @@ def cmd_redact(args):
     print(f"되돌리기: tar -xzf {backup} -C /")
 
 
+def date_arg(value: str) -> str:
+    try:
+        return datetime.date.fromisoformat(value).isoformat()
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"YYYY-MM-DD 형식이어야 합니다 (받은 값: {value})"
+        ) from exc
+
+
+def count_arg(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"정수여야 합니다 (받은 값: {value})") from exc
+    if number < 0:
+        raise argparse.ArgumentTypeError(f"0 이상이어야 합니다 (받은 값: {value})")
+    return number
+
+
 def main():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--tool", choices=["all", *ORDER], default="all")
@@ -807,11 +1044,16 @@ def main():
   %(prog)s list --search pytest            키워드 검색 (preview)
   %(prog)s timeline                        오늘 타임라인 (데일리 노트용)
   %(prog)s timeline --days 3 --cwd         현재 프로젝트 3일 타임라인
-  %(prog)s rg "gcloud"                     대화·도구 기록 검색
-  %(prog)s rg "gcloud" --days 14           14일간 대화·도구 기록 검색
+  %(prog)s rg "gcloud"                     대화·도구 기록 검색 (최근 7일)
+  %(prog)s rg 정지 이의신청 --since 2026-08-01 --sort relevance
+                                           여러 키워드 OR, 날짜 이후, 관련도 순
+  %(prog)s rg -E "account.*suspend"        정규식 (사전 필터를 못 써 느림)
   %(prog)s show --last                     가장 최근 세션
   %(prog)s show abc12345 --files           수정된 파일 목록
+  %(prog)s show abc12345 --grep 정지       일치한 메시지와 앞뒤 2건 (도구 기록 포함)
   %(prog)s show abc12345 --limit 20        앞 20개 메시지만
+  %(prog)s show abc12345 --offset 20 --limit 20
+                                           이어서 20개
   %(prog)s show --last --raw               마스킹 없이 원문 (기본은 마스킹)
   %(prog)s sources                         감지된 로컬 로그 소스와 세션 수
   %(prog)s redact                          로그에 남은 시크릿 세기
@@ -821,8 +1063,11 @@ def main():
 
     subparsers = parser.add_subparsers(dest="command")
 
+    since_help = "이 날짜(YYYY-MM-DD)부터 오늘까지. --days보다 우선, --date보다 후순위"
+
     list_parser = subparsers.add_parser("list", help="세션 목록 조회", parents=[common])
-    list_parser.add_argument("--date", help="조회할 날짜 (YYYY-MM-DD)")
+    list_parser.add_argument("--date", type=date_arg, help="조회할 날짜 (YYYY-MM-DD)")
+    list_parser.add_argument("--since", type=date_arg, help=since_help)
     list_parser.add_argument("--days", type=int, default=1, help="최근 N일 (기본: 1)")
     list_parser.add_argument("--project", help="특정 프로젝트 경로 필터")
     list_parser.add_argument(
@@ -840,7 +1085,8 @@ def main():
     tl_parser = subparsers.add_parser(
         "timeline", help="오늘 작업 시간순 타임라인", parents=[common]
     )
-    tl_parser.add_argument("--date", help="조회할 날짜 (YYYY-MM-DD)")
+    tl_parser.add_argument("--date", type=date_arg, help="조회할 날짜 (YYYY-MM-DD)")
+    tl_parser.add_argument("--since", type=date_arg, help=since_help)
     tl_parser.add_argument("--days", type=int, default=1, help="최근 N일 (기본: 1)")
     tl_parser.add_argument(
         "--cwd", action="store_true", help="현재 디렉토리 프로젝트만"
@@ -850,14 +1096,37 @@ def main():
     grep_parser = subparsers.add_parser(
         "grep", aliases=["rg"], help="세션 전문 검색 (대화·도구 기록)", parents=[common]
     )
-    grep_parser.add_argument("keyword", help="검색할 키워드")
+    grep_parser.add_argument(
+        "keywords",
+        nargs="+",
+        metavar="keyword",
+        help="검색할 키워드. 여러 개면 OR. 대소문자 무시, 기본은 글자 그대로",
+    )
+    grep_parser.add_argument(
+        "-E", "--regex", action="store_true", help="키워드를 정규식으로 해석 (느림)"
+    )
     grep_parser.add_argument("--days", type=int, default=7, help="최근 N일 (기본: 7)")
-    grep_parser.add_argument("--date", help="조회할 날짜 (YYYY-MM-DD)")
+    grep_parser.add_argument("--since", type=date_arg, help=since_help)
+    grep_parser.add_argument("--date", type=date_arg, help="조회할 날짜 (YYYY-MM-DD)")
     grep_parser.add_argument(
         "--cwd", action="store_true", help="현재 디렉토리 프로젝트만"
     )
     grep_parser.add_argument(
-        "--limit", type=int, default=None, help="결과 세션 최대 N개"
+        "--sort",
+        choices=["recent", "relevance"],
+        default="recent",
+        help=(
+            "결과 순서. recent=세션 시작이 최근인 순(기본), "
+            "relevance=맞힌 키워드 종류, 대화 hit, 전체 hit 순"
+        ),
+    )
+    grep_parser.add_argument(
+        "--limit", type=count_arg, default=None, help="--sort 순서로 앞 N개 세션만"
+    )
+    grep_parser.add_argument(
+        "--include-self",
+        action="store_true",
+        help="현재 세션과 지난 session_history 검색 기록도 포함 (기본: 제외)",
     )
 
     show_parser = subparsers.add_parser(
@@ -869,7 +1138,30 @@ def main():
     show_parser.add_argument("--last", action="store_true", help="가장 최근 세션 보기")
     show_parser.add_argument("--full", action="store_true", help="도구 호출/결과 포함")
     show_parser.add_argument("--files", action="store_true", help="수정된 파일 목록만")
-    show_parser.add_argument("--limit", type=int, default=None, help="앞 N개 메시지만")
+    show_parser.add_argument(
+        "--grep",
+        nargs="+",
+        metavar="keyword",
+        help="일치한 메시지와 앞뒤만 (OR, 도구 기록 포함). 세션 ID 뒤에 쓴다",
+    )
+    show_parser.add_argument(
+        "-E", "--regex", action="store_true", help="--grep 키워드를 정규식으로 해석"
+    )
+    show_parser.add_argument(
+        "--context",
+        type=count_arg,
+        default=2,
+        help="--grep 일치 앞뒤로 볼 메시지 수 (기본: 2)",
+    )
+    show_parser.add_argument(
+        "--offset",
+        type=count_arg,
+        default=0,
+        help="앞 N개를 건너뜀 (--limit와 함께 페이지 넘김)",
+    )
+    show_parser.add_argument(
+        "--limit", type=count_arg, default=None, help="N개 메시지만"
+    )
 
     subparsers.add_parser(
         "sources", help="감지된 로컬 로그 소스 조회", parents=[common]

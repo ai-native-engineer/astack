@@ -16,6 +16,7 @@ from common import (
     CODEX_ARCHIVED_SESSIONS_DIR,
     CODEX_HISTORY,
     CODEX_SESSIONS_DIR,
+    hits_from_messages,
     include_subagents,
     path_matches,
     register_cache_clearer,
@@ -25,6 +26,8 @@ from common import (
 TOOL = "codex"
 DISPLAY = "Codex"
 TAG = "[X]"
+# grep_session이 rollout 파일 하나만 읽는다. rg 사전 필터를 걸어도 결과가 같다
+GREP_READS_SESSION_FILE = True
 SOURCE_PATHS = (CODEX_HISTORY, CODEX_SESSIONS_DIR, CODEX_ARCHIVED_SESSIONS_DIR)
 CODEX_STATE_DB = CODEX_SESSIONS_DIR.parent / "state_5.sqlite"
 APPLY_PATCH_HEADER_RE = re.compile(
@@ -173,7 +176,10 @@ def read_codex_conversation(session_id: str, full: bool = False):
                         {"role": "tool_call", "text": f"[{name}] {cmd}", "ts": ts}
                     )
                 elif rtype == "function_call_output":
-                    output = payload.get("output", "")[:500]
+                    # 출력 폭은 show가 정한다. 여기서 자르면 show --grep이 뒤쪽을 못 찾는다
+                    output = payload.get("output", "")
+                    if not isinstance(output, str):
+                        output = json.dumps(output, ensure_ascii=False)
                     if output.strip():
                         messages.append(
                             {"role": "tool_result", "text": output.strip(), "ts": ts}
@@ -372,29 +378,13 @@ def extract_codex_history(start_ms, end_ms, project_filter=None, cwd_filter=None
 # ─── list 서브커맨드 ──────────────────────────────────────────
 
 
-def grep_codex_session(fpath: Path, keyword: str, session_id: str | None = None):
+def grep_codex_session(fpath: Path, keyword, session_id: str | None = None):
     """Codex rollout JSONL에서 keyword 포함 대화·도구 기록 반환."""
-    hits = []
-    keyword_lower = keyword.lower()
+    messages = []
 
-    def add_hit(role, text, ts):
-        if not isinstance(text, str) or keyword_lower not in text.lower():
-            return
-        idx = text.lower().find(keyword_lower)
-        start = max(0, idx - 60)
-        end = min(len(text), idx + len(keyword) + 90)
-        excerpt = (
-            ("..." if start > 0 else "")
-            + text[start:end]
-            + ("..." if end < len(text) else "")
-        )
-        hits.append(
-            {
-                "role": role,
-                "ts": ts,
-                "excerpt": excerpt.replace("\n", " "),
-            }
-        )
+    def add_message(role, text, ts, call_id=None):
+        if isinstance(text, str) and text:
+            messages.append({"role": role, "text": text, "ts": ts, "call_id": call_id})
 
     with open(fpath, encoding="utf-8") as f:
         for line in f:
@@ -409,9 +399,9 @@ def grep_codex_session(fpath: Path, keyword: str, session_id: str | None = None)
                 msg_type = payload.get("type", "")
                 if msg_type in ("user_message", "agent_message"):
                     role = "user" if msg_type == "user_message" else "assistant"
-                    add_hit(role, (payload.get("message", "") or "").strip(), ts)
+                    add_message(role, (payload.get("message", "") or "").strip(), ts)
                 elif msg_type == "patch_apply_begin":
-                    add_hit(
+                    add_message(
                         "tool",
                         json.dumps(
                             payload.get("changes", {}) or {}, ensure_ascii=False
@@ -426,13 +416,18 @@ def grep_codex_session(fpath: Path, keyword: str, session_id: str | None = None)
                 raw = payload.get("arguments", "") or payload.get("input", "")
                 if not isinstance(raw, str):
                     raw = json.dumps(raw, ensure_ascii=False)
-                add_hit("tool", f"[{payload.get('name', '')}] {raw}", ts)
+                add_message(
+                    "tool_call",
+                    f"[{payload.get('name', '')}] {raw}",
+                    ts,
+                    payload.get("call_id"),
+                )
             elif rtype in ("function_call_output", "custom_tool_call_output"):
                 output = payload.get("output", "")
                 if not isinstance(output, str):
                     output = json.dumps(output, ensure_ascii=False)
-                add_hit("tool", output, ts)
-    return hits
+                add_message("tool_result", output, ts, payload.get("call_id"))
+    return hits_from_messages(messages, keyword)
 
 
 session_index = codex_session_index

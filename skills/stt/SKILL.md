@@ -15,6 +15,9 @@ description: "Local speech-to-text transcription and optional speaker diarizatio
 - 분석 증거: `apple-stt --analysis-json 녹음.m4a` - versioned Apple evidence object
 - 구간: `ffmpeg -ss <시작초> -to <끝초> -i in.m4a -c copy clip.m4a` 후 `apple-stt clip.m4a`
   - 긴 녹음에 회의 외 이동·잡음이 섞이면 그 구간은 전사·화자분리가 다 깨지니 회의 구간만 잘라 처리.
+- 영상 파일(화면 녹화 mp4 등): `apple-stt`는 영상을 직접 받으면 첫 오디오 트랙만 전사해, 다른 트랙에만 있는 발화가 오류 없이 빠진다. 트랙이 여럿이거나 녹화가 아직 끝나지 않은 파일은 `references/recording-files.md`를 먼저 읽는다.
+- 고유명사: 이름과 제품명은 `apple-stt --vocab <단어,...>`로 일회성 힌트를 준다. 전역 `~/.config/stt/vocab.txt`는 Voice Memos도 읽는 공용 사전이라 사용자 승인 뒤에만 바꾼다.
+- 전사본을 넘길 때 같은 사람이나 제품이 여러 표기로 갈라진 오인식은 목록으로 함께 적는다.
 - 정본 소스: `native/apple-stt.swift`. 빌드한 실행 파일은 PATH가 읽는 위치에 설치하고 `command -v apple-stt`로 확인한다.
 - 빌드: `swiftc -O -parse-as-library -target arm64-apple-macos26.0 native/apple-stt.swift -o <임시경로>/apple-stt`
 - 검증 근거: `references/apple-capabilities.md`. 회귀 비교 계약은 `references/benchmark.md`를 따른다.
@@ -23,11 +26,11 @@ description: "Local speech-to-text transcription and optional speaker diarizatio
 
 ## 화자 분리 (누가 언제 말했나)
 
-`apple-stt`가 텍스트의 유일한 정본이다. 화자 라벨이 필요할 때만 Argmax `diarize`로 RTTM을 만들고 Apple 시간 범위에 결합한다. 세부 계약은 `references/diarization.md`를 읽는다.
+`apple-stt`가 텍스트의 유일한 정본이다. 화자 라벨이 필요할 때만 pyannote Community-1로 RTTM을 만들고 Apple 시간 범위에 결합한다. 세부 계약은 `references/diarization.md`를 읽는다.
 
 - 실행: `bash scripts/stt_diarize.sh <오디오> [start초] [end초]`
 - 출력: `stt/YYMMDD-HHMMSS-PID/diarized.md`, `diar.rttm`
-- 한 Apple 범위에 여러 화자가 겹치면 `mixed`로 둔다. Argmax 텍스트를 생성하거나 Apple 텍스트를 교체하지 않는다.
+- 한 Apple 범위에 여러 화자가 겹치면 `mixed`로 둔다. 화자 분리 모델로 텍스트를 생성하거나 Apple 텍스트를 교체하지 않는다.
 
 ## TTS (텍스트 → 음성)
 
@@ -35,5 +38,5 @@ description: "Local speech-to-text transcription and optional speaker diarizatio
 
 ## 부속
 
-- `ffmpeg`는 구간 자르기와 로컬 preview에만 쓴다.
+- `ffmpeg`는 구간 자르기, 오디오 트랙 추출, 로컬 preview에만 쓴다.
 - 유튜브는 기존 자막이 있으면 STT를 실행하지 않는다.
