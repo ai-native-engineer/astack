@@ -21,6 +21,11 @@ from adapters import ORDER as REGISTERED_TOOLS  # noqa: E402
 
 KST = datetime.timezone(datetime.timedelta(hours=9))
 DATE = "2026-08-18"
+JSONL_PRODUCTS = {
+    "openclaw": (".openclaw/agents/main/sessions", "OpenClaw"),
+    "senpi": (".senpi/agent/sessions", "senpi"),
+    "gjc": (".gjc/agent/sessions", "gjc"),
+}
 
 
 def write_json(path: Path, value):
@@ -58,6 +63,8 @@ class TestSessionHistoryCli(unittest.TestCase):
             "opencode": "ses_60000000-0000-4000-8000-000000000006",
             "aside": "70000000-0000-4000-8000-000000000007",
             "openclaw": "80000000-0000-4000-8000-000000000008",
+            "senpi": "a0000000-0000-4000-8000-00000000000a",
+            "gjc": "b0000000-0000-4000-8000-00000000000b",
             "copilot": "90000000-0000-4000-8000-000000000009",
         }
         self._write_claude_fixture()
@@ -67,7 +74,8 @@ class TestSessionHistoryCli(unittest.TestCase):
         self._write_gemini_fixture()
         self._write_opencode_fixture()
         self._write_aside_fixture()
-        self._write_openclaw_fixture()
+        for tool in JSONL_PRODUCTS:
+            self._write_session_jsonl_fixture(tool)
         self._write_copilot_fixture()
 
     def _run(self, *args, cwd=None):
@@ -467,10 +475,10 @@ class TestSessionHistoryCli(unittest.TestCase):
             )
         con.close()
 
-    def _write_openclaw_fixture(self):
-        sid = self.ids["openclaw"]
+    def _write_session_jsonl_fixture(self, tool, sid=None):
+        sid = sid or self.ids[tool]
         write_jsonl(
-            self.home / ".senpi" / "agent" / "sessions" / "fixture" / f"{sid}.jsonl",
+            self.home / JSONL_PRODUCTS[tool][0] / "fixture" / f"{sid}.jsonl",
             [
                 {
                     "type": "session",
@@ -497,9 +505,7 @@ class TestSessionHistoryCli(unittest.TestCase):
                     "timestamp": "2026-08-18T10:10:05+09:00",
                     "message": {
                         "role": "user",
-                        "content": [
-                            {"type": "text", "text": "openclaw fixture needle"}
-                        ],
+                        "content": [{"type": "text", "text": f"{tool} fixture needle"}],
                     },
                 },
                 {
@@ -509,13 +515,13 @@ class TestSessionHistoryCli(unittest.TestCase):
                         "role": "assistant",
                         "model": "claude-test",
                         "content": [
-                            {"type": "text", "text": "openclaw response"},
+                            {"type": "text", "text": f"{tool} response"},
                             {
                                 "type": "toolCall",
                                 "id": "call_1",
                                 "name": "write",
                                 "arguments": {
-                                    "file_path": str(self.project / "openclaw.txt")
+                                    "file_path": str(self.project / f"{tool}.txt")
                                 },
                             },
                         ],
@@ -637,6 +643,7 @@ class TestSessionHistoryCli(unittest.TestCase):
                 )
                 self.assertEqual(len(hits), 1)
                 self.assertEqual(hits[0]["sid"], sid)
+                self.assertEqual(hits[0]["tool"], tool)
 
                 messages = self._run_json(
                     "show",
@@ -649,7 +656,9 @@ class TestSessionHistoryCli(unittest.TestCase):
                 self.assertEqual(messages[0]["role"], "user")
                 self.assertIn("fixture needle", messages[0]["text"])
 
-    def test_rg_limit_stops_after_earliest_match(self):
+    def test_rg_limit_keeps_most_recent_match(self):
+        sessions = self._run_json("list", "--date", DATE, "--format", "json")
+        newest = max(sessions, key=lambda sid: sessions[sid]["first_ts_ms"])
         hits = self._run_json(
             "rg",
             "fixture needle",
@@ -661,7 +670,7 @@ class TestSessionHistoryCli(unittest.TestCase):
             "json",
         )
         self.assertEqual(len(hits), 1)
-        self.assertEqual(hits[0]["sid"], self.ids["claude"])
+        self.assertEqual(hits[0]["sid"], newest)
 
         self.assertEqual(
             self._run_json(
@@ -682,6 +691,8 @@ class TestSessionHistoryCli(unittest.TestCase):
         expected = {
             "cursor": "cursor.txt",
             "openclaw": "openclaw.txt",
+            "senpi": "senpi.txt",
+            "gjc": "gjc.txt",
             "copilot": "copilot.txt",
         }
         for tool, filename in expected.items():
@@ -699,6 +710,266 @@ class TestSessionHistoryCli(unittest.TestCase):
                     [change["file"] for change in files["changes"]],
                     [str(self.project / filename)],
                 )
+
+    def test_jsonl_products_have_independent_sources_and_commands(self):
+        for tool, (root, display) in JSONL_PRODUCTS.items():
+            with self.subTest(tool=tool):
+                sources = self._run_json("sources", "--tool", tool, "--format", "json")
+                self.assertEqual(len(sources), 1)
+                self.assertEqual(sources[0]["tool"], tool)
+                self.assertEqual(sources[0]["display"], display)
+                self.assertEqual(sources[0]["sessions"], 1)
+                self.assertTrue(sources[0]["available"])
+                self.assertEqual(
+                    sources[0]["roots"],
+                    [{"path": str(self.home / root), "exists": True}],
+                )
+                sessions = self._run_json(
+                    "list", "--date", DATE, "--tool", tool, "--format", "json"
+                )
+                self.assertEqual(set(sessions), {self.ids[tool]})
+                self.assertEqual(sessions[self.ids[tool]]["tool"], tool)
+                self.assertEqual(
+                    sessions[self.ids[tool]]["messages"][0]["text"],
+                    f"{tool} fixture needle",
+                )
+                timeline = self._run_json(
+                    "timeline", "--date", DATE, "--tool", tool, "--format", "json"
+                )
+                self.assertEqual(len(timeline), 1)
+                self.assertEqual(timeline[0]["tool"], tool)
+                self.assertEqual(timeline[0]["first_msg"], f"{tool} fixture needle")
+                messages = self._run_json(
+                    "show",
+                    self.ids[tool],
+                    "--tool",
+                    tool,
+                    "--full",
+                    "--format",
+                    "json",
+                )
+                self.assertEqual(messages[0]["text"], f"{tool} fixture needle")
+                self.assertIn(f"{tool} response", messages[1]["text"])
+                self.assertIn("[tool: write]", messages[1]["text"])
+                self.assertIn(f"{tool}.txt", messages[1]["text"])
+                for other in JSONL_PRODUCTS:
+                    if other == tool:
+                        continue
+                    self.assertNotIn(f"{other} response", str(messages))
+                    self.assertEqual(
+                        self._run_json(
+                            "rg",
+                            f"{other} fixture needle",
+                            "--date",
+                            DATE,
+                            "--tool",
+                            tool,
+                            "--format",
+                            "json",
+                        ),
+                        [],
+                    )
+                    missing = self._run("show", self.ids[other], "--tool", tool)
+                    self.assertEqual(missing.returncode, 1)
+                    self.assertIn("찾을 수 없습니다", missing.stdout)
+
+    def test_jsonl_token_rows_and_summaries_keep_product_identity(self):
+        for tool, (root, _) in JSONL_PRODUCTS.items():
+            with self.subTest(tool=tool):
+                usage = self._run_token_json(
+                    "--date", DATE, "--tool", tool, "--format", "json"
+                )
+                self.assertEqual(len(usage["rows"]), 1)
+                row = usage["rows"][0]
+                self.assertEqual(row["tool"], tool)
+                self.assertEqual(row["session_id"], self.ids[tool])
+                self.assertEqual(
+                    row["path"],
+                    str(self.home / root / "fixture" / f"{self.ids[tool]}.jsonl"),
+                )
+                for key, expected in (
+                    ("input_tokens", 10),
+                    ("output_tokens", 5),
+                    ("cache_read_input_tokens", 2),
+                    ("cache_creation_input_tokens", 3),
+                    ("total_tokens", 20),
+                ):
+                    self.assertEqual(row[key], expected)
+                self.assertEqual(usage["summary"]["total_tokens"], 20)
+                self.assertEqual(set(usage["summary"]["by_tool"]), {tool})
+                self.assertEqual(
+                    set(usage["summary"]["by_session"]),
+                    {f"{tool}\t{self.ids[tool]}"},
+                )
+
+        usage = self._run_token_json(
+            "--date", DATE, "--tool", "all", "--format", "json"
+        )
+        for tool in JSONL_PRODUCTS:
+            rows = [row for row in usage["rows"] if row["tool"] == tool]
+            self.assertEqual([row["session_id"] for row in rows], [self.ids[tool]])
+            self.assertEqual(usage["summary"]["by_tool"][tool]["total_tokens"], 20)
+
+    def test_all_includes_each_jsonl_product_once(self):
+        sessions = self._run_json(
+            "list", "--date", DATE, "--tool", "all", "--format", "json"
+        )
+        for command in ("timeline", "rg"):
+            args = (command, "fixture needle") if command == "rg" else (command,)
+            entries = self._run_json(
+                *args, "--date", DATE, "--tool", "all", "--format", "json"
+            )
+            for tool in JSONL_PRODUCTS:
+                with self.subTest(command=command, tool=tool):
+                    self.assertEqual(sessions[self.ids[tool]]["tool"], tool)
+                    self.assertEqual(
+                        len([entry for entry in entries if entry["tool"] == tool]), 1
+                    )
+
+    def test_missing_jsonl_root_does_not_fall_back_to_other_products(self):
+        for tool, (root, _) in JSONL_PRODUCTS.items():
+            with self.subTest(tool=tool):
+                source = self.home / root
+                hidden = source.with_name("unavailable")
+                source.rename(hidden)
+                try:
+                    sources = self._run_json(
+                        "sources", "--tool", tool, "--format", "json"
+                    )
+                    self.assertEqual(len(sources), 1)
+                    self.assertFalse(sources[0]["available"])
+                    self.assertEqual(sources[0]["sessions"], 0)
+                    self.assertEqual(
+                        sources[0]["roots"],
+                        [{"path": str(source), "exists": False}],
+                    )
+                    for command, empty in (("list", {}), ("rg", [])):
+                        args = (
+                            (command, "fixture needle")
+                            if command == "rg"
+                            else (command,)
+                        )
+                        self.assertEqual(
+                            self._run_json(
+                                *args,
+                                "--date",
+                                DATE,
+                                "--tool",
+                                tool,
+                                "--format",
+                                "json",
+                            ),
+                            empty,
+                        )
+                    timeline = self._run("timeline", "--date", DATE, "--tool", tool)
+                    self.assertEqual(timeline.returncode, 0, timeline.stderr)
+                    self.assertIn("세션 없음", timeline.stdout)
+                    self.assertNotIn("fixture needle", timeline.stdout)
+                    usage = self._run_token_json(
+                        "--date", DATE, "--tool", tool, "--format", "json"
+                    )
+                    self.assertEqual(usage["rows"], [])
+                    self.assertEqual(usage["summary"]["total_tokens"], 0)
+                    for sid in (self.ids[name] for name in JSONL_PRODUCTS):
+                        self.assertEqual(
+                            self._run("show", sid, "--tool", tool).returncode, 1
+                        )
+                finally:
+                    hidden.rename(source)
+
+    def test_identical_jsonl_ids_resolve_within_selected_product(self):
+        sid = "c0000000-0000-4000-8000-00000000000c"
+        for tool in JSONL_PRODUCTS:
+            self._write_session_jsonl_fixture(tool, sid=sid)
+        for tool in JSONL_PRODUCTS:
+            with self.subTest(tool=tool):
+                messages = self._run_json(
+                    "show", sid, "--tool", tool, "--full", "--format", "json"
+                )
+                self.assertEqual(messages[0]["text"], f"{tool} fixture needle")
+                self.assertIn(f"{tool} response", messages[1]["text"])
+                files = self._run_json(
+                    "show", sid, "--tool", tool, "--files", "--format", "json"
+                )
+                self.assertEqual(
+                    [change["file"] for change in files["changes"]],
+                    [str(self.project / f"{tool}.txt")],
+                )
+
+    def test_jsonl_reset_archives_are_opt_in_for_each_product(self):
+        from adapters.openclaw import SessionJsonlAdapter
+        from common import include_subagents, set_include_subagents
+
+        self.addCleanup(set_include_subagents, include_subagents())
+        adapters = {
+            tool: SessionJsonlAdapter(tool, display, "[test]", self.home / root)
+            for tool, (root, display) in JSONL_PRODUCTS.items()
+        }
+        for tool, (root, _) in JSONL_PRODUCTS.items():
+            path = self.home / root / "fixture" / f"{self.ids[tool]}.jsonl"
+            path.with_name(path.name + ".reset.123").write_text(
+                path.read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            # token_usage has no archive opt-in flag; its default excludes resets.
+            usage = self._run_token_json(
+                "--date", DATE, "--tool", tool, "--format", "json"
+            )
+            self.assertEqual(
+                {row["session_id"] for row in usage["rows"]}, {self.ids[tool]}
+            )
+            self.assertEqual(usage["summary"]["total_tokens"], 20)
+        for include in (False, True, False):
+            set_include_subagents(include)
+            flags = ("--include-subagents",) if include else ()
+            for tool in JSONL_PRODUCTS:
+                with self.subTest(include=include, tool=tool):
+                    expected = {self.ids[tool]}
+                    if include:
+                        expected.add(f"{self.ids[tool]}@123")
+                    # The same instances must invalidate their cached indexes.
+                    self.assertEqual(set(adapters[tool].session_index()), expected)
+                    sessions = self._run_json(
+                        "list",
+                        "--date",
+                        DATE,
+                        "--tool",
+                        tool,
+                        *flags,
+                        "--format",
+                        "json",
+                    )
+                    self.assertEqual(set(sessions), expected)
+                    self.assertEqual(
+                        {session["tool"] for session in sessions.values()}, {tool}
+                    )
+
+    def test_redact_dry_run_is_scoped_to_selected_jsonl_product(self):
+        originals = {}
+        paths = {}
+        for tool, (root, _) in JSONL_PRODUCTS.items():
+            path = self.home / root / "fixture" / f"{self.ids[tool]}.jsonl"
+            entries = [
+                json.loads(line)
+                for line in path.read_text(encoding="utf-8").splitlines()
+            ]
+            # Deliberately fake shape-matching values, only in temporary HOME.
+            entries[2]["message"]["content"][0]["text"] += " sk-" + "x" * 24
+            write_jsonl(path, entries)
+            paths[tool] = path
+            originals[path] = path.read_bytes()
+
+        for tool in JSONL_PRODUCTS:
+            with self.subTest(tool=tool):
+                result = self._run("redact", "--tool", tool)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("검사 1개 · 시크릿이 남은 파일 1개", result.stdout)
+                self.assertIn(f"  {paths[tool]}\n", result.stdout)
+                self.assertIn("--apply", result.stdout)
+                for other, path in paths.items():
+                    if other != tool:
+                        self.assertNotIn(str(path), result.stdout)
+                    self.assertEqual(path.read_bytes(), originals[path])
+                self.assertFalse((self.home / ".local/state/session-history").exists())
 
     def test_cursor_files_and_missing_session_exit(self):
         files = self._run_json(

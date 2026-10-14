@@ -14,6 +14,7 @@ from pathlib import Path
 
 from common import (
     ASIDE_PROFILES_DIR,
+    hits_from_messages,
     include_subagents,
     path_matches,
     register_cache_clearer,
@@ -194,7 +195,7 @@ def read_aside_conversation(session_id: str, full: bool = False):
         elif role == "toolResult" and full:
             text = _content_text(entry.get("content")).strip()
             if text:
-                messages.append({"role": "tool_result", "text": text[:500], "ts": ts})
+                messages.append({"role": "tool_result", "text": text, "ts": ts})
         # system-message와 user-message-metadata는 사람 발화가 아니다.
     return messages, info["path"]
 
@@ -306,7 +307,7 @@ def extract_aside_history(start_ms, end_ms, project_filter=None, cwd_filter=None
     return sessions
 
 
-def grep_aside_session(fpath: Path, keyword: str, session_id: str | None = None):
+def grep_aside_session(fpath: Path, keyword, session_id: str | None = None):
     sid = session_id
     if not sid:
         sid = next(
@@ -320,28 +321,7 @@ def grep_aside_session(fpath: Path, keyword: str, session_id: str | None = None)
     if not sid:
         return []
     messages, _ = read_aside_conversation(sid, full=True)
-    hits = []
-    needle = keyword.lower()
-    for message in messages or []:
-        text = message.get("text") or ""
-        lowered = text.lower()
-        if needle not in lowered:
-            continue
-        idx = lowered.find(needle)
-        start = max(0, idx - 60)
-        end = min(len(text), idx + len(keyword) + 90)
-        hits.append(
-            {
-                "role": message.get("role") or "",
-                "ts": message.get("ts") or "",
-                "excerpt": (
-                    ("..." if start else "")
-                    + text[start:end]
-                    + ("..." if end < len(text) else "")
-                ).replace("\n", " "),
-            }
-        )
-    return hits
+    return hits_from_messages(messages or [], keyword)
 
 
 session_index = aside_session_index

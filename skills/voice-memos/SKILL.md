@@ -70,7 +70,7 @@ python3 scripts/search.py --recent 5 --no-preview --count
 bash scripts/diarize.sh <audio.m4a> <transcript_dir> [start] [end]
 ```
 
-출력은 `transcript_dir/diarized.md`다. Apple 텍스트가 정본이고 Argmax는 `diarize`만 실행한다. 여러 화자가 한 Apple 범위에 겹치면 `mixed`로 둔다.
+출력은 `transcript_dir/diarized.md`다. Apple 텍스트가 정본이고 화자 타임라인은 `stt` 스킬의 pyannote 경로로 만든다. 여러 화자가 한 Apple 범위에 겹치면 `mixed`로 둔다.
 
 ### "전사만 해줘"
 

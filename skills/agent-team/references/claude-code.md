@@ -13,6 +13,10 @@ Claude Code에서만 이 파일을 적용한다.
 - worker에게도 모호한 설계 판단이나 고위험 검토가 필요할 때만 Opus를 사용한다.
 - 네이티브 Agent Teams를 in-process 모드로 사용한다.
 
+## 알림
+
+- teammate가 보고를 보낸 뒤 오는 idle 알림(`idle_notification`)의 `result`에는 같은 보고가 다시 실려 온다. 늦게 도착하면 새 보고처럼 보이므로, 알림의 `timestamp`와 내용을 이미 받은 보고와 대조해 같으면 다시 처리하지 않고, 다르면 달라진 부분만 새 보고로 다룬다. 다시 처리하면 끝난 일을 또 시작하거나 같은 변경을 두 번 반영한다.
+
 ## 실행
 
 1. 처음에는 서로 겹치지 않는 범위로 teammate 2~3명을 만든다. 동시에 도는 수의 상한은 루트 스킬의 규모 절을 따른다.
@@ -24,9 +28,10 @@ Keep working until everything the user asked for is done, and only stop to ask w
 When the work the user asked for is done and checked, stop and report. Don't add features, tests, files, docs or refactors that weren't asked for. If you think one would help, mention it at the end instead of doing it.
 ```
 
-3. 같은 작업의 수정과 추가 확인은 기존 teammate에게 보낸다.
-4. 보고가 출력 상한(`max_output_tokens`)으로 끊긴 teammate에게는 수정, 추가 확인, 되돌리기를 포함해 더 일을 맡기지 않는다. 그 teammate는 이미 읽은 내용을 안고 같은 길이로 답하다가 또 끊긴다. 받은 부분은 살려 lead가 직접 확인하고, 남은 일은 나눠 새 teammate에게 맡긴다.
-5. 통합이 끝날 때까지 teammate를 유지한다.
-6. 충돌하거나 근거가 약한 결과는 담당 teammate에게 되돌린다.
-7. 통합 후 teammate를 종료한다.
-8. 사용한 worker 모델, teammate 수, 검증 결과를 짧게 보고한다.
+3. worktree 격리(`isolation: "worktree"`)로 띄운 teammate에게 PR을 맡기면 위임 프롬프트에 브랜치 이름을 정해 준다. 하네스가 만드는 `worktree-agent-<id>` 브랜치는 저장소의 브랜치 규칙에 맞지 않는다.
+4. 같은 작업의 수정과 추가 확인은 기존 teammate에게 보낸다.
+5. 보고가 출력 상한(`max_output_tokens`)으로 끊긴 teammate에게는 수정, 추가 확인, 되돌리기를 포함해 더 일을 맡기지 않는다. 그 teammate는 이미 읽은 내용을 안고 같은 길이로 답하다가 또 끊긴다. 받은 부분은 살려 lead가 직접 확인하고, 남은 일은 나눠 새 teammate에게 맡긴다.
+6. 통합이 끝날 때까지 teammate를 유지한다.
+7. 충돌하거나 근거가 약한 결과는 담당 teammate에게 되돌린다.
+8. 통합 후 teammate를 종료한다. worktree로 띄웠다면 머지된 `worktree-agent-*` 브랜치를 `git branch -d`로 지운다. 하네스는 worktree를 정리해도 브랜치는 남길 수 있다.
+9. 사용한 worker 모델, teammate 수, 검증 결과를 짧게 보고한다.

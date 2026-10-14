@@ -12,6 +12,17 @@ Apply this after the common communication contract when the selected channel is 
 - Include links/files only when the user approved the attachment or the source is safe to share.
 - Do not include secrets, tokens, passwords, or unredacted private data.
 
+## Draft to Sent
+
+Applies when the user sends the message themselves: a draft-only account, or a draft the user wants to edit first.
+
+1. Save the draft through `gog` and read it back (thread, sender, recipient, body). Report which parts were read back and which were not, such as whether the quoted original made it in.
+2. When the user asks for a change, update that draft. A second draft of the same reply can be sent by mistake or left behind as a stale copy.
+3. After the user says it was sent, find the message in the sent mail by recipient, not by draft ID, and read its body. Users often edit before sending.
+4. Compare the sent body with the last draft and tell the user what differs.
+5. Any project record (log, archive, summary) follows the sent text, not the draft. Fix earlier entries that were written from the draft.
+6. Check that no draft for that thread is left over. If one is, tell the user it is stale and let them delete it.
+
 ## Email Shape
 
 ```text

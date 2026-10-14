@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from . import aside, claude, codex, copilot, cursor, gemini, grok, openclaw, opencode
+from common import GJC_SESSIONS_DIR, OPENCLAW_SESSIONS_DIR, SENPI_SESSIONS_DIR
+
+from . import aside, claude, codex, copilot, cursor, gemini, grok, opencode
+from .openclaw import SessionJsonlAdapter
 
 ADAPTERS = {
     "claude": claude,
@@ -12,7 +15,11 @@ ADAPTERS = {
     "gemini": gemini,
     "opencode": opencode,
     "aside": aside,
-    "openclaw": openclaw,
+    "openclaw": SessionJsonlAdapter(
+        "openclaw", "OpenClaw", "[W]", OPENCLAW_SESSIONS_DIR
+    ),
+    "senpi": SessionJsonlAdapter("senpi", "senpi", "[S]", SENPI_SESSIONS_DIR),
+    "gjc": SessionJsonlAdapter("gjc", "gjc", "[J]", GJC_SESSIONS_DIR),
     "copilot": copilot,
 }
 
@@ -25,6 +32,8 @@ ORDER = (
     "opencode",
     "aside",
     "openclaw",
+    "senpi",
+    "gjc",
     "copilot",
 )
 

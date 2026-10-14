@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Merge Apple transcript ranges with Argmax diarization without replacing text.
+"""Merge Apple transcript ranges with pyannote diarization without replacing text.
 
 Usage: diar_views.py <apple-json> <diar-rttm> [source-offset-seconds]
 

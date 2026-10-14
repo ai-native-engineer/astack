@@ -31,6 +31,8 @@ python3 scripts/token_usage.py --days 7 --cost --quota --format json
 
 전체 플래그는 `python3 scripts/token_usage.py -h`.
 
+제품별 집계는 세션 명령과 같은 `--tool`을 쓴다. OpenClaw, senpi, gjc는 각각 `openclaw`, `senpi`, `gjc`로 선택하며 `all`에서도 별도 제품으로 집계한다.
+
 ## 데이터 정본
 
 | 도구 | 토큰 소스 | 모델 | 비용 |
@@ -123,6 +125,6 @@ Anthropic 스타일은 `cache_write_5m`, `cache_write_1h`, `cache_read` 키를 �
 - `scripts/token_usage.py` — CLI (토큰+비용 단일 패스 집계)
 - `scripts/pricing.py` — 단가·해석·환산
 - `scripts/quota.py` — live 한도
-- `scripts/adapters/{claude,codex,grok,opencode,aside,openclaw,copilot}.py` — 토큰을 남기는 로그 파서
+- `scripts/adapters/{claude,codex,grok,opencode,aside,openclaw,copilot}.py` — 토큰을 남기는 로그 파서. `openclaw.py`는 OpenClaw/senpi/gjc가 공유하며 제품별 인스턴스는 `scripts/adapters/__init__.py`에 등록한다.
 - `scripts/adapters/{cursor,gemini}.py` — 대화만 있고 토큰은 없는 파서
 - `tests/test_pricing.py`, `tests/test_token_cost_integration.py`

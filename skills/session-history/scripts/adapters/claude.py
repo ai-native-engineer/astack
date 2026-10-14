@@ -16,6 +16,7 @@ from common import (
     CLAUDE_HISTORY,
     CLAUDE_LOCAL_PROJECT_ROOTS,
     CLAUDE_PROJECTS_DIR,
+    hits_from_messages,
     include_subagents,
     iso_to_ms,
     path_matches,
@@ -26,6 +27,8 @@ from common import (
 TOOL = "claude"
 DISPLAY = "Claude Code"
 TAG = "[C]"
+# grep_session이 세션 파일 하나만 읽는다. rg 사전 필터를 걸어도 결과가 같다
+GREP_READS_SESSION_FILE = True
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 SOURCE_PATHS = (
     CLAUDE_PROJECTS_DIR,
@@ -212,13 +215,32 @@ def find_claude_conversation_file(session_id: str) -> Path | None:
     return None
 
 
-def read_claude_conversation(session_id: str, full: bool = False):
-    """(messages, fpath) 반환."""
-    fpath = find_claude_conversation_file(session_id)
-    if not fpath:
-        return None, None
+def _tool_result_text(content) -> str:
+    """tool_result의 content는 문자열이거나 text 블록 목록이다."""
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts = [
+            part.get("text") or ""
+            for part in content
+            if isinstance(part, dict) and part.get("type") == "text"
+        ]
+        return "\n".join(parts).strip()
+    return ""
 
+
+def _claude_messages(fpath: Path, full: bool):
+    """transcript를 메시지 목록으로. 열람(show)과 검색(rg)이 같은 기준을 쓰게 하는 단일 지점이다.
+
+    Claude Code는 도구 결과를 `type: "user"` 항목의 content 안에 tool_result 블록으로 쓴다.
+    도구 호출과 결과는 `call_id`로 짝지어 둔다.
+    """
     messages = []
+
+    def add(role, text, ts, **extra):
+        if isinstance(text, str) and text.strip():
+            messages.append({"role": role, "text": text.strip(), "ts": ts, **extra})
+
     with open(fpath, encoding="utf-8") as f:
         for line in f:
             try:
@@ -228,53 +250,62 @@ def read_claude_conversation(session_id: str, full: bool = False):
 
             entry_type = d.get("type", "")
             ts = d.get("timestamp", "")
+            msg = d.get("message") or {}
+            content = msg.get("content")
 
             if entry_type == "user":
+                if full and isinstance(content, list):
+                    for part in content:
+                        if isinstance(part, dict) and part.get("type") == "tool_result":
+                            add(
+                                "tool_result",
+                                _tool_result_text(part.get("content")),
+                                ts,
+                                call_id=part.get("tool_use_id"),
+                            )
                 if d.get("isMeta"):
                     # 스킬 본문·런타임 컨텍스트 주입은 사용자 발화가 아니다.
                     continue
-                text = _real_user_text(_claude_user_entry_text(d))
-                if text:
-                    messages.append({"role": "user", "text": text, "ts": ts})
+                add("user", _real_user_text(_claude_user_entry_text(d)), ts)
 
             elif entry_type == "assistant":
-                msg = d.get("message", {})
-                content_parts = msg.get("content", [])
-                texts = []
-                tool_calls = []
-                for part in content_parts:
-                    if not isinstance(part, dict):
+                parts = [part for part in content or [] if isinstance(part, dict)]
+                add(
+                    "assistant",
+                    "\n".join(
+                        p.get("text") or "" for p in parts if p.get("type") == "text"
+                    ),
+                    ts,
+                    model=msg.get("model", ""),
+                )
+                if not full:
+                    continue
+                for part in parts:
+                    if part.get("type") != "tool_use":
                         continue
-                    if part.get("type") == "text":
-                        texts.append(part["text"])
-                    elif part.get("type") == "tool_use" and full:
-                        tool_calls.append(f"[tool: {part.get('name', '')}]")
-
-                text = "\n".join(texts)
-                if full and tool_calls:
-                    text += "\n" + "\n".join(tool_calls)
-                if text.strip():
-                    messages.append(
-                        {
-                            "role": "assistant",
-                            "text": text.strip(),
-                            "ts": ts,
-                            "model": msg.get("model", ""),
-                        }
+                    inp = json.dumps(part.get("input") or {}, ensure_ascii=False)
+                    add(
+                        "tool_call",
+                        f"[tool: {part.get('name', '')}] {inp}",
+                        ts,
+                        call_id=part.get("id"),
                     )
 
             elif entry_type == "tool_result" and full:
-                msg = d.get("message", {})
-                content = msg.get("content", [])
-                for part in content:
-                    if isinstance(part, dict) and part.get("type") == "tool_result":
-                        result_text = part.get("content", "")
-                        if isinstance(result_text, str) and result_text.strip():
-                            messages.append(
-                                {"role": "tool", "text": result_text[:500], "ts": ts}
-                            )
+                for part in content if isinstance(content, list) else [content]:
+                    if isinstance(part, dict):
+                        add("tool_result", _tool_result_text(part.get("content")), ts)
 
-    return messages, fpath
+    return messages
+
+
+def read_claude_conversation(session_id: str, full: bool = False):
+    """(messages, fpath) 반환."""
+    fpath = find_claude_conversation_file(session_id)
+    if not fpath:
+        return None, None
+    # 원문 그대로 돌려준다. 보여 줄 폭은 show가 정한다
+    return _claude_messages(fpath, full), fpath
 
 
 def extract_claude_changed_files(session_id: str):
@@ -429,80 +460,9 @@ def extract_claude_history(start_ms, end_ms, project_filter=None, cwd_filter=Non
     return dict(sessions)
 
 
-def grep_claude_session(
-    fpath: Path, keyword: str, context_lines: int = 0, session_id: str | None = None
-):
+def grep_claude_session(fpath: Path, keyword, session_id: str | None = None):
     """Claude Code 세션 JSONL에서 keyword 포함 대화·도구 기록 반환."""
-    hits = []
-    keyword_lower = keyword.lower()
-    messages = []
-
-    def add_message(role, text, ts):
-        if isinstance(text, str) and text.strip():
-            messages.append({"role": role, "text": text.strip(), "ts": ts})
-
-    with open(fpath, encoding="utf-8") as f:
-        for line in f:
-            try:
-                d = json.loads(line.strip())
-            except json.JSONDecodeError:
-                continue
-            entry_type = d.get("type", "")
-            ts = d.get("timestamp", "")
-            if entry_type == "user":
-                msg = d.get("message", {})
-                content = msg.get("content", "")
-                if isinstance(content, list):
-                    for c in content:
-                        if isinstance(c, dict) and c.get("type") == "text":
-                            add_message("user", c.get("text", ""), ts)
-                        elif isinstance(c, dict) and c.get("type") == "tool_result":
-                            add_message("tool", c.get("content", ""), ts)
-                        elif isinstance(c, str):
-                            add_message("user", c, ts)
-                else:
-                    add_message("user", content, ts)
-            elif entry_type == "assistant":
-                for part in d.get("message", {}).get("content", []) or []:
-                    if isinstance(part, dict) and part.get("type") == "text":
-                        add_message("assistant", part.get("text", ""), ts)
-                    elif isinstance(part, dict) and part.get("type") == "tool_use":
-                        name = part.get("name", "")
-                        inp = json.dumps(
-                            part.get("input", {}) or {}, ensure_ascii=False
-                        )
-                        add_message("tool", f"[tool: {name}] {inp}", ts)
-            elif entry_type == "tool_result":
-                msg = d.get("message", {})
-                content = msg.get("content", "")
-                if isinstance(content, list):
-                    for part in content:
-                        if isinstance(part, dict):
-                            add_message("tool", part.get("content", ""), ts)
-                else:
-                    add_message("tool", content, ts)
-
-    for i, msg in enumerate(messages):
-        if keyword_lower in msg["text"].lower():
-            snippet = msg["text"]
-            # keyword 주변 150자
-            idx = snippet.lower().find(keyword_lower)
-            start = max(0, idx - 60)
-            end = min(len(snippet), idx + len(keyword) + 90)
-            excerpt = (
-                ("..." if start > 0 else "")
-                + snippet[start:end]
-                + ("..." if end < len(snippet) else "")
-            )
-            hits.append(
-                {
-                    "role": msg["role"],
-                    "ts": msg["ts"],
-                    "excerpt": excerpt.replace("\n", " "),
-                }
-            )
-
-    return hits
+    return hits_from_messages(_claude_messages(fpath, True), keyword)
 
 
 # Public adapter surface (stable names for CLI)

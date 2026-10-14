@@ -16,25 +16,37 @@ Hermes Agent 자체 대화(Discord/Telegram/Gateway/CLI)는 이 스크립트 대
 SH="scripts/session_history.py"
 python3 $SH sources
 python3 $SH list --cwd
-python3 $SH rg "gcloud" --days 30 --limit 5
+python3 $SH rg gcloud "cloud run" --since <YYYY-MM-DD> --sort relevance --limit 5
+python3 $SH show <session-id> --grep gcloud
 python3 $SH show --last --full
 python3 $SH show <session-id> --files
 python3 $SH redact
 ```
 
-서브커맨드는 `sources`, `list`, `timeline`, `rg`/`grep`, `show`, `redact`다. `--tool`은 `all|claude|codex|grok|cursor|gemini|opencode|aside|openclaw|copilot`을 받으며 기본값은 `all`이다. 전체 옵션은 `python3 $SH <subcommand> -h`를 먼저 본다.
+서브커맨드는 `sources`, `list`, `timeline`, `rg`/`grep`, `show`, `redact`다. `--tool`의 기본값은 `all`이다. 전체 도구와 옵션은 `python3 $SH <subcommand> -h`를 먼저 본다.
+
+특정 제품만 요청하면 그 제품의 `--tool`을 지정한다. gjc는 `--tool gjc`, senpi는 `--tool senpi`, OpenClaw는 `--tool openclaw`다. 공통 로그 형식을 쓰더라도 출처를 섞으면 검색과 집계 범위가 달라진다.
 
 ## 워크플로
 
-1. **현재 프로젝트 복원**: `list --cwd`로 후보를 좁히고 `show <session-id>`로 대화를 읽는다.
-2. **특정 작업 검색**: `rg "키워드"`로 실제 대화와 도구 기록을 검색하고 필요하면 `show --full`로 확장한다.
-   Codex 세션 이름과 provider도 `list --search` 검색 대상이며 목록에 함께 표시된다.
+1. **현재 프로젝트 복원**: `list --cwd`로 후보를 좁히고 `show <session-id>`로 대화를 읽는다. 남은 작업을 복원할 때는 `references/session-sources.md`의 "작업 상태 복원"을 따른다.
+2. **특정 작업이나 주제의 맥락 모으기**:
+    1. 이전 세션이 남긴 결론(메모리, 보고서)이 있으면 먼저 읽는다. 위치는 전역 지침(AGENTS.md, rules)에 적힌 메모리와 산출물 경로를 따른다. 산출물 파일명에 세션 ID가 있으면 그 ID로 바로 `show`한다.
+    2. 동의어를 `rg` 한 번에 모두 넘긴다(`rg A B C`, OR). 키워드마다 `rg`를 반복 호출하지 않는다. 호출마다 전체 로그를 다시 읽는다.
+    3. 기간은 "최근 N일"이면 `--days N`, 시작일이 정해져 있으면 `--since`로 준다. 세션이 많으면 `--sort relevance`로 주제를 실제로 다룬 세션을 위로 올린다.
+    4. 고른 세션은 `show <id> --grep <키워드>`로 일치한 곳과 앞뒤만 읽는다. 출력 끝의 이어 읽기 명령을 그대로 쓰면 번호 기준이 맞는다.
+    5. Codex 세션 이름과 provider는 `list --search`로 찾는다.
 3. **오늘 작업 정리**: `timeline`을 시간순 데일리 노트 초안으로 쓴다.
 4. **장기 현황**: `list --days 30 --summary`로 범위를 좁힌 뒤 필요한 날짜·프로젝트만 `list`로 확인
 
 ## 핵심 동작
 
-- `rg`는 preview가 아니라 실제 transcript의 대화·도구 호출·도구 결과를 검색한다.
+- `rg`는 preview가 아니라 실제 transcript의 대화, 도구 호출, 도구 결과를 검색한다. 키워드는 대소문자를 무시한 고정 문자열이고, `-E`를 붙이면 정규식이 된다. 정규식은 ripgrep 사전 필터를 못 써서 몇 배 느리다.
+- `rg`는 기본으로 최근 세션 순이며 `--limit`은 그 순서로 자른다. `--sort relevance`는 맞힌 키워드 종류 수, 대화(사용자, 어시스턴트) hit 수, 전체 hit 수 순이다. 흔한 키워드 하나는 그 말이 든 파일을 여러 번 읽은 세션에 도구 출력 hit로 쌓이기 때문이다.
+- 현재 세션과 이 스크립트를 부른 도구 기록(지난 검색의 메아리)은 `rg`에서 빠진다. `--include-self`를 붙이면 포함된다.
+- `rg --format json`의 세션 행 키는 `sid`, `tool`, `project`, `start`, `first_ts_ms`, `hit_count`, `talk_count`, `terms`, `fpath`, `hits`이고, `hits` 항목 키는 `role`, `time`, `ts`, `term`, `excerpt`다. `start`와 `time`은 로컬 시각이다.
+- `show`의 `#번호`는 세션 안 위치다. 대화만 볼 때와 도구 기록을 포함할 때(`--full`, `--grep`) 기준이 달라서 `--offset`도 같은 모드로 준다.
+- `show`는 도구 출력을 텍스트에서 300자, JSON에서 500자로 줄인다. `--grep`을 쓰면 일치한 위치 주변을 남기고, `--full` 없이도 도구 기록까지 찾는다.
 - 모든 출력은 시크릿을 가린 뒤 나간다. 원문이 필요하면 `--raw`를 붙인다. 로그에는 사용자가 붙여넣은 키가 그대로 있어, 무심코 검색하면 그 값이 다시 컨텍스트와 새 로그로 번진다.
 - 세션 ID는 prefix 매칭한다. 충돌을 피하려면 목록의 12자리 이상을 그대로 쓴다.
 - 모든 도구의 주입 컨텍스트는 사용자 의도가 아니다. `<user_query>`·`<USER_REQUEST>` 블록을 우선하고 Claude의 `<system-reminder>`, `<command-args>`, hook 출력은 걷어낸다.
@@ -66,7 +78,7 @@ python3 $SH redact --apply                          # 백업 후 치환
 
 ## 토큰·비용
 
-토큰/비용만 필요하면 `python3 scripts/token_usage.py`를 실행한다.
+토큰/비용만 필요하면 `python3 scripts/token_usage.py`를 실행한다. 제품별 조회는 세션 명령과 동일한 `--tool`을 지정한다.
 
 ```bash
 python3 scripts/token_usage.py --days 7 --cost --by-model

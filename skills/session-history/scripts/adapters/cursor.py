@@ -15,6 +15,7 @@ from common import (
     CURSOR_CHATS_DIR,
     CURSOR_PROJECTS_DIR,
     HOME,
+    hits_from_messages,
     include_subagents,
     iso_to_ms,
     path_matches,
@@ -604,35 +605,14 @@ def extract_cursor_history(start_ms, end_ms, project_filter=None, cwd_filter=Non
     return sessions
 
 
-def grep_cursor_session(fpath: Path, keyword: str, session_id: str | None = None):
+def grep_cursor_session(fpath: Path, keyword, session_id: str | None = None):
     info = _resolve_cursor(session_id) if session_id else None
     if info is None:
         info = next(
             (i for i in cursor_session_index().values() if i["path"] == fpath),
             {"path": fpath, "kind": "jsonl"},
         )
-    hits = []
-    needle = keyword.lower()
-    for message in _cursor_messages(_entries_for(info), full=True):
-        text = message.get("text") or ""
-        lowered = text.lower()
-        if needle not in lowered:
-            continue
-        idx = lowered.find(needle)
-        start = max(0, idx - 60)
-        end = min(len(text), idx + len(keyword) + 90)
-        hits.append(
-            {
-                "role": message.get("role") or "",
-                "ts": message.get("ts") or "",
-                "excerpt": (
-                    ("..." if start else "")
-                    + text[start:end]
-                    + ("..." if end < len(text) else "")
-                ).replace("\n", " "),
-            }
-        )
-    return hits
+    return hits_from_messages(_cursor_messages(_entries_for(info), full=True), keyword)
 
 
 def source_notes() -> list[str]:

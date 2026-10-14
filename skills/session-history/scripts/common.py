@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime
 import datetime as dt
+import json
 import re
 from pathlib import Path
 
@@ -39,12 +40,9 @@ VSCODE_WORKSPACE_STORAGE_DIR = (
 )
 OPENCODE_DB = HOME / ".local" / "share" / "opencode" / "opencode.db"
 ASIDE_PROFILES_DIR = HOME / ".aside" / "u"
-# openclaw 계보를 공유하는 도구들. 세션 JSONL 스키마가 같아 한 어댑터가 읽는다.
-OPENCLAW_ROOTS = (
-    (HOME / ".openclaw" / "agents" / "main" / "sessions", "openclaw"),
-    (HOME / ".senpi" / "agent" / "sessions", "senpi"),
-    (HOME / ".gjc" / "agent" / "sessions", "gjc"),
-)
+OPENCLAW_SESSIONS_DIR = HOME / ".openclaw" / "agents" / "main" / "sessions"
+SENPI_SESSIONS_DIR = HOME / ".senpi" / "agent" / "sessions"
+GJC_SESSIONS_DIR = HOME / ".gjc" / "agent" / "sessions"
 
 BASH_MUTATION_RE = re.compile(
     r"(?:(?:^|[;&|\s])(?:rm|mv|cp|mkdir|rmdir|touch|ln|chmod|chown|sed\s+-i|tee|apply_patch)\b)|(?:\s>>?\s*[^\s;&|])",
@@ -94,7 +92,8 @@ def ts_to_hms(ts_ms: int) -> str:
 
 
 def date_range(args):
-    """session_history용: (start_ms, end_ms, label)."""
+    """session_history용: (start_ms, end_ms, label). --date > --since > --days 순."""
+    since = getattr(args, "since", None)
     if args.date:
         target = datetime.datetime.strptime(args.date, "%Y-%m-%d").replace(
             tzinfo=LOCAL_TZ
@@ -102,6 +101,11 @@ def date_range(args):
         start = target
         end = target + datetime.timedelta(days=1)
         label = args.date
+    elif since:
+        start = datetime.datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=LOCAL_TZ)
+        now = datetime.datetime.now(tz=LOCAL_TZ)
+        end = now + datetime.timedelta(days=1)
+        label = f"{since} ~ {now.strftime('%Y-%m-%d')}"
     else:
         now = datetime.datetime.now(tz=LOCAL_TZ)
         start = now.replace(
@@ -181,6 +185,113 @@ def parse_ts(value):
     except (OSError, ValueError, TypeError):
         return None
     return None
+
+
+def local_time(value, fmt: str = "%m-%d %H:%M") -> str:
+    """ISO(UTC 포함)·epoch 시각을 로컬 시각 문자열로. 해석 못 하면 빈 문자열."""
+    parsed = parse_ts(value) if value else None
+    return parsed.strftime(fmt) if parsed else ""
+
+
+# ─── 검색 매칭 ─────────────────────────────────────────────────
+
+# 이 스크립트를 부른 도구 호출과 그 출력은 검색 대상이 아니라 검색의 메아리다.
+# 같은 주제를 다시 찾을 때 지난 검색 세션이 상위를 차지하지 않도록 거른다.
+ECHO_MARKER = "session_history.py"
+TOOL_ROLES = frozenset({"tool", "tool_call", "tool_result"})
+EXCERPT_BEFORE = 60
+EXCERPT_AFTER = 90
+
+
+class Matcher:
+    """여러 키워드를 OR로 묶는다. 기본은 대소문자 무시 고정 문자열, regex=True면 정규식."""
+
+    def __init__(self, terms, regex: bool = False, skip_echo: bool = True):
+        if isinstance(terms, str):
+            terms = [terms]
+        self.terms = [term for term in terms if term]
+        self.regex = regex
+        self.skip_echo = skip_echo
+        self._patterns = [
+            (term, re.compile(term if regex else re.escape(term), re.IGNORECASE))
+            for term in self.terms
+        ]
+
+    def first(self, text: str):
+        """가장 앞에서 걸린 (term, start, end). 없으면 None."""
+        best = None
+        for term, pattern in self._patterns:
+            found = pattern.search(text)
+            if found and (best is None or found.start() < best[1]):
+                best = (term, found.start(), found.end())
+        return best
+
+    def raw_forms(self):
+        """로그 원문(JSON 한 겹)에서 찾을 고정 문자열들. 사전 필터를 쓸 수 없으면 None.
+
+        정규식은 원문과 해석이 달라(앵커, 이스케이프) 거르면 결과가 빠질 수 있다.
+        따옴표·역슬래시·제어문자는 JSON 인코딩에서 모양이 바뀌어 같은 이유로 뺀다.
+        """
+        if self.regex or not self.terms:
+            return None
+        forms = []
+        for term in self.terms:
+            if any(ch in term for ch in '"\\') or any(ord(ch) < 32 for ch in term):
+                return None
+            for variant in (term, term.lower(), term.upper()):
+                # 비ASCII를 \uXXXX로 쓰는 기록기도 있어 두 모양을 함께 넘긴다
+                for form in (variant, json.dumps(variant)[1:-1]):
+                    if form not in forms:
+                        forms.append(form)
+        return forms
+
+
+def as_matcher(value) -> Matcher:
+    return value if isinstance(value, Matcher) else Matcher(value)
+
+
+def make_excerpt(text: str, start: int, end: int) -> str:
+    lo = max(0, start - EXCERPT_BEFORE)
+    hi = min(len(text), end + EXCERPT_AFTER)
+    return (
+        ("..." if lo > 0 else "") + text[lo:hi] + ("..." if hi < len(text) else "")
+    ).replace("\n", " ")
+
+
+def hits_from_messages(messages, matcher) -> list[dict]:
+    """어댑터가 뽑은 메시지 목록에서 검색 hit를 만든다. 모든 어댑터의 공통 매칭 지점이다.
+
+    메시지에 `call_id`가 있으면 메아리 호출의 출력까지 짝지어 거른다.
+    """
+    matcher = as_matcher(matcher)
+    echo_calls: set = set()
+    hits = []
+    for message in messages or []:
+        text = message.get("text") or ""
+        if not isinstance(text, str) or not text:
+            continue
+        role = message.get("role") or ""
+        call_id = message.get("call_id")
+        if matcher.skip_echo and role in TOOL_ROLES:
+            if call_id and call_id in echo_calls:
+                continue
+            if ECHO_MARKER in text:
+                if call_id:
+                    echo_calls.add(call_id)
+                continue
+        found = matcher.first(text)
+        if not found:
+            continue
+        term, start, end = found
+        hits.append(
+            {
+                "role": role,
+                "ts": message.get("ts") or "",
+                "term": term,
+                "excerpt": make_excerpt(text, start, end),
+            }
+        )
+    return hits
 
 
 def in_range(timestamp, start, end) -> bool:
