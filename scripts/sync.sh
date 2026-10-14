@@ -54,6 +54,9 @@ for skill in "${SKILLS[@]}"; do
   [[ ! -L "$source" && -z "$link" ]] || { echo "error: symlink in shared skill: ${link:-$source}" >&2; exit 1; }
   python3 "$VALIDATORS/quick_validate.py" "$source"
   python3 "$VALIDATORS/lint_skill_authoring.py" "$source"
+  # .pytest_cache와 .ruff_cache는 테스트 도구가 스킬 폴더에 쓰는 캐시다. 빼지 않으면 배포
+  # 사본에 섞여 들어와, 드리프트 검사가 도구 버전 차이를 영구 drift로 보고한다. 제외 목록을
+  # 바꾸면 ~/.agents/hooks/astack-drift-check.sh의 같은 목록도 함께 바꾼다.
   rsync -a \
     --exclude '.env' \
     --exclude '.venv/' \
@@ -62,6 +65,8 @@ for skill in "${SKILLS[@]}"; do
     --exclude 'node_modules/' \
     --exclude '__pycache__/' \
     --exclude '*.pyc' \
+    --exclude '.pytest_cache/' \
+    --exclude '.ruff_cache/' \
     --exclude '.DS_Store' \
     --exclude '.omc/' \
     --exclude 'prompts/' \
