@@ -1,0 +1,1046 @@
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+국가과학기술지식정보서비스
+R&D데 이 터 개 방 오 픈 API 활 용 가 이 드
+
+- 이슈로보는R&D 서비스(전체용)-
+
+2024. 01. 03
+
+- 1 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+목
+
+차
+
+1. 서비스 활용 방법 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+2. 이슈로보는R&D 서비스 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.1 서비스 개요 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.2 상세기능 목록 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·5
+2.3 상세기능 명세 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·6
+
+- 2 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+1. 서비스 활용 방법
+1.1. 홈페이지 가입
+NTIS홈페이지(www.ntis.go.kr)에서 회원으로 가입하면 오픈API 활용신청을 할 수 있다.
+1.2 서비스 활용신청 및 인증키 발급
+NTIS홈페이지에 로그인 후 데이터활용 – OpenAPI 메뉴에서 신청하고자 하는 API의 ‘활용
+신청’버튼을 클릭해서 오픈API 활용신청을 할 수 있다.
+바로가기 URL : http://www.ntis.go.kr/rndopen/api/mng/apiMain.do
+* 이용대상 : 대국민
+
+- 3 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2. 이슈로보는R&D 서비스
+2.1. 서비스 개요
+
+서비스
+정보
+
+서비스
+제공자정보
+
+서비스명
+서비스 설명
+
+이슈로보는R&D 서비스(전체용)
+최신 과학기술 이슈와 관련된 국가R&D 현황, 키워드, 동향 정보를 제공
+합니다.
+
+기관명
+
+한국과학기술정보연구원
+
+서비스
+
+[○] 서비스 Key
+
+[ ] 인증서 (GPKI)
+
+[
+
+[
+
+인증/권한
+서비스
+
+메시지 레벨
+
+보안
+
+암호화
+전송 레벨
+암호화
+
+] Basic (ID/PW)
+
+] 없음
+
+[
+
+]
+
+WS-Security
+[
+
+] 전자서명
+
+[ ] 암호화
+
+[
+
+] SSL
+
+[○] 없음
+
+[○] 없음
+
+[] SOAP 1.2
+인터페이스
+적용 기술
+
+표준
+
+교환 데이터
+표준
+서비스 URL
+
+운영환경
+
+서비스 WSDL
+
+운영환경
+서비스 버전
+
+배포 정보
+
+[○] REST (GET, POST, PUT, DELETE)
+[
+
+수준
+
+서비스
+
+(RPC-Encoded, Document Literal, Document Literal Wrapped)
+] RSS 1.0
+
+[○] XML
+
+] RSS 2.0
+
+[
+
+[ ] JSON
+
+] Atom 1.0
+
+[ ] MIME
+
+[ ] 기타
+
+[ ] MTOM
+
+https://www.ntis.go.kr/rndopen/openApi/issue
+
+1.0
+
+유효일자
+
+2099.12.31
+
+서비스 이력
+
+최초 배포
+
+메시지 교환 유형
+
+[
+
+배포일자
+
+2018.07
+
+[○] Request-Response
+
+[
+
+[
+
+[ ] Notification
+
+] Fire-and-Forgot
+
+메시지 로깅 수준
+
+성공
+
+사용 제약 사항(비고)
+
+N/A
+
+[○] status [ ] contents
+
+- 4 -
+
+] Publish-Subscribe
+
+실패
+
+[○] status [ ] contents
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.2. 상세기능 목록
+일련
+번호
+
+서비스명
+
+상세기능명
+
+오퍼레이션명
+
+서비스 설명
+최신 이슈 키워드와 관련된 국가
+
+1
+
+이슈로보는R&D
+
+이슈 키워드 제공
+
+issue
+
+R&D정보 현황, 연구자맵, 기관
+맵 정보를 제공한다.
+
+- 5 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3. 상세기능 명세
+2.3.1. 이슈 키워드 제공
+오퍼레이션 번호
+
+1
+
+issue
+
+최신 이슈 키워드와 관련된 국가R&D정보 현황, 연구자맵, 기관맵
+
+오퍼레이션 설명
+
+정보를 제공한다.
+
+오퍼레이션
+Call Back URL
+
+정보
+
+오퍼레이션명
+
+N/A
+
+최대 메시지 사이즈
+평균 응답 시간
+
+검색결과 건수에 따라 달라짐 [ 5개 기준 : 920 bytes]
+[ 0.37 ms]
+
+HTTP Method
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST)
+
+① 요청명세
+요청URL
+(END POINT URL)
+
+https://www.ntis.go.kr/rndopen/openApi/issue
+
+Parameter
+apprvKey
+
+Parameter(KOR)
+
+Type
+
+필수항목
+
+승인키
+
+String
+
+Y
+
+항목설명
+승인된 발급키
+검색하고자 하는 키워드(한글, 영문)
+
+SRWR
+
+검색 키워드
+
+String
+
+N
+
+검색범위 : 주제키워드 + 연관키워드
+※검색키워드가 없는 경우 최신 이슈 5개 리턴
+
+② 응답명세
+※정상 응답
+Field
+
+Attributes
+
+Iteration
+
+NewestIssue
+
+결과문서의 최상위 필드
+
+selectListCnt
+list
+
+설명
+
+검색결과 건수
+NO : 이슈 순서
+
+Y
+
+이슈 목록
+
+topicNo
+
+이슈고유번호
+
+topicNm
+
+이슈명
+
+extrDt
+
+추출일자
+
+rltdPjtCnt
+
+연관과제건수
+
+url01
+
+연구자맵 원문번호
+
+url02
+
+기관맵 원문번호
+
+rltdKywdList
+
+Y
+
+kywd
+
+관련키워드 목록
+키워드
+
+imgOfferYn
+
+이슈 메인 이미지 제공 여부(Y,N)
+
+- 6 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+Ÿ
+
+이슈 바로가기 URL :
+http://www.ntis.go.kr/issuernd/sns/{topicNo}
+※ 예 : http://www.ntis.go.kr/issuernd/sns/201807020001
+
+Ÿ
+
+연구자맵 바로가기 URL :
+http://www.ntis.go.kr/ecologymap/cmRschrMapView.do?nodeNo={url01}&chkYear=0000
+※ 예 : http://www.ntis.go.kr/ecologymap/cmRschrMapView.do?nodeNo=1527561179057&chkYear=0000
+
+Ÿ
+
+기관맵 바로가기 URL :
+http://www.ntis.go.kr/ecologymap/cmRschrOrgMapView.do?nodeNo={url02}&chkYear=0000
+※ 예 : http://www.ntis.go.kr/ecologymap/cmRschrOrgMapView.do?nodeNo=1527561179057&chkYear=0000
+
+Ÿ
+
+이슈 메인 이미지 호출 URL : (imgOfferYn 필드 값이 ‘Y“인 경우만 이미지 제공)
+http://www.ntis.go.kr/ppm/api/selectMainImgSrc.do?topicNo={topicNo}&imgType=main
+※ 예 : <img src="http://www.ntis.go.kr/ppm/api/selectMainImgSrc.do?topicNo=201809100001&imgType=main">
+※오류 응답
+Field
+
+Attributes
+
+Iteration
+
+RESULT
+
+설명
+결과문서의 최상위 필드
+
+verifyFlag
+
+검증결과(TRUE, FALSE)
+응답코드(2 : API 내부 오류, 3 :
+
+resCd
+
+허용되지 않은 접근 또는 호출정보
+오류)
+
+resMsg
+
+오류 응답 메세지
+
+③ 요청/ 응답 메시지 예시
+REST(URI)
+https://www.ntis.go.kr/rndopen/openApi/issue?apprvKey={{NTIS_API_KEY}}&SRWR=smart
+응답메시지(정상)
+
+<?xml version='1.0' encoding='utf-8'?>
+<NewestIssue>
+<searchListCnt>5</searchListCnt>
+<list NO='1'>
+<topicNo>201809140001</topicNo>
+<topicNm>종이배터리</topicNm>
+<extrDt>2018.09.14</extrDt>
+<rltdPjtCnt>25</rltdPjtCnt>
+<url01>1537146420166</url01>
+<url02>1537146420166</url02>
+<rltdKywdList>
+<kywd>전자방출</kywd>
+<kywd>미생물</kywd>
+<kywd>박테리아</kywd>
+<kywd>공급</kywd>
+<kywd>에너지</kywd>
+
+- 7 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+</rltdKywdList>
+<imgOfferYn>Y</imgOfferYn>
+</list>
+<list NO='2'>
+<topicNo>201809110001</topicNo>
+<topicNm>폴더블폰</topicNm>
+<extrDt>2018.09.11</extrDt>
+<rltdPjtCnt>33</rltdPjtCnt>
+<url01>1536552231271</url01>
+<url02>1536552231271</url02>
+<rltdKywdList>
+<kywd>유기발광다이오드</kywd>
+<kywd>박막트랜지스터</kywd>
+<kywd>3차원디스플레이</kywd>
+<kywd>삼성전자</kywd>
+<kywd>스마트폰</kywd>
+</rltdKywdList>
+<imgOfferYn>Y</imgOfferYn>
+</list>
+<list NO='3'>
+<topicNo>201809100001</topicNo>
+<topicNm>메르스</topicNm>
+<extrDt>2018.09.10</extrDt>
+<rltdPjtCnt>48</rltdPjtCnt>
+<url01>1536540822819</url01>
+<url02>1536540822819</url02>
+<rltdKywdList>
+<kywd>항체</kywd>
+<kywd>중동호흡기질환</kywd>
+<kywd>백신</kywd>
+<kywd>밀접접촉</kywd>
+<kywd>병원</kywd>
+</rltdKywdList>
+<imgOfferYn>Y</imgOfferYn>
+</list>
+</NewestIssue>
+응답메시지(오류)
+
+<?xml version='1.0' encoding='UTF-8' ?>
+<RESULT>
+<verifyFlag>FALSE</verifyFlag>
+<resCd>3</resCd>
+<resMsg>API URL이 올바르지 않습니다. 잘못된 URL : KKKKK</resMsg>
+</RESULT>
+
+- 8 -
+
+

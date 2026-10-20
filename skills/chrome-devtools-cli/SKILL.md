@@ -1,7 +1,13 @@
 ---
 argument-hint: "[subcommand]"
 name: chrome-devtools-cli
-description: "Controls headless Chrome from the terminal with chrome-devtools CLI for navigation, screenshots, DOM/JS evaluation, console and network inspection, Lighthouse, and performance traces. Use for chrome-devtools, CDP, Lighthouse, Core Web Vitals, or browser QA. Do not use for URL-to-markdown extraction (crawl) or ordinary web research."
+description: "Controls headless Chrome from the terminal with chrome-devtools CLI for navigation, screenshots, DOM/JS evaluation, console and network inspection, Lighthouse, and performance traces. Use for chrome-devtools, CDP, Lighthouse, Core Web Vitals, performance traces, or console and network checks. Do not use for app QA or screen-operation flows (browse is the default), URL-to-markdown extraction (crawl), or ordinary web research."
+compatibility: Requires the chrome-devtools CLI and a local Chrome install.
+metadata:
+  requires:
+    - tool: chrome-devtools
+      check: command -v chrome-devtools
+      install: pnpm add -g chrome-devtools-mcp@latest
 ---
 
 # chrome-devtools CLI

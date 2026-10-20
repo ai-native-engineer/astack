@@ -1,0 +1,1103 @@
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+국가과학기술지식정보서비스
+R&D데 이 터 개 방 오 픈 API 활 용 가 이 드
+- 과학기술표준분류코드/국가중점기술코드 검색
+서비스(전체용) -
+
+2024. 01. 03
+
+- 1 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+목
+
+차
+
+1. 서비스 활용 방법 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+2. 과학기술표준분류코드/국가중점기술코드 검색 서비스 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.1 서비스 개요 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.2 상세기능 목록 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·5
+2.3 상세기능 명세 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·6
+
+- 2 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+1. 서비스 활용 방법
+1.1. 홈페이지 가입
+NTIS홈페이지(www.ntis.go.kr)에서 회원으로 가입하면 오픈API 활용신청을 할 수 있다.
+1.2 서비스 활용신청 및 인증키 발급
+NTIS홈페이지에 로그인 후 데이터활용 – OpenAPI 메뉴에서 신청하고자 하는 API의 ‘활용
+신청’버튼을 클릭해서 오픈API 활용신청을 할 수 있다.
+바로가기 URL : http://www.ntis.go.kr/rndopen/api/mng/apiMain.do
+* 이용대상 : 대국민
+
+- 3 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2. 과학기술표준분류코드/국가중점기술코드 검색 서비스
+2.1. 서비스 개요
+
+서비스
+정보
+
+서비스
+제공자정보
+
+서비스명
+서비스 설명
+
+국가표준분류코드/국가중점기술코드 검색 서비스(전체용)
+국가표준분류코드/국가중점기술코드를 검색할 수 있는 서비스
+
+기관명
+
+한국과학기술정보연구원
+
+서비스
+
+[○] 서비스 Key
+
+[ ] 인증서 (GPKI)
+
+[
+
+[
+
+인증/권한
+서비스
+
+메시지 레벨
+
+보안
+
+암호화
+전송 레벨
+암호화
+
+] Basic (ID/PW)
+
+] 없음
+
+[
+
+]
+
+WS-Security
+[
+
+] 전자서명
+
+[ ] 암호화
+
+[
+
+] SSL
+
+[○] 없음
+
+[○] 없음
+
+[] SOAP 1.2
+인터페이스
+적용 기술
+
+표준
+
+교환 데이터
+표준
+서비스 URL
+
+운영환경
+
+서비스 WSDL
+
+운영환경
+서비스 버전
+
+배포 정보
+
+[○] REST (GET, POST, PUT, DELETE)
+[
+
+수준
+
+서비스
+
+(RPC-Encoded, Document Literal, Document Literal Wrapped)
+] RSS 1.0
+
+[○] XML
+
+] RSS 2.0
+
+[
+
+[ ] JSON
+
+] Atom 1.0
+
+[ ] MIME
+
+[ ] 기타
+
+[ ] MTOM
+
+https://www.ntis.go.kr/rndopen/openApi/targetSearch
+
+1.0
+
+유효일자
+
+2099.12.31
+
+서비스 이력
+
+최초 배포
+
+메시지 교환 유형
+
+[
+
+배포일자
+
+2018.07
+
+[○] Request-Response
+
+[
+
+[
+
+[ ] Notification
+
+] Fire-and-Forgot
+
+메시지 로깅 수준
+
+성공
+
+사용 제약 사항(비고)
+
+N/A
+
+[○] status [ ] contents
+
+- 4 -
+
+] Publish-Subscribe
+
+실패
+
+[○] status [ ] contents
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.2. 상세기능 목록
+일련
+번호
+1
+
+서비스명
+
+상세기능명
+
+국가표준분류코드/
+
+국가표준분류코드/
+
+국가중점기술코드
+
+국가중점기술코드
+
+검색 서비스
+
+검색
+
+오퍼레이션명
+
+targetSearch
+
+- 5 -
+
+서비스 설명
+
+국가표준분류코드/국가중점기술
+코드 검색 결과를 제공한다.
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3. 상세기능 명세
+2.3.1. 정책 검색 서비스
+오퍼레이션 번호
+
+1
+
+오퍼레이션 설명
+
+국가표준분류코드/국가중점기술코드 검색 결과를 제공한다.
+
+Call Back URL
+
+N/A
+
+최대 메시지 사이즈
+
+[
+
+오퍼레이션
+정보
+
+평균 응답 시간
+
+오퍼레이션명
+
+2270 bytes]
+
+[ 0.37 ms]
+
+HTTP Method
+
+targetSearch
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+요청URL
+(END POINT URL)
+Parameter
+
+apprvKey
+
+rqstSlctCd
+
+https://www.ntis.go.kr/rndopen/openApi/targetSearch
+
+Parameter(KOR)
+
+Type
+
+필수항목
+
+승인키
+
+String
+
+Y
+
+요청구분코드
+
+String
+
+Y
+
+항목설명
+
+승인된 발급키
+필드명
+NTIS001
+NTIS002
+
+필드 설명
+과학기술표준분류코드
+국가중점기술코드
+
+사용 예)
+“rqstSlctCd”=“NTIS001”
+검색 코드 입력
+rqstSearchCd
+
+요청검색코드
+
+String
+
+N
+
+사용 예)
+“rqstSearchCd”=“060200”
+
+② 응답명세
+- 요청구분코드 : NTIS001(국가표준분류코드)
+Field
+
+Attributes
+
+Iteration
+
+설명
+
+ntis
+
+결과문서의 최상위 필드
+
+·status
+
+상태
+상태코드
+필드명
+100
+101
+200
+300
+
+··recode
+
+400
+··remsg
+
+상태값
+
+·contents
+··dataset
+
+num : dataset 인덱스
+
+- 6 -
+
+필드 설명
+정상
+요청데이터 미존재
+요청 권한 없음
+요청 파라미터 재확인
+수행 중 오류
+(관리자에게 문의)
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+Field
+
+Attributes
+
+Iteration
+
+설명
+
+···classCd
+
+분야코드
+
+···kindCd
+
+연구분야코드
+
+···kindCdNm
+
+연구분야명
+
+···classCdNm
+
+분류코드명
+
+···classCdNmEng
+
+분류코드영문명
+
+···classCdExplan
+
+분류코드설명
+
+···upperClassCd
+
+상위분류코드
+
+- 요청구분코드 : NTIS002(국가중점기술코드)
+Field
+
+Attributes
+
+Iteration
+
+설명
+
+ntis
+
+결과문서의 최상위 필드
+
+·status
+
+상태
+상태코드
+필드명
+100
+101
+200
+300
+
+··recode
+
+400
+··remsg
+
+필드 설명
+정상
+요청데이터 미존재
+요청 권한 없음
+요청 파라미터 재확인
+수행 중 오류
+(관리자에게 문의)
+
+상태값
+
+·contents
+··dataset
+
+num : dataset 인덱스
+
+···cd
+
+코드
+
+···cdNm
+
+코드명
+
+···cdNmEng
+
+코드영문명
+
+···cdExplan
+
+코드설명
+
+···upperCd
+
+상위코드
+
+③ 요청/ 응답 메시지 예시
+요청메세지
+
+Request Header :
+POST https://www.ntis.go.kr/rndopen/openApi/targetSearch HTTP/1.1
+Host: www.ntis.go.kr
+Content-Type: application/x-www-form-urlencoded;charset=UTF-8
+Request Body :
+apprvKey={{NTIS_API_KEY}}
+&rqstSlctCd=NTIS002&rqstSearchCd=060200
+응답메시지
+
+Response Header:
+
+- 7 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+Status Code: 200 OK
+Connection: close
+Content-Type: application/xml
+Response Body :
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<ntis>
+<status>
+<recode>100</recode>
+<remsg>정상</remsg>
+</status>
+<contents>
+<dataset num="1">
+<cd>060200</cd>
+<cdNm><![CDATA[금속]]></cdNm>
+<cdExplan><![CDATA[○ 금속소재의 구조, 결함, 조성 등...]]></cdExplan>
+<cdNmEng></cdNmEng>
+<upperCd>060000</upperCd>
+</dataset>
+</contents>
+</ntis>
+
+④ 예제코드
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+public class callApi {
+public static void main(String[] args) throws Exception{
+/******************************************************************************
+*
+
+rqstSlctCd : 요청구분코드 (국가중점기술코드, 국가표준분류코드)
+
+*
+
+ㄴ NTIS001 : 국가표준분류코드
+
+*
+
+ㄴ NTIS002 : 국가중점기술코드
+
+*
+
+rqstSearchCd
+
+: 요청검색코드
+
+******************************************************************************/
+String api_url= "https://www.ntis.go.kr/rndopen/openApi/targetSearch";
+StringBuffer sb = new StringBuffer();
+
+- 8 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+BufferedReader in = null;
+try{
+URL url = new URL(api_url);
+HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+conn.setRequestMethod("POST");
+conn.setRequestProperty("Content-Type",
+"application/x-www-form-urlencoded;charset=UTF-8");
+conn.setConnectTimeout(5000);
+conn.setRequestProperty("Connection", "close");
+conn.setUseCaches(false);
+conn.setDoInput(true);
+conn.setDoOutput(true);
+StringBuffer bodyStr = new StringBuffer();
+// 코드 전체 조회
+/* String apprvKey =
+"FkqTOMzCYrDK7y5tTfZupV~tM8VaJCmKKJwSmYhMgQemZAHcGwV_LAx5lfyD2k~Q";
+String rqstSlctCd = "NTIS002";
+bodyStr.append("apprvKey="+apprvKey);
+bodyStr.append("&rqstSlctCd=" + rqstSlctCd); */
+// 특정 코드 조회
+String apprvKey =
+"FkqTOMzCYrDK7y5tTfZupV~tM8VaJCmKKJwSmYhMgQemZAHcGwV_LAx5lfyD2k~Q";
+String rqstSlctCd = "NTIS002";
+String rqstSearchCd = "060200";
+bodyStr.append("apprvKey="+apprvKey);
+bodyStr.append("&rqstSlctCd=" + rqstSlctCd);
+bodyStr.append("&rqstSearchCd=" + rqstSearchCd);
+PrintWriter pw = new PrintWriter(new OutputStreamWriter(conn.getOutputStream()));
+pw.write(bodyStr.toString());
+pw.flush();
+in = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+String inputLine;
+while((inputLine = in.readLine()) != null){
+sb.append(inputLine);
+}
+in.close();
+}catch (Exception e){
+
+- 9 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+e.printStackTrace();
+}finally{
+if(in != null){
+try{
+in.close();
+}catch (IOException ie){
+ie.printStackTrace();
+}
+}
+}
+System.out.println(sb.toString());
+}
+}
+
+- 10 -
+
+

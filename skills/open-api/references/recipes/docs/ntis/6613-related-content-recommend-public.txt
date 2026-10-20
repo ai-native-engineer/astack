@@ -1,0 +1,1811 @@
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+국가과학기술지식정보서비스
+R&D데 이 터 개 방 오 픈 API 활 용 가 이 드
+
+- 연 관 컨 텐 츠 조 회 서 비 스 (전 체 용 ) -
+
+2023. 12. 28
+
+- 1 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+목
+
+차
+
+1. 서비스 활용 방법 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+2. 연관 컨텐츠 조회 서비스(전체용) ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.1 서비스 개요 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.2 상세기능 목록 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·5
+2.3 상세기능 명세 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·6
+
+- 2 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+1. 서비스 활용 방법
+1.1. 홈페이지 가입
+NTIS홈페이지(www.ntis.go.kr)에서 회원으로 가입하면 오픈API 활용신청을 할 수 있다.
+1.2 서비스 활용신청 및 인증키 발급
+NTIS홈페이지에 로그인 후 데이터활용 – OpenAPI 메뉴에서 신청하고자 하는 API의 ‘활용
+신청’버튼을 클릭해서 오픈API 활용신청을 할 수 있다.
+바로가기 URL : http://www.ntis.go.kr/rndopen/api/mng/apiMain.do
+* 이용대상 : 대국민
+
+- 3 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2. 연관 컨텐츠 조회 서비스(전체용)
+2.1. 서비스 개요
+
+서비스
+정보
+
+서비스
+제공자정보
+
+서비스명
+서비스 설명
+
+연관 컨텐츠 조회 서비스(전체용)
+연관 컨텐츠 정보를 검색할 수 있는 서비스
+
+기관명
+
+한국과학기술정보연구원
+
+서비스
+
+[○] 서비스 Key [ ] 인증서 (GPKI)
+
+인증/권한
+서비스
+
+메시지 레벨
+
+보안
+
+암호화
+전송 레벨
+암호화
+
+[ ] Basic (ID/PW) [ ] 없음
+
+[]
+WS-Security
+
+[ ] 전자서명 [ ] 암호화 [○] 없음
+
+[ ] SSL [○] 없음
+
+[] SOAP 1.2
+인터페이스
+적용 기술
+
+표준
+
+교환 데이터
+표준
+서비스 URL
+
+운영환경
+
+서비스 WSDL
+
+운영환경
+서비스 버전
+
+배포 정보
+
+[○] REST (GET, POST, PUT, DELETE)
+[ ] RSS 1.0 [ ] RSS 2.0 [ ] Atom 1.0 [ ] 기타
+
+수준
+
+서비스
+
+(RPC-Encoded, Document Literal, Document Literal Wrapped)
+
+[ ] XML [○] JSON [ ] MIME [ ] MTOM
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent
+
+1.0
+
+유효일자
+
+2099.12.31
+
+서비스 이력
+
+최초 배포
+
+메시지 교환 유형
+
+배포일자
+
+2024.01
+
+[○] Request-Response [ ] Publish-Subscribe
+[ ] Fire-and-Forgot [ ] Notification
+
+메시지 로깅 수준
+
+성공
+
+사용 제약 사항(비고)
+
+N/A
+
+[○] status [ ] contents
+
+- 4 -
+
+실패
+
+[○] status [ ] contents
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.2. 상세기능 목록
+일련
+
+상세기능명
+
+오퍼레이션명
+
+서비스 설명
+
+1
+
+과제
+
+project
+
+연관 컨텐츠 과제를 제공한다.
+
+2
+
+논문
+
+paper
+
+연관 컨텐츠 논문을 제공한다.
+
+3
+
+특허
+
+patent
+
+연관 컨텐츠 특허를 제공한다.
+
+4
+
+연구보고서
+
+researchreport
+
+번호
+
+서비스명
+
+연관 컨텐츠 조회
+서비스(전체용)
+
+- 5 -
+
+연관 컨텐츠 연구보고서를 제공
+한다.
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3. 상세기능 명세
+2.3.1. 과제
+
+오퍼레이션
+
+오퍼레이션 번호
+
+1
+
+오퍼레이션 설명
+
+연관 컨텐츠 과제 조회 서비스를 제공한다.
+
+요청URL
+
+정보
+
+최대 메시지 사이즈
+평균 응답 시간
+HTTP Method
+
+오퍼레이션명
+
+project
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent?c
+ollection=project
+[ 2270 bytes]
+[ 0.37 ms]
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+
+요청URL
+(END POINT URL)
+Parameter
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent?collection=project
+
+Parameter(KOR)
+
+Type
+(length)
+
+필수항목
+
+항목설명
+
+apprvKey
+
+인증키
+
+String
+
+Y
+
+승인된 인증키
+
+pjtId
+
+과제 고유번호
+
+String
+
+Y
+
+검색할 과제 고유번호를 입력
+
+collection
+
+검색 오퍼레이션
+
+String
+
+Y
+
+검색할 컬렉션명을 입력
+사용 예)collection=project
+
+topN
+
+데이터 추출
+개수
+
+int
+
+N
+
+유사 과제 추출 개수 1~100
+
+- 6 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+② 응답명세
+
+Field
+
+Attributes
+
+설명
+
+PJT_ID
+
+String
+
+요청한 과제 고유번호
+
+KOR_PJT_NM
+
+String
+
+요청한 Item Title Text
+
+exist
+
+String
+
+유사 데이터 존재여부
+
+items
+
+String
+
+출력결과
+
+count
+
+String
+
+결과 개수
+
+RST_ID
+
+String
+
+고유번호
+
+similarity_score
+
+float
+
+유사도
+
+creat_dt
+
+String
+
+데이터 등록일
+
+KOR_PJT_NM
+
+String
+
+과제명
+
+RANK
+
+Int
+
+유사도에 따른 과제 순위
+
+- 7 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+③ 요청/ 응답 메시지 예시
+REST(URI)
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent.do?apprvKey={{NTIS_API_KEY}}&pjtId=142511898
+0&collection=project
+
+응답메시지
+
+{
+"PJT_ID": "1425118980",
+"KOR_PJT_NM": "안내 서비스를 위한 클라우드 IoT 인공지능 로봇 시나리오 저작 환경 구현",
+"exist": true,
+"items": [
+{
+"PJT_ID": "1711193709",
+"similarity_score": 0.7264716811909956,
+"rank": 1,
+"creat_dt": "2023-03-21 11:39:34",
+"KOR_PJT_NM": "IoT 및 지능정보 기반 동남권 제조 IT 기술 혁신 및 인재양성"
+},
+{
+"PJT_ID": "1711193762",
+"similarity_score": 0.7222462311397535,
+"rank": 2,
+"creat_dt": "2023-03-21 11:39:35",
+"KOR_PJT_NM": "다수 로봇의 지능을 통합 고도화하는 클라우드 로봇 지능 증강·공유 및 프레임워크 기술 개발"
+},
+{
+"PJT_ID": "1711193899",
+"similarity_score": 0.7192183842019017,
+"rank": 3,
+"creat_dt": "2023-04-24 12:28:26",
+"KOR_PJT_NM": "클라우드 엣지 전주기 데이터 안정성을 위한 추적성 보장 기술 개발"
+},
+{
+"PJT_ID": "1711193388",
+"similarity_score": 0.7171209557401704,
+"rank": 4,
+"creat_dt": "2023-04-24 12:28:11",
+"KOR_PJT_NM": "디바이스 성능에 따라 변화하는 클라우드 기반 XR 콘텐츠 변환 및 서비스 기술 개발"
+},
+{
+"PJT_ID": "1425179901",
+
+- 8 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+"similarity_score": 0.7170405915065418,
+"rank": 5,
+"creat_dt": "2023-08-29 09:02:21",
+"KOR_PJT_NM": "최적 전자상거래 컨텐츠 생성 및 관리를 위한 AI 클라우드 솔루션"
+},
+{
+"PJT_ID": "1711159644",
+"similarity_score": 0.7161368304486964,
+"rank": 6,
+"creat_dt": "2022-10-26 11:13:34",
+"KOR_PJT_NM": "다수 로봇의 지능을 통합 고도화하는 클라우드 로봇 지능 증강·공유 및 프레임워크 기술 개발"
+},
+{
+"PJT_ID": "1425181876",
+"similarity_score": 0.7130648030279944,
+"rank": 7,
+"creat_dt": "2023-11-02 08:56:09",
+"KOR_PJT_NM": "지능형 로봇시스템을 위한 클라우드 기반 SaaS 서비스"
+},
+{
+"PJT_ID": "1415186955",
+"similarity_score": 0.7113786334155972,
+"rank": 8,
+"creat_dt": "2023-07-26 14:03:10",
+"KOR_PJT_NM": "Edge AI 기반의 감성서비스를 제공하는 스마트 홈 매니저 개발"
+},
+{
+"PJT_ID": "1711193455",
+"similarity_score": 0.7107629110946178,
+"rank": 9,
+"creat_dt": "2023-04-24 12:28:13",
+"KOR_PJT_NM": "응용서비스 운영 지능화를 지원하는 마이크로서비스개발‧운영 플랫폼 기술 개발"
+},
+{
+"PJT_ID": "1711160598",
+"similarity_score": 0.7096430769204645,
+"rank": 10,
+"creat_dt": "2022-08-25 18:37:11",
+"KOR_PJT_NM": "IoT 및 지능정보 기반 동남권 제조 IT 기술 혁신 및 인재양성"
+}
+],
+"count": 10
+}
+
+- 9 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3.2. 논문
+
+오퍼레이션
+
+오퍼레이션 번호
+
+2
+
+오퍼레이션 설명
+
+연관 컨텐츠 논문 조회 서비스를 제공한다.
+
+요청URL
+
+정보
+
+최대 메시지 사이즈
+평균 응답 시간
+HTTP Method
+
+오퍼레이션명
+
+paper
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent?c
+ollection=paper
+[ 2270 bytes]
+[ 0.37 ms]
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+
+요청URL
+(END POINT URL)
+Parameter
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent?collection=paper
+
+Parameter(KOR)
+
+Type
+(length)
+
+필수항목
+
+항목설명
+
+apprvKey
+
+인증키
+
+String
+
+Y
+
+승인된 인증키
+
+pjtId
+
+과제 고유번호
+
+String
+
+Y
+
+검색할 과제 고유번호를 입력
+
+collection
+
+검색 오퍼레이션
+
+String
+
+Y
+
+검색할 컬렉션명을 입력
+사용 예)collection=paper
+
+topN
+
+데이터 추출
+개수
+
+int
+
+N
+
+유사 논문 추출 개수 1~100
+
+- 10 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+② 응답명세
+
+Field
+
+Attributes
+
+설명
+
+PJT_ID
+
+String
+
+요청한 과제 고유번호
+
+KOR_PJT_NM
+
+String
+
+요청한 Item Title Text
+
+exist
+
+String
+
+유사 데이터 존재여부
+
+items
+
+String
+
+출력결과
+
+count
+
+String
+
+결과 개수
+
+RST_ID
+
+String
+
+고유번호
+
+similarity_score
+
+float
+
+유사도
+
+creat_dt
+
+String
+
+데이터 등록일
+
+PAPER_NM
+
+String
+
+논문명
+
+RANK
+
+int
+
+유사도에 따른 논문 순위
+
+- 11 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+③ 요청/ 응답 메시지 예시
+REST(URI)
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent.do?apprvKey={{NTIS_API_KEY}}&pjtId=142511898
+0&collection=paper
+
+응답메시지
+{
+"PJT_ID": "1425118980",
+"KOR_PJT_NM": "안내 서비스를 위한 클라우드 IoT 인공지능 로봇 시나리오 저작 환경 구현",
+"exist": true,
+"items": [
+{
+"RST_ID": "JNL-2022-00112851676",
+"similarity_score": 0.962454888897069,
+"rank": 1,
+"creat_dt": "2023-02-17 15:39:54",
+"PAPER_NM": "박물관 안내를 위한 시나리오 기반의 AI 음성 챗봇 시스템 구현"
+},
+{
+"RST_ID": "CNL-2022-00112580380",
+"similarity_score": 0.9383928943623536,
+"rank": 2,
+"creat_dt": "2023-01-27 10:38:28",
+"PAPER_NM": "클라우드 환경에서 인공지능 모듈 기반 로봇 응용을 위 한 증강 지능 모델 공유 기술 개발"
+},
+{
+"RST_ID": "JNL-2022-00112576694",
+"similarity_score": 0.9259288959976284,
+"rank": 3,
+"creat_dt": "2023-01-27 10:37:21",
+"PAPER_NM": "5G MEC 기반 로봇 엔진 원격 구동을 위한 클라우드 로보틱스 시스템 구성 및 실증"
+},
+{
+"RST_ID": "CNL-2022-00112586575",
+"similarity_score": 0.9256548434495926,
+"rank": 4,
+"creat_dt": "2023-01-27 10:40:17",
+"PAPER_NM": "이종 환경의 로봇 컴포넌트와 클라우드 서비스를 연결하는 클라우드 로봇 미들웨어"
+},
+{
+"RST_ID": "CNL-2022-00112590053",
+"similarity_score": 0.9090047771006518,
+
+- 12 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+"rank": 5,
+"creat_dt": "2023-01-27 10:41:20",
+"PAPER_NM": "마이크로서비스 기반의 클라우드 엣지 AI 추론 서비스 개발 및 연구"
+},
+{
+"RST_ID": "CNL-2022-00112578824",
+"similarity_score": 0.9073642743808121,
+"rank": 6,
+"creat_dt": "2023-01-27 10:37:59",
+"PAPER_NM": "RaaS 기반 로봇 지능 서비스를 위한 표준 정보 모델 응용에 관한 연구"
+},
+{
+"RST_ID": "CNL-2019-00111079032",
+"similarity_score": 0.8955282770627224,
+"rank": 7,
+"creat_dt": "2020-01-21 10:40:27",
+"PAPER_NM": "x86 계열의 O/S 에서 터치 UI/UX를 활용하는 Annotation S/W의 클라우드화 개발"
+},
+{
+"RST_ID": "JNL-2022-00112854029",
+"similarity_score": 0.8928298375961271,
+"rank": 8,
+"creat_dt": "2023-02-23 13:10:55",
+"PAPER_NM": "이기종 로봇 간 협업 및 관제를 위한 클라우드 기반 로봇 프레임워크 개발"
+},
+{
+"RST_ID": "JNL-2022-00112580206",
+"similarity_score": 0.891132751850628,
+"rank": 9,
+"creat_dt": "2023-02-10 19:01:29",
+"PAPER_NM": "에지 클라우드 협동 이미지 처리기반 메타버스에서 스트리밍 가능한 저전력 AI 소프트웨어의 런타임
+실행"
+},
+{
+"RST_ID": "CNL-2023-00113020108",
+"similarity_score": 0.8799822799342001,
+"rank": 10,
+"creat_dt": "2023-12-01 07:41:08",
+"PAPER_NM": "세라믹산업 DX를 위한 클라우드기반 자율학습 범용 서비스플랫폼 기술개발"
+}
+],
+"count": 10
+}
+
+- 13 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3.3. 특허
+
+오퍼레이션
+
+오퍼레이션 번호
+
+3
+
+오퍼레이션 설명
+
+연관 컨텐츠 특허 조회 서비스를 제공한다.
+
+요청URL
+
+정보
+
+최대 메시지 사이즈
+평균 응답 시간
+HTTP Method
+
+오퍼레이션명
+
+patent
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent?c
+ollection=patent
+[ 2270 bytes]
+[ 0.37 ms]
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+
+요청URL
+(END POINT URL)
+Parameter
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent?collection=patent
+
+Parameter(KOR)
+
+Type
+(length)
+
+필수항목
+
+항목설명
+
+apprvKey
+
+인증키
+
+String
+
+Y
+
+승인된 인증키
+
+pjtId
+
+과제 고유번호
+
+String
+
+Y
+
+검색할 과제 고유번호를 입력
+
+collection
+
+검색 오퍼레이션
+
+String
+
+Y
+
+검색할 컬렉션명을 입력
+사용 예)collection=patent
+
+topN
+
+데이터 추출
+개수
+
+int
+
+N
+
+유사 특허 추출 개수 1~100
+
+- 14 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+② 응답명세
+
+Field
+
+Attributes
+
+설명
+
+PJT_ID
+
+String
+
+요청한 과제 고유번호
+
+KOR_PJT_NM
+
+String
+
+요청한 Item Title Text
+
+exist
+
+String
+
+유사 데이터 존재여부
+
+items
+
+String
+
+출력결과
+
+count
+
+String
+
+결과 개수
+
+RST_ID
+
+String
+
+고유번호
+
+similarity_score
+
+float
+
+유사도
+
+creat_dt
+
+String
+
+데이터 등록일
+
+IPR_INVENTION_NM String
+
+특허명
+
+RANK
+
+유사도에 따른 특허 순위
+
+int
+
+- 15 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+③ 요청/ 응답 메시지 예시
+REST(URI)
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent.do?apprvKey={{NTIS_API_KEY}}&pjtId=142511898
+0&collection=patent
+
+응답메시지
+{
+"PJT_ID": "1425118980",
+"KOR_PJT_NM": "안내 서비스를 위한 클라우드 IoT 인공지능 로봇 시나리오 저작 환경 구현",
+"exist": true,
+"items": [
+{
+"RST_ID": "PTO-2022-00212851509",
+"similarity_score": 0.9725982510111157,
+"rank": 1,
+"creat_dt": "2023-02-17 14:00:15",
+"IPR_INVENTION_NM": "클라우드 서버를 이용한 AI 기반의 XR 콘텐츠 서비스 방법"
+},
+{
+"RST_ID": "PTO-2022-00212852022",
+"similarity_score": 0.9250904248416683,
+"rank": 2,
+"creat_dt": "2023-02-21 09:53:23",
+"IPR_INVENTION_NM": "클라우드 서버, 엣지 서버 및 이를 이용한 지능 모델 생성 방법"
+},
+{
+"RST_ID": "PTO-2022-00212852953",
+"similarity_score": 0.9224564066143444,
+"rank": 3,
+"creat_dt": "2023-02-22 12:09:12",
+"IPR_INVENTION_NM": "클라우드 로보틱스 기반 로봇 서비스 제공 시스템 및 이를 이용한 로봇 서비스 제공 방법"
+},
+{
+"RST_ID": "PTR-2019-00211080918",
+"similarity_score": 0.9162385557848264,
+"rank": 4,
+"creat_dt": "2020-01-21 10:46:24",
+"IPR_INVENTION_NM": "확장현실 환경에서 엣지 컴퓨팅을 이용하여 대상 지역의 재난 발생을 예측하는 엣지 게이트웨
+이, 클라우드 서버 및 방법"
+},
+{
+"RST_ID": "PTR-2018-00210002657",
+
+- 16 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+"similarity_score": 0.9142054285349066,
+"rank": 5,
+"creat_dt": "2018-12-10 10:14:51",
+"IPR_INVENTION_NM": "클라우드 기반의 인공지능 연산 서비스 방법 및 장치"
+},
+{
+"RST_ID": "PTR-2018-00210002383",
+"similarity_score": 0.9107252990866557,
+"rank": 6,
+"creat_dt": "2018-12-10 10:14:47",
+"IPR_INVENTION_NM": "클라우드 기반의 인공지능 연산 서비스 방법 및 이를 수행하는 장치"
+},
+{
+"RST_ID": "PTR-2018-00210002585",
+"similarity_score": 0.9105522244690971,
+"rank": 7,
+"creat_dt": "2018-12-10 10:14:50",
+"IPR_INVENTION_NM": "컴퓨터 수행 가능한 클라우드 기반의 인공지능 연산 서비스 방법"
+},
+{
+"RST_ID": "PTO-2021-00212199222",
+"similarity_score": 0.8902387289887002,
+"rank": 8,
+"creat_dt": "2022-01-28 16:16:03",
+"IPR_INVENTION_NM": "사물 인터넷 환경에서 비정형 데이터 활용을 위한 정형 데이터 베이스 구성 및 그 사용 방법"
+},
+{
+"RST_ID": "PTO-2022-00212851427",
+"similarity_score": 0.8814604200640406,
+"rank": 9,
+"creat_dt": "2023-02-17 14:00:15",
+"IPR_INVENTION_NM": "메타버스 인터랙션 서비스 위한 동작 인식 시스템"
+},
+{
+"RST_ID": "PTR-2016-0028354899",
+"similarity_score": 0.8796993720567161,
+"rank": 10,
+"creat_dt": "2017-01-06 10:07:08",
+"IPR_INVENTION_NM": "사물인터넷 디바이스 공유를 위한 관리서버 및 그 제어방법"
+}
+],
+"count": 10
+}
+
+- 17 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3.4. 연구보고서
+
+오퍼레이션
+
+오퍼레이션 번호
+
+4
+
+오퍼레이션 설명
+
+연관 컨텐츠 연구보고서 조회 서비스를 제공한다.
+
+요청URL
+
+정보
+
+최대 메시지 사이즈
+평균 응답 시간
+HTTP Method
+
+오퍼레이션명
+
+researchreport
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent?c
+ollection=researchreport
+[ 2270 bytes]
+[ 0.37 ms]
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+
+요청URL
+(END POINT URL)
+Parameter
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent?collection=research
+report
+Parameter(KOR)
+
+Type
+(length)
+
+필수항목
+
+항목설명
+
+apprvKey
+
+인증키
+
+String
+
+Y
+
+승인된 인증키
+
+pjtId
+
+과제 고유번호
+
+String
+
+Y
+
+검색할 과제 고유번호를 입력
+
+collection
+
+검색 오퍼레이션
+
+String
+
+Y
+
+검색할 컬렉션명을 입력
+사용 예)collection=researchreport
+
+topN
+
+데이터 추출
+개수
+
+int
+
+N
+
+유사 연구보고서 추출 개수 1~100
+
+- 18 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+② 응답명세
+
+Field
+
+Attributes
+
+설명
+
+PJT_ID
+
+String
+
+요청한 과제 고유번호
+
+KOR_PJT_NM
+
+String
+
+요청한 Item Title Text
+
+exist
+
+String
+
+유사 데이터 존재여부
+
+items
+
+String
+
+출력결과
+
+count
+
+String
+
+결과 개수
+
+RST_ID
+
+String
+
+고유번호
+
+similarity_score
+
+float
+
+유사도
+
+creat_dt
+
+String
+
+데이터 등록일
+
+String
+
+연구보고서명
+
+int
+
+유사도에 따른 연구보고서 순위
+
+KOR_RPT_TITLE_NM
+
+RANK
+
+- 19 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+③ 요청/ 응답 메시지 예시
+REST(URI)
+
+https://www.ntis.go.kr/rndopen/openApi/ConnectionContent.do?apprvKey={{NTIS_API_KEY}}&pjtId=142511898
+0&collection=researchreport
+
+응답메시지
+{
+"PJT_ID": "1425118980",
+"KOR_PJT_NM": "안내 서비스를 위한 클라우드 IoT 인공지능 로봇 시나리오 저작 환경 구현",
+"exist": true,
+"items": [
+{
+"RST_ID": "REP-2022-01112467070",
+"similarity_score": 0.8417683387933534,
+"rank": 1,
+"creat_dt": "2022-12-07 10:43:00",
+"KOR_RPT_TITLE_NM": "실사 3D 콘텐츠 서비스를 위한 AI 기반의 고품질 모델 생성 및 클라우드 서버 기반의 AR 서비
+스 플랫폼 고도화 기술 개발"
+},
+{
+"RST_ID": "REP-2022-01112973846",
+"similarity_score": 0.8341858682424695,
+"rank": 2,
+"creat_dt": "2023-08-02 14:11:14",
+"KOR_RPT_TITLE_NM": "클라우드 컴퓨팅 및 AI기반 제조라인 로봇 제어기술 개발"
+},
+{
+"RST_ID": "REP-2021-01112392942",
+"similarity_score": 0.824625413428282,
+"rank": 3,
+"creat_dt": "2023-04-20 12:34:36",
+"KOR_RPT_TITLE_NM": "클라우드 컴퓨팅 및 AI기반 제조라인 로봇 제어기술 개발"
+},
+{
+"RST_ID": "REP-2023-01112978599",
+"similarity_score": 0.8155103209581568,
+"rank": 4,
+"creat_dt": "2023-09-18 11:57:21",
+"KOR_RPT_TITLE_NM": "끊김없는 클라우드 서비스 제공을 위한 마이크로서비스 결합 및 재구성 프레임워크 기술"
+},
+{
+"RST_ID": "REP-2022-01112289324",
+
+- 20 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+"similarity_score": 0.8099361071403179,
+"rank": 5,
+"creat_dt": "2023-04-20 12:31:36",
+"KOR_RPT_TITLE_NM": "엣지 서비스 지원을 위한 마이크로서비스 기반의 클라우드 엣지 플랫폼 기술 개발"
+},
+{
+"RST_ID": "REP-2023-01113017649",
+"similarity_score": 0.8091916817659017,
+"rank": 6,
+"creat_dt": "2023-11-17 15:43:52",
+"KOR_RPT_TITLE_NM": "대공간 다인 동시 메타버스 전시체험플랫폼 구축을 위한 Cloud XR 무선 스트리밍 기술 기반,
+XR콘텐츠 제작 기술 및 사용자 위치추적 기술 고도화 기술개발"
+},
+{
+"RST_ID": "REP-2023-01112981590",
+"similarity_score": 0.8088926837435033,
+"rank": 7,
+"creat_dt": "2023-10-04 14:01:30",
+"KOR_RPT_TITLE_NM": "사물인터넷 디지털 트윈 기술을 이용한 기계학습 기반 실내 재난환경 예측 및 대응기술 최적
+화 연구"
+},
+{
+"RST_ID": "REP-2019-01112394755",
+"similarity_score": 0.8062170878355235,
+"rank": 8,
+"creat_dt": "2023-04-20 12:34:38",
+"KOR_RPT_TITLE_NM": "IoRT 환경에서 클라우드 기반 환경정보 인지를 통해 지능형 서비스 로봇을 제어하기 위한 소
+프트웨어 기술"
+},
+{
+"RST_ID": "REP-2023-01113018645",
+"similarity_score": 0.8013846987963866,
+"rank": 9,
+"creat_dt": "2023-11-17 15:44:11",
+"KOR_RPT_TITLE_NM": "클라우드 CPS 기반의 XR 언택트 자율제조 플랫폼"
+},
+{
+"RST_ID": "REP-2023-01112983231",
+"similarity_score": 0.7994703311840194,
+"rank": 10,
+"creat_dt": "2023-10-18 14:01:24",
+"KOR_RPT_TITLE_NM": "클라우드 VR의 MTP 지연 감소를 위한 서비스 지향 엣지 컴퓨팅 프로비저닝 알고리즘 연구"
+}
+],
+"count": 10
+
+- 21 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+}
+
+- 22 -
+
+

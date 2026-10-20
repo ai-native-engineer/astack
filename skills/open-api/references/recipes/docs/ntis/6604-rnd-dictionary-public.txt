@@ -1,0 +1,1196 @@
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+국가과학기술지식정보서비스
+R&D데 이 터 개 방 오 픈 API 활 용 가 이 드
+- 국 가 R&D 용 어 사 전 조 회 서 비 스 (전 체 용 ) -
+
+2024. 01. 03
+
+- 1 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+목
+
+차
+
+1. 서비스 활용 방법 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+2. 국가R&D 용어사전 조회 서비스 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.1 서비스 개요 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.2 상세기능 목록 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·5
+2.3 상세기능 명세 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·6
+
+- 2 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+1. 서비스 활용 방법
+1.1. 홈페이지 가입
+NTIS홈페이지(www.ntis.go.kr)에서 회원으로 가입하면 오픈API 활용신청을 할 수 있다.
+1.2 서비스 활용신청 및 인증키 발급
+NTIS홈페이지에 로그인 후 데이터활용 – OpenAPI 메뉴에서 신청하고자 하는 API의 ‘활용
+신청’버튼을 클릭해서 오픈API 활용신청을 할 수 있다.
+바로가기 URL : http://www.ntis.go.kr/rndopen/api/mng/apiMain.do
+* 이용대상 : 대국민
+
+- 3 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2. 국가R&D 용어사전 조회 서비스
+2.1. 서비스 개요
+
+서비스
+정보
+
+서비스
+제공자정보
+
+서비스명
+
+국가R&D 용어사전 조회 서비스(전체용)
+
+서비스 설명
+
+입력한 단어에 대한 국가R&D 용어 조회
+
+기관명
+
+한국과학기술정보연구원
+
+서비스
+
+[○] 서비스 Key
+
+[ ] 인증서 (GPKI)
+
+[
+
+[
+
+인증/권한
+서비스
+
+메시지 레벨
+
+보안
+
+암호화
+전송 레벨
+암호화
+
+] Basic (ID/PW)
+
+] 없음
+
+[
+
+]
+
+WS-Security
+[
+
+] 전자서명
+
+[ ] 암호화
+
+[
+
+] SSL
+
+[○] 없음
+
+[○] 없음
+
+[] SOAP 1.2
+인터페이스
+적용 기술
+
+표준
+
+(RPC-Encoded, Document Literal, Document Literal Wrapped)
+[○] REST (GET, POST, PUT, DELETE)
+[
+
+수준
+교환 데이터
+표준
+
+] RSS 1.0
+
+[○] XML
+
+[
+
+] RSS 2.0
+
+[
+
+[ ] JSON
+
+] Atom 1.0
+
+[ ] MIME
+
+[ ] MTOM
+
+서비스 URL
+
+운영환경
+
+N/A
+
+서비스 WSDL
+
+운영환경
+
+https://ntis.go.kr/rndopen/openApi/ntisDic
+
+서비스 버전
+서비스
+배포 정보
+
+1.0
+
+유효일자
+
+2099.12.31
+
+서비스 이력
+
+최초 배포
+
+메시지 교환 유형
+
+[ ] 기타
+
+배포일자
+
+2020.10
+
+[○] Request-Response
+
+[
+
+[
+
+[ ] Notification
+
+] Fire-and-Forgot
+
+메시지 로깅 수준
+
+성공
+
+사용 제약 사항(비고)
+
+N/A
+
+[○] status [ ] contents
+
+- 4 -
+
+] Publish-Subscribe
+
+실패
+
+[○] status [ ] contents
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.2. 상세기능 목록
+일련
+번호
+1
+
+서비스명
+
+국가R&D 용어사전
+조회
+
+상세기능명
+
+오퍼레이션명
+
+서비스 설명
+사용자가 입력한 문장 또는
+단어들을 분석하여 유의미한
+단어를 제공한다.
+
+용어사전 조회
+
+- 5 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3. 상세기능 명세
+2.3.1. 용어사전 검색
+오퍼레이션 번호
+
+1
+
+오퍼레이션 설명
+
+용어사전 조회
+
+Call Back URL
+
+N/A
+
+최대 메시지 사이즈
+
+[
+
+오퍼레이션
+정보
+
+평균 응답 시간
+HTTP Method
+
+오퍼레이션명
+
+용어사전 조회
+
+4000 bytes]
+
+[ 0.37 ms]
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+요청URL
+(END POINT URL)
+Parameter
+
+https://ntis.go.kr/rndopen/openApi/ntisDic
+
+Parameter(KOR)
+
+Type
+
+필수항목
+
+항목설명
+
+userKey
+
+승인키
+
+String
+
+Y
+
+승인된 발급키
+
+userId
+
+사용자
+
+String
+
+N
+
+로그인한 경우에만 사용자 ID 기재
+
+collection
+
+검색 컬렉션명
+
+String
+
+N
+
+입력하지 않아도 공고정보만 검색됨
+사용 예) collection=bizinfo
+검색 질의어 입력
+연산자
+AND
+OR
+
+query
+
+검색어
+
+String
+
+Y
+NOT
+“”
+
+필드 설명
+띄워쓰기로 구분
+query=나노 기술
+| 특수문자로 구분
+query=나노|기술
+! 특수문자로 구분
+query=!나노
+일치 문자열 검색
+query=“나노 기술”
+
+사용 예) query=나노&searchField=BI
+* UTF-8 인코딩 필요
+
+searchField
+
+검색 필드지정
+
+String
+
+N
+
+필드명
+BI
+TI
+AB
+
+필드 설명
+전체 (하위 모두 포함)
+한글용어명,영문용어명
+주약어
+
+사용 예) searchField=BI
+* UTF-8 인코딩 필요
+
+- 6 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+필드명
+CN
+PY(int)
+TI01
+TI02
+AB01
+
+필드 설명
+용어사전키
+용어사전 등록년도
+한글용어명
+영문용어명
+주약어명
+
+사용 예)addQuery=CN=2020063972
+addQuery
+
+상세검색 지정
+
+String
+
+N
+
+int형
+2004/MORE,2
+009/UNDER
+2006/MORE
+2002/UNDER
+2006/SAME
+
+필드 설명
+2004이상2009이하
+2004이상
+2002이하
+2006 같음
+
+사용 예) addQuery=PY=2019/SAME
+* UTF-8 인코딩 필요
+검색 결과에 대한 정렬
+
+sortby
+
+검색 정렬
+
+String
+
+필드명
+RANK/DESC
+DATE/DESC
+DATE/ASC
+
+N
+
+필드 설명
+검색 랭킹 내림차순
+날짜 내림차순
+날짜 오름차순
+
+사용 예) sortby=DATE/DESC
+* UTF-8 인코딩 필요
+검색결과 시작위치를 지정
+startPosition
+
+검색 시작위치
+
+Integer
+
+N
+사용 예) startPosition=1
+
+displayCount
+
+naviCount
+
+검색 결과 수
+네비게이션 세부
+항목 수
+
+Integer
+
+N
+
+Integer
+
+N
+
+화면에 보여줄 검색 결과 수
+사용 예) displayCount=10
+네비게이션 카운트
+사용 예) naviCount=30
+
+② 응답명세
+Field
+
+Attributes
+
+Iteration
+
+RESULT
+
+설명
+결과문서의 최상위 필드
+
+QUERYTRANSFORMS
+ORIGINALQUERY
+COUNTLIST
+
+사용자 원래 질의어
+NAME : 오퍼레이션명
+
+O
+
+NAME : 네비게이터필드명
+
+O
+
+검색 오퍼레이션
+
+NAVIGATION
+
+scienceclass: 과기표준분류
+NAVIGATIONENTRY
+
+year : 용어등록년도
+termtypename : 용어구분명
+
+NAVIGATIONELEMENTS
+
+NAVIGATIONELEMENT
+
+COUNT : 하위요소개수
+NAME : 네비게이터이름
+
+O
+
+COUNT : 개수
+
+- 7 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+Field
+
+Attributes
+
+Iteration
+
+TOTALHITS
+
+설명
+검색건수(전체)
+1base index, 현재 결과로 넘겨준
+
+STARTPOSITION
+
+문서의 시작위치
+
+HITS
+
+검색건수(가져온 건수)
+
+SEARCHTIME
+
+검색시간
+
+RESULTSET
+참고 : highlight tag 는
+HITS
+
+NO : 검색결과문서순서
+
+O
+
+<span class=search_word>
+</span> 으로 리턴됨
+
+TermSn
+
+용어사전 고유번호
+
+KorWord
+
+한글용어명
+
+EngWord
+
+영문용어명
+
+MainAbrv
+
+주약어명
+
+SntStdCls
+
+과기표준분류
+
+RelWord
+
+연관어
+
+TermDctn
+
+용어설명
+
+TermCls
+
+용어구분명
+
+- 8 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+③ 요청/ 응답 메시지 예시
+REST(URI)
+
+https://www.ntis.go.kr/rndopen/openApi/ntisDic?apprvKey={{NTIS_API_KEY}}&query=나노&userId=&
+collection=&searchField=&displayCount=1&startPosition=1&naviCount=30&sortby=&boostquery=&addQu
+ery=
+
+응답메시지
+<?xml version="1.0" encoding="UTF-8"?>
+<RESULT
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="https://www.ntis.go.kr/searchapi/schema/title.1.0.xsd">
+<QUERYTRANSFORMS>
+<ORIGINALQUERY>나노</ORIGINALQUERY>
+</QUERYTRANSFORMS>
+<COUNTLIST>
+<COLCOUNT NAME="rpaperSR">649</COLCOUNT>
+</COUNTLIST>
+<NAVIGATION>
+<NAVIGATIONENTRY NAME="scienceclass">
+<NAVIGATIONELEMENTS COUNT="17">
+<NAVIGATIONELEMENT NAME="화학" COUNT="77" />
+<NAVIGATIONELEMENT NAME="기계" COUNT="64" />
+<NAVIGATIONELEMENT NAME="재료" COUNT="61" />
+<NAVIGATIONELEMENT NAME="화공" COUNT="61" />
+<NAVIGATIONELEMENT NAME="물리학" COUNT="58" />
+<NAVIGATIONELEMENT NAME="보건의료" COUNT="50" />
+<NAVIGATIONELEMENT NAME="전기/전자" COUNT="46" />
+<NAVIGATIONELEMENT NAME="생명과학" COUNT="41" />
+<NAVIGATIONELEMENT NAME="농림수산식품" COUNT="18" />
+<NAVIGATIONELEMENT NAME="에너지/자원" COUNT="17" />
+<NAVIGATIONELEMENT NAME="환경" COUNT="16" />
+<NAVIGATIONELEMENT NAME="건설/교통" COUNT="13" />
+<NAVIGATIONELEMENT NAME="원자력" COUNT="9" />
+<NAVIGATIONELEMENT NAME="정보/통신" COUNT="4" />
+<NAVIGATIONELEMENT NAME="뇌과학" COUNT="4" />
+<NAVIGATIONELEMENT NAME="지구과학(지구/대기/해양/천문)" COUNT="1" />
+<NAVIGATIONELEMENT NAME="수학" COUNT="1" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="year">
+<NAVIGATIONELEMENTS COUNT="2">
+<NAVIGATIONELEMENT NAME="2020" COUNT="224" />
+<NAVIGATIONELEMENT NAME="2019" COUNT="425" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="termtypename">
+<NAVIGATIONELEMENTS COUNT="4">
+<NAVIGATIONELEMENT NAME="기본용어" COUNT="613" />
+<NAVIGATIONELEMENT NAME="과학기술표준분류" COUNT="30" />
+<NAVIGATIONELEMENT NAME="기술분류" COUNT="5" />
+<NAVIGATIONELEMENT NAME="6T" COUNT="1" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+</NAVIGATION>
+<TOTALHITS>649</TOTALHITS>
+<STARTPOSITION>1</STARTPOSITION>
+<HITS>1</HITS>
+<SEARCHTIME>0.01</SEARCHTIME>
+<RESULTSET>
+<HIT NO="1">
+<TermSn>2020063972</TermSn>
+<KorWord>2D-3D나노구조체</KorWord>
+<EngWord>2D-3D NANOSTRUCTURE</EngWord>
+<MainAbrv />
+<SntStdCls>화학 &gt; 분석화학</SntStdCls>
+<RelWord />
+
+- 9 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<TermDctn />
+<TermCls>기본용어</TermCls>
+</HIT>
+</RESULTSET>
+</RESULT>
+
+- 10 -
+
+

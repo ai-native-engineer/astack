@@ -2,6 +2,12 @@
 argument-hint: "[command]"
 name: context7-cli
 description: "Context7/ctx7로 라이브러리·프레임워크의 최신 API, 설정, 마이그레이션, CLI 사용법을 확인하고 코드 스킬을 찾거나 생성한다. Use when 코드 질문에 특정 라이브러리 문서가 필요하거나 ctx7을 언급할 때. Do not use for 일반 웹 검색, 로컬 grep, 스킬 탐색, 외부 문서가 불필요한 코드 변경."
+compatibility: Requires the ctx7 CLI (Node package manager) or bunx.
+metadata:
+  requires:
+    - tool: ctx7
+      check: command -v ctx7
+      install: pnpm add -g ctx7@latest
 ---
 
 # ctx7 CLI

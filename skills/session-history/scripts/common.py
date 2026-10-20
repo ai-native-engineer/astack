@@ -289,6 +289,11 @@ def hits_from_messages(messages, matcher) -> list[dict]:
                 "ts": message.get("ts") or "",
                 "term": term,
                 "excerpt": make_excerpt(text, start, end),
+                **{
+                    key: message[key]
+                    for key in ("source", "source_path", "source_line")
+                    if key in message
+                },
             }
         )
     return hits

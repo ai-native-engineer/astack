@@ -31,9 +31,14 @@ URL="https://youtu.be/${VIDEO_ID}"
 echo "Video ID: $VIDEO_ID" >&2
 echo "Language: $LANG" >&2
 
-# yt-dlp로 메타 fetch (cookies-from-browser chrome — 429 우회 + 로그인 전용 영상)
+# yt-dlp로 메타 fetch. 쿠키는 429 우회와 로그인 전용 영상에 쓰고, fetch-subs.sh와 같은 규칙을 따른다
+# (YT_COOKIES_FROM_BROWSER 기본 chrome, 빈 값이면 읽지 않음).
+COOKIE_BROWSER="${YT_COOKIES_FROM_BROWSER-chrome}"
+COOKIE_ARGS=()
+[ -n "$COOKIE_BROWSER" ] && COOKIE_ARGS=(--cookies-from-browser "$COOKIE_BROWSER")
+# macOS 기본 bash 3.2는 set -u에서 빈 배열 전개를 오류로 처리한다.
 META_JSON=$(yt-dlp --dump-json --no-download \
-  --cookies-from-browser chrome \
+  ${COOKIE_ARGS[@]+"${COOKIE_ARGS[@]}"} \
   "$URL" 2>/dev/null || echo "{}")
 
 TITLE=$(echo "$META_JSON" | jq -r --arg fallback "YouTube $VIDEO_ID" '.title // $fallback')

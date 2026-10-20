@@ -1,37 +1,28 @@
 # Claude Code
 
-Claude Code에서만 이 파일을 적용한다.
+공통 계약은 루트 SKILL.md를 따른다. Claude Code가 coordinator이거나 Herdr worker일 때만 읽는다.
 
-## 모델과 팀
+## 네이티브 팀
 
-- lead는 지금 세션 모델이 Opus(`opus`)나 Fable(`fable`)이면 그대로 맡는다. 두 계열 모두 판단과 통합을 맡길 수 있으니, 모델 때문에 세션을 다시 시작해 맥락을 잃지 않는다.
-- 세션 모델이 Sonnet이나 Haiku면 작업 전에 `/model opus`로 바꾸자고 안내한다.
-- worker는 Sonnet(`sonnet`)을 기본으로 사용한다.
-- worker effort는 낮추지 않는다. 설정의 모델별 effort(`modelSettings.<모델 ID>.effortLevel`)로 철저하게 일하게 하는 것이 기본이다.
-- 높은 effort의 worker는 오래 생각하고 답이 길어진다. 템플릿의 `결과 예산`에 답의 분량을 숫자로 적는다.
-- 템플릿의 `출력 형식`은 다룬 범위를 맨 앞에 쓰게 한다. 답이 출력 상한에서 끊겨도 받은 앞부분만으로 남은 일을 가를 수 있다.
-- worker에게도 모호한 설계 판단이나 고위험 검토가 필요할 때만 Opus를 사용한다.
-- 네이티브 Agent Teams를 in-process 모드로 사용한다.
+- 현재 세션에 노출된 teammate 또는 subagent 도구를 사용한다. Agent Teams가 없으면 있다고 가정하지 않는다.
+- coordinator 모델을 유지한다. worker는 현재 지원되는 모델과 effort 설정을 확인해 선택하고, 모델 계열 때문에 세션을 다시 시작하거나 전역 설정을 바꾸지 않는다.
+- 네이티브 팀이 가능하면 in-process 실행을 우선한다. 기본 작업 경로는 lead의 작업용 worktree이며 `isolation: "worktree"`를 일괄 지정하지 않는다.
+- 독립 브랜치나 실험이 필요한 경우에만 lead가 격리를 선택한다. 하네스가 만든 경로와 브랜치 이름을 반환값에서 확인하고 실행 기록에 남긴다.
+- 수정과 추가 확인은 기존 teammate에게 보낸다. 출력 상한으로 잘린 보고는 재사용 가능한 사실만 회수하고, 남은 범위를 새 worker에 맡긴다.
+- `idle_notification`에 보고가 다시 실리면 timestamp, worker, turn을 대조해 중복 결과를 다시 통합하지 않는다.
 
-## 알림
+## worker 전달문
 
-- teammate가 보고를 보낸 뒤 오는 idle 알림(`idle_notification`)의 `result`에는 같은 보고가 다시 실려 온다. 늦게 도착하면 새 보고처럼 보이므로, 알림의 `timestamp`와 내용을 이미 받은 보고와 대조해 같으면 다시 처리하지 않고, 다르면 달라진 부분만 새 보고로 다룬다. 다시 처리하면 끝난 일을 또 시작하거나 같은 변경을 두 번 반영한다.
-
-## 실행
-
-1. 처음에는 서로 겹치지 않는 범위로 teammate 2~3명을 만든다. 동시에 도는 수의 상한은 루트 스킬의 규모 절을 따른다.
-2. 루트 스킬의 공통 계약으로 각 teammate에게 위임한다. Sonnet teammate에게는 템플릿 뒤에 아래 두 문단을 그대로 붙인다. 이 두 문단은 일을 다 끝내기 전에 확인을 구하며 멈추거나 요청하지 않은 테스트와 문서를 덧붙이는 것을 막는다.
+Sonnet worker에는 공통 계약 뒤에 다음 문단을 붙인다.
 
 ```text
-Keep working until everything the user asked for is done, and only stop to ask when you can't go on without the user or before a risky step.
+Finish the assigned scope and its relevant checks. Ask only when missing information blocks progress or an action exceeds the allowed side effects.
 
-When the work the user asked for is done and checked, stop and report. Don't add features, tests, files, docs or refactors that weren't asked for. If you think one would help, mention it at the end instead of doing it.
+After the assigned work is complete, report the result. Do not add unrequested features, tests, files, docs, or refactors.
 ```
 
-3. worktree 격리(`isolation: "worktree"`)로 띄운 teammate에게 PR을 맡기면 위임 프롬프트에 브랜치 이름을 정해 준다. 하네스가 만드는 `worktree-agent-<id>` 브랜치는 저장소의 브랜치 규칙에 맞지 않는다.
-4. 같은 작업의 수정과 추가 확인은 기존 teammate에게 보낸다.
-5. 보고가 출력 상한(`max_output_tokens`)으로 끊긴 teammate에게는 수정, 추가 확인, 되돌리기를 포함해 더 일을 맡기지 않는다. 그 teammate는 이미 읽은 내용을 안고 같은 길이로 답하다가 또 끊긴다. 받은 부분은 살려 lead가 직접 확인하고, 남은 일은 나눠 새 teammate에게 맡긴다.
-6. 통합이 끝날 때까지 teammate를 유지한다.
-7. 충돌하거나 근거가 약한 결과는 담당 teammate에게 되돌린다.
-8. 통합 후 teammate를 종료한다. worktree로 띄웠다면 머지된 `worktree-agent-*` 브랜치를 `git branch -d`로 지운다. 하네스는 worktree를 정리해도 브랜치는 남길 수 있다.
-9. 사용한 worker 모델, teammate 수, 검증 결과를 짧게 보고한다.
+## Herdr worker
+
+- `herdr agent start`의 대상 kind는 `claude`다.
+- `claude --help`에서 현재 모델 인자를 확인한다. `claude -p`를 관찰 가능한 Herdr pane의 대체 경로로 사용하지 않는다.
+- 종료와 worktree 정리는 lead가 결과와 Git 상태를 확인한 뒤 수행한다. worker에게 PR, push, merge를 맡기지 않는다.

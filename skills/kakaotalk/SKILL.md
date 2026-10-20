@@ -1,6 +1,6 @@
 ---
 name: kakaotalk
-description: "macOS KakaoTalk chatroom read/search/send automation with shared communication rules before outbound messages. Use when user asks 카톡 보내줘, 카카오톡 메시지, 카톡 읽어줘, 채팅방 확인, 카톡방 찾아줘, 대화 내역, 카톡 검색, 내가 한 말 찾아줘, 이번 달 카톡 정리, or send/read messages via KakaoTalk. Do NOT use for Slack, iMessage/SMS, Gmail/Google Chat, long-form writing, or message drafting without KakaoTalk execution."
+description: "macOS KakaoTalk app-UI automation to read, search, and send chatroom messages (self-notification via the REST API is kakao-notify-me), with shared communication rules before outbound messages. Use when user asks 카톡 보내줘, 카카오톡 메시지, 카톡 읽어줘, 채팅방 확인, 카톡방 찾아줘, 대화 내역, 카톡 검색, 내가 한 말 찾아줘, 이번 달 카톡 정리, or send/read messages via KakaoTalk. Do NOT use for Slack, iMessage/SMS, Gmail/Google Chat, long-form writing, or message drafting without KakaoTalk execution."
 ---
 
 # KakaoTalk CLI
