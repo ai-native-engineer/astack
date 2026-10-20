@@ -12,7 +12,7 @@ SKILLS=(
   communication
   context7-cli
   crawl
-  data-go-kr
+  open-api
   ffmpeg
   find-skills
   goal-plan

@@ -1,0 +1,2136 @@
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+국가과학기술지식정보서비스
+R&D데 이 터 개 방 오 픈 API 활 용 가 이 드
+-국 가 R&D 과 제 검 색 서 비 스 (전 체 용 )-
+
+2025. 12. 16
+
+- 1 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+목
+
+차
+
+1. 서비스 활용 방법 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+2. 국가R&D 과제검색 서비스 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.1 서비스 개요 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.2 상세기능 목록 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·5
+2.3 상세기능 명세 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·6
+
+- 2 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+1. 서비스 활용 방법
+1.1. 홈페이지 가입
+NTIS홈페이지(www.ntis.go.kr)에서 회원으로 가입하면 오픈API 활용신청을 할 수 있다.
+1.2 서비스 활용신청 및 인증키 발급
+NTIS홈페이지에 로그인 후 데이터활용 – OpenAPI 메뉴에서 신청하고자 하는 API의 ‘활용
+신청’버튼을 클릭해서 오픈API 활용신청을 할 수 있다.
+바로가기 URL : http://www.ntis.go.kr/rndopen/api/mng/apiMain.do
+* 이용대상 : 대국민
+※ 신청 시 활용 용도를 웹페이지, 모바일과 같이 대외용으로 사용하는 경우, 아래의
+항목만 사용 가능합니다.
+- 대외용 사용 시, 제공 가능 항목 항목명
+과제명
+과제고유번호
+기준년도
+예산사업명
+연구책임자
+과제수행기관
+부처명
+총연구기간
+당해연도 연구기간
+(당해년도)정부투자연구비
+(당해년도)총연구비
+연구내용(250자 내외)
+한글키워드
+영문키워드
+- 위 항목을 제외한 정보는 NTIS의 과제상세페이지 링크를 통해서 확인하도록 제공
+바랍니다.
+* 상세페이지 URL 생성법
+https://www.ntis.go.kr/project/pjtInfo.do?pjtId={과제고유번호}
+예) https://www.ntis.go.kr/project/pjtInfo.do?pjtId=1711116691
+※ 과제 상세페이지를 조회하는 이용자는 로그인이 필수
+
+- 3 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2. 국가R&D 과제검색 서비스
+2.1. 서비스 개요
+
+서비스
+정보
+
+서비스
+제공자정보
+
+서비스명
+서비스 설명
+
+국가R&D 과제검색 서비스(전체용)
+국가R&D 과제 메타정보를 검색할 수 있는 서비스
+
+기관명
+
+한국과학기술정보연구원
+
+서비스
+
+[○] 서비스 Key
+
+[ ] 인증서 (GPKI)
+
+[
+
+[
+
+인증/권한
+서비스
+
+메시지 레벨
+
+보안
+
+암호화
+전송 레벨
+암호화
+
+] Basic (ID/PW)
+
+] 없음
+
+[
+
+]
+
+WS-Security
+[
+
+] 전자서명
+
+[ ] 암호화
+
+[
+
+] SSL
+
+[○] 없음
+
+[○] 없음
+
+[] SOAP 1.2
+인터페이스
+적용 기술
+
+표준
+
+교환 데이터
+표준
+서비스 URL
+
+운영환경
+
+서비스 WSDL
+
+운영환경
+서비스 버전
+
+배포 정보
+
+[○] REST (GET, POST, PUT, DELETE)
+[
+
+수준
+
+서비스
+
+(RPC-Encoded, Document Literal, Document Literal Wrapped)
+] RSS 1.0
+
+[○] XML
+
+] RSS 2.0
+
+[
+
+[ ] JSON
+
+] Atom 1.0
+
+[ ] MIME
+
+[ ] 기타
+
+[ ] MTOM
+
+https://www.ntis.go.kr/rndopen/openApi/pjtSearch/
+
+1.0
+
+유효일자
+
+2099.12.31
+
+서비스 이력
+
+최초 배포
+
+메시지 교환 유형
+
+[
+
+배포일자
+
+2021.02
+
+[○] Request-Response
+
+[
+
+[
+
+[ ] Notification
+
+] Fire-and-Forgot
+
+메시지 로깅 수준
+
+성공
+
+사용 제약 사항(비고)
+
+N/A
+
+[○] status [ ] contents
+
+- 4 -
+
+] Publish-Subscribe
+
+실패
+
+[○] status [ ] contents
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.2. 상세기능 목록
+일련
+번호
+1
+
+서비스명
+
+국가R&D 과제검색
+서비스
+
+상세기능명
+
+과제검색
+
+오퍼레이션명
+
+project
+
+- 5 -
+
+서비스 설명
+
+국가R&D 과제검색 결과를
+제공한다.
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3. 상세기능 명세
+2.3.1. 과제검색 서비스
+오퍼레이션 번호
+
+1
+
+오퍼레이션 설명
+
+국가R&D 과제검색 결과를 제공한다.
+
+Call Back URL
+
+N/A
+
+최대 메시지 사이즈
+
+[
+
+오퍼레이션
+정보
+
+평균 응답 시간
+HTTP Method
+
+오퍼레이션명
+
+국가R&D 과제검색
+
+2270 bytes]
+
+[ 0.37 ms]
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+요청URL
+(END POINT URL)
+Parameter
+
+https://www.ntis.go.kr/rndopen/openApi/public_project
+
+Parameter(KOR)
+
+apprvKey
+
+승인키
+
+userId
+
+사용자
+
+collection
+
+검색 컬렉션명
+
+Type
+(length)
+
+필수항목
+
+String
+(64)
+String
+(20)
+String
+
+Y
+
+승인된 발급키
+
+N
+
+로그인한 경우에만 사용자 ID 기재
+
+Y
+
+(50)
+
+항목설명
+
+입력하지 않아도 과제만 검색됨
+사용 예) collection=project
+검색 질의어 입력
+연산자
+AND
+
+SRWR
+
+검색어
+
+OR
+
+String
+
+Y
+
+(4000)
+
+NOT
+“”
+
+필드 설명
+띄워쓰기로 구분
+query=나노 기술
+| 특수문자로 구분
+query=나노|기술
+! 특수문자로 구분
+query=!나노
+일치 문자열 검색
+query=“나노 기술”
+
+사용 예) SRWR=나노&searchField=BI
+* UTF-8 인코딩 필요
+
+- 6 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+필드명
+BI
+TI
+AU
+OG
+
+필드 설명
+전체 (하위 모두 포함)
+과제명
+연구책임자명
+과제관리기관명
+과제수행기관명
+부처명
+예산사업명
+
+searchFd
+
+검색 필드지정
+
+PB
+
+String
+
+N
+
+(3)
+
+기관사업명
+내역사업명
+세부과제번호
+과제고유번호
+
+KW
+
+키워드
+키워드
+연구목표
+
+AB
+
+연구내용
+연구성과(기대효과)
+
+사용 예) searchFd=BI
+* UTF-8 인코딩 필요
+
+addQuery
+
+상세검색 지정
+
+String
+
+N
+
+(30)
+
+필드명
+CN
+PY
+TI01
+TI02
+AU01
+OG01
+PB01
+PB02
+PB03
+PB05
+PB07
+KW01
+KW02
+AB01
+AB02
+AB03
+
+필드 설명
+과제고유번호
+기준년도
+국문과제명
+영문과제명
+연구책임자명
+전문기관명
+과제수행기관명
+사업부처명
+사업명(프로그램)
+내역사업명
+세부과제번호(기관)
+한글키워드
+영문키워드
+연구목표요약
+연구내용요약
+기대효과요약
+
+사용 예)addQuery=CN=11110000
+int형
+2004/MORE,2
+009/UNDER
+2006/MORE
+2002/UNDER
+2006/SAME
+
+필드 설명
+2004이상 2009이하
+2004이상
+2002이하
+2006 같음
+
+사용 예) addQuery=PY=2006/SAME
+* UTF-8 인코딩 필요
+검색 결과에 대한 정렬
+
+searchRnkn
+
+검색 정렬
+
+String
+
+N
+
+(10)
+
+필드명
+RANK/DESC
+DATE/DESC
+DATE/ACS
+
+필드 설명
+검색 랭킹 내림차순
+날짜 내림차순
+날짜 오름차순
+
+사용 예) searchRnkn=DATE/DESC
+startPosition
+
+검색 시작위치
+
+Integer
+
+Y
+
+(20)
+
+- 7 -
+
+검색결과 시작위치를 지정
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+사용 예) startPosition=10
+displayCnt
+
+검색 결과 수
+
+Integer
+
+Y
+
+(20)
+
+화면에 보여줄 검색 결과 수
+사용 예) displayCnt=100
+
+② 응답명세
+Field
+
+Itera
+
+Attributes
+
+tion
+
+길이
+
+RESULT
+
+설명
+결과문서의 최상위 필드
+
+QUERYTRANSFORMS
+ORIGINALQUERY
+COUNTLIST
+NAVIGATION
+
+NAME : 오퍼레이션명
+
+4000
+
+사용자 원래 질의어
+
+CLOB
+
+검색 오퍼레이션
+leadagency : 과제수행기관명
+orderagency : 전문기관명
+projectyear : 기준년도
+budgetprojectname : 사업명
+scienceclass1 : 국가과학기술표준
+분류
+
+NAVIGATIONENTRY
+
+NAME : 네비게이터필드명
+
+O
+
+CLOB
+
+commistionproject : 위탁과제유무
+ministryname : 부처명
+performagent : 연구수행주체
+developmentphases : 연구개발단계
+sixtechnology : 6T분류
+strategictechique : 중점과학기술
+분류
+
+NAVIGATIONELEMENTS
+
+NAVIGATIONELEMENT
+
+COUNT : 하위요소개수
+NAME : 네비게이터이름
+COUNT : 개수
+
+O
+
+CLOB
+
+TOTALHITS
+
+20
+
+검색건수(전체)
+
+STARTPOSITION
+
+20
+
+HITS
+
+20
+
+검색건수(가져온 건수)
+
+SEARCHTIME
+
+21
+
+검색시간
+
+1base index, 현재 결과로 넘겨준
+문서의 시작위치
+
+RESULTSET
+참고 : highlight tag 는
+HIT
+
+NO : 검색결과문서순서
+
+O
+
+20
+
+<span class=search_word>
+</span> 으로 리턴됨
+
+ProjectNumber
+
+10
+
+과제고유번호
+
+Korean
+
+512
+
+국문과제명
+
+English
+
+512
+
+영문과제명
+
+ProjectTitle
+
+Manager
+
+- 8 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+Field
+
+Attributes
+
+Itera
+tion
+
+Name
+
+길이
+
+설명
+
+110
+
+연구책임자명
+
+Name
+
+4000
+
+참여연구원 성명 (;로 나열)
+
+ManCount
+
+10
+
+참여연구원 성별구분의 남성 합계
+
+WomanCount
+
+10
+
+참여연구원 성별구분의 여성 합계
+
+Researchers
+
+Goal
+Full
+
+4000
+
+Teaser
+
+4000
+
+연구목표요약
+※ 성능 제약으로 요약으로 대체
+연구목표요약
+※ 약 250자 내외
+
+Abstract
+Full
+
+4000
+
+Teaser
+
+4000
+
+연구개발내용
+※ 성능 제약으로 요약으로 대체
+연구개발내용 요약
+※ 약 250자 내외
+
+Effect
+Full
+
+4000
+
+Teaser
+
+4000
+
+기대효과요약
+※ 성능 제약으로 요약으로 대체
+기대효과 요약
+※ 약 250자 내외
+
+Keyword
+Korean
+
+1024
+
+English
+
+1024
+
+한글 키워드
+(5개 내외; 콤마(,)로 구분)
+영문 키워드
+(5개 내외; 콤마(,)로 구분)
+
+OrderAgency
+Name
+
+256
+
+과제관리(전문)기관명
+
+256
+
+과제수행기관명
+
+256
+
+사업명(프로그램명)
+
+512
+
+내역사업명
+
+256
+
+과제관리(전문)기관
+
+170
+
+사업부처명
+
+4
+
+기준년도
+
+Start
+
+8
+
+당해연도 연구기간 시작일자
+
+End
+
+8
+
+당해연도 연구기간 종료일자
+
+TotalStart
+
+21
+
+총 연구기간 시작일자
+
+TotalEnd
+
+21
+
+총 연구기간 종료일자
+
+256
+
+세부과제번호(기관)
+
+ResearchAgency
+Name
+BudgetProject
+Name
+BigprojectTitle
+OrderAgency
+Name
+Ministry
+Name
+ProjectYear
+ProjectPeriod
+
+OrganizationPNumber
+
+- 9 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+Field
+
+Itera
+
+Attributes
+
+tion
+
+길이
+
+설명
+
+type : 구/신 구분
+ScienceClass
+
+(old:구, new:신)
+
+O
+
+sequence : 순서
+Large
+
+code : 분류코드(대)
+
+10(170)
+
+국가과학기술표준분류(연구분야)-대
+
+Medium
+
+code : 분류코드(중)
+
+10(170)
+
+국가과학기술표준분류(연구분야)-중
+
+Small
+
+code : 분류코드(소)
+
+10(170)
+
+국가과학기술표준분류(연구분야)-소
+
+Large
+
+10(170)
+
+부처자체기술분류-대
+
+Medium
+
+10(170)
+
+부처자체기술분류-중
+
+Small
+
+10(170)
+
+부처자체기술분류-소
+
+MinistryScienceClass
+
+PerformAgent
+
+code : 연구수행주체코드
+
+10(170)
+
+연구수행주체
+
+DevelopmentPhases
+
+code : 연구개발단계코드
+
+10(170)
+
+연구개발단계
+
+Region
+
+code : 지역구분코드
+
+10(170)
+
+연구비집행지역
+
+SixTechnology
+
+code : 6T기술코드
+
+10(170)
+
+6T관련기술코드
+
+First
+
+code : 적용분야분류코드1
+
+10(170)
+
+국가과학기술표준분류(적용분야)-대
+
+Second
+
+code : 적용분야분류코드2
+
+10(170)
+
+국가과학기술표준분류(적용분야)-중
+
+Third
+
+code : 적용분야분류코드3
+
+10(170)
+
+국가과학기술표준분류(적용분야)-소
+
+ApplyArea
+
+GovernmentFunds
+
+20
+
+정부투자연구비
+
+TotalFunds
+
+20
+
+총연구비
+
+80
+
+과제수행기관 사업자등록번호
+
+CorporateRegistration
+Number
+SeriesProject
+
+연속과제번호
+
+PrePjtId
+
+10
+
+- 10 -
+
+이전과제고유번호
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+③ 요청/ 응답 메시지 예시
+REST(URI)
+
+https://www.ntis.go.kr/rndopen/openApi/public_project?naviCount=30&searchField=&addQuery=&quer
+y=%EB%82%98%EB%85%B8&displayCount=1&sortby=&collection=project&boostquery=&userId=&startPositi
+on=1&apprvKey={{NTIS_API_KEY}}&cmbnApiYn=Y
+
+응답메시지
+<?xml version="1.0" encoding="UTF-8"?>
+<RESULT
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="https://www.ntis.go.kr/searchapi/schema/title.1.0.xsd">
+<QUERYTRANSFORMS>
+<ORIGINALQUERY>나노</ORIGINALQUERY>
+</QUERYTRANSFORMS>
+<COUNTLIST>
+<COLCOUNT NAME="project">87122</COLCOUNT>
+</COUNTLIST>
+<NAVIGATION>
+<NAVIGATIONENTRY NAME="leadagency">
+<NAVIGATIONELEMENTS COUNT="50">
+<NAVIGATIONELEMENT NAME="한국과학기술원▦B350021" COUNT="4146" />
+<NAVIGATIONELEMENT NAME="서울대학교▦7006431" COUNT="3766" />
+<NAVIGATIONELEMENT NAME="연세대학교▦7001982" COUNT="2473" />
+<NAVIGATIONELEMENT NAME="고려대학교▦7001504" COUNT="2351" />
+<NAVIGATIONELEMENT NAME="한국과학기술연구원▦B090032" COUNT="2134" />
+<NAVIGATIONELEMENT NAME="포항공과대학교▦7002217" COUNT="2114" />
+<NAVIGATIONELEMENT NAME="한양대학교▦7002282" COUNT="1801" />
+<NAVIGATIONELEMENT NAME="전북대학교▦7000903" COUNT="1668" />
+<NAVIGATIONELEMENT NAME="성균관대학교(자연과학캠퍼스)▦ZE01630" COUNT="1547" />
+<NAVIGATIONELEMENT NAME="부산대학교▦7000463" COUNT="1491" />
+<NAVIGATIONELEMENT NAME="경북대학교▦7000126" COUNT="1407" />
+<NAVIGATIONELEMENT NAME="광주과학기술원▦B550935" COUNT="1239" />
+<NAVIGATIONELEMENT NAME="성균관대학교▦7001852" COUNT="1214" />
+<NAVIGATIONELEMENT NAME="인하대학교▦7002118" COUNT="1154" />
+<NAVIGATIONELEMENT NAME="충남대학교▦7001105" COUNT="1123" />
+<NAVIGATIONELEMENT NAME="울산과학기술원▦ACG3545" COUNT="1115" />
+<NAVIGATIONELEMENT NAME="전남대학교▦7000830" COUNT="1040" />
+<NAVIGATIONELEMENT NAME="한국화학연구원▦B551890" COUNT="932" />
+<NAVIGATIONELEMENT NAME="한국생산기술연구원▦B090021" COUNT="899" />
+<NAVIGATIONELEMENT NAME="중앙대학교▦7002171" COUNT="889" />
+<NAVIGATIONELEMENT NAME="한국기계연구원▦B350011" COUNT="766" />
+<NAVIGATIONELEMENT NAME="이화여자대학교▦7002090" COUNT="754" />
+<NAVIGATIONELEMENT NAME="서강대학교▦7001818" COUNT="701" />
+<NAVIGATIONELEMENT NAME="경희대학교▦7001453" COUNT="662" />
+<NAVIGATIONELEMENT NAME="아주대학교▦7001966" COUNT="659" />
+<NAVIGATIONELEMENT NAME="건국대학교▦7001355" COUNT="642" />
+<NAVIGATIONELEMENT NAME="서울대학교 산학협력단▦ZD09084" COUNT="622" />
+<NAVIGATIONELEMENT NAME="동국대학교▦7001659" COUNT="622" />
+<NAVIGATIONELEMENT NAME="경희대학교(국제캠퍼스)▦ABS9776" COUNT="602" />
+<NAVIGATIONELEMENT NAME="한국표준과학연구원▦B551189" COUNT="586" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="orderagency">
+<NAVIGATIONELEMENTS COUNT="50">
+<NAVIGATIONELEMENT NAME="한국연구재단▦ABX3869" COUNT="49213" />
+<NAVIGATIONELEMENT NAME="한국과학재단▦B550934" COUNT="5235" />
+<NAVIGATIONELEMENT NAME="한국산업기술평가관리원▦ABX2955" COUNT="5032" />
+<NAVIGATIONELEMENT NAME="중소기업기술정보진흥원▦ZC79622" COUNT="4449" />
+<NAVIGATIONELEMENT NAME="한국학술진흥재단▦B340006" COUNT="3389" />
+<NAVIGATIONELEMENT NAME="한국산업기술평가원▦B551367" COUNT="2315" />
+<NAVIGATIONELEMENT NAME="한국산업기술진흥원▦ABX3081" COUNT="1784" />
+<NAVIGATIONELEMENT NAME="한국보건산업진흥원▦B551174" COUNT="1585" />
+
+- 11 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<NAVIGATIONELEMENT NAME="한국산학연협회▦ABX7886" COUNT="1405" />
+<NAVIGATIONELEMENT NAME="한국에너지기술평가원▦ABX2987" COUNT="1114" />
+<NAVIGATIONELEMENT NAME="한국환경산업기술원▦ABX2873" COUNT="554" />
+<NAVIGATIONELEMENT NAME="한국과학기술원▦B350021" COUNT="523" />
+<NAVIGATIONELEMENT NAME="농촌진흥청▦1390000" COUNT="432" />
+<NAVIGATIONELEMENT NAME="한국과학기술연구원▦B090032" COUNT="419" />
+<NAVIGATIONELEMENT NAME="농림수산식품기술기획평가원▦ABX6130" COUNT="394" />
+<NAVIGATIONELEMENT NAME="구미1대학▦7003462" COUNT="375" />
+<NAVIGATIONELEMENT NAME="한국전기연구원▦B551929" COUNT="338" />
+<NAVIGATIONELEMENT NAME="(재)국제과학기술협력재단▦ZC80961" COUNT="324" />
+<NAVIGATIONELEMENT NAME="농림식품기술기획평가원▦ACP6046" COUNT="322" />
+<NAVIGATIONELEMENT NAME="한국기초과학지원연구원▦B551364" COUNT="291" />
+<NAVIGATIONELEMENT NAME="(재)나노융합2020사업단▦ACF4473" COUNT="257" />
+<NAVIGATIONELEMENT NAME="(재)한국산업기술재단▦ZC83097" COUNT="246" />
+<NAVIGATIONELEMENT NAME="한국생산기술연구원▦B090021" COUNT="239" />
+<NAVIGATIONELEMENT NAME="한국환경기술진흥원▦B551181" COUNT="232" />
+<NAVIGATIONELEMENT NAME="에너지관리공단▦B410009" COUNT="230" />
+<NAVIGATIONELEMENT NAME="한국기계연구원▦B350011" COUNT="222" />
+<NAVIGATIONELEMENT NAME="국토교통과학기술진흥원▦ACH0421" COUNT="214" />
+<NAVIGATIONELEMENT NAME="해양수산과학기술진흥원▦ACP6047" COUNT="210" />
+<NAVIGATIONELEMENT NAME="식품의약품안전평가원▦ABX7644" COUNT="200" />
+<NAVIGATIONELEMENT NAME="한국화학연구원▦B551890" COUNT="199" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="projectyear">
+<NAVIGATIONELEMENTS COUNT="21">
+<NAVIGATIONELEMENT NAME="2022" COUNT="5412" />
+<NAVIGATIONELEMENT NAME="2021" COUNT="7287" />
+<NAVIGATIONELEMENT NAME="2020" COUNT="6758" />
+<NAVIGATIONELEMENT NAME="2019" COUNT="6618" />
+<NAVIGATIONELEMENT NAME="2018" COUNT="5730" />
+<NAVIGATIONELEMENT NAME="2017" COUNT="5645" />
+<NAVIGATIONELEMENT NAME="2016" COUNT="5022" />
+<NAVIGATIONELEMENT NAME="2015" COUNT="4885" />
+<NAVIGATIONELEMENT NAME="2014" COUNT="4695" />
+<NAVIGATIONELEMENT NAME="2013" COUNT="4566" />
+<NAVIGATIONELEMENT NAME="2012" COUNT="4438" />
+<NAVIGATIONELEMENT NAME="2011" COUNT="4075" />
+<NAVIGATIONELEMENT NAME="2010" COUNT="3834" />
+<NAVIGATIONELEMENT NAME="2009" COUNT="3585" />
+<NAVIGATIONELEMENT NAME="2008" COUNT="2821" />
+<NAVIGATIONELEMENT NAME="2007" COUNT="2676" />
+<NAVIGATIONELEMENT NAME="2006" COUNT="2544" />
+<NAVIGATIONELEMENT NAME="2005" COUNT="2319" />
+<NAVIGATIONELEMENT NAME="2004" COUNT="1752" />
+<NAVIGATIONELEMENT NAME="2003" COUNT="1568" />
+<NAVIGATIONELEMENT NAME="2002" COUNT="892" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="budgetprojectname">
+<NAVIGATIONELEMENTS COUNT="50">
+<NAVIGATIONELEMENT
+NAME="개인기초연구(과기정통부)(R&amp;D)▦
+13111015015512001234301" COUNT="7602" />
+<NAVIGATIONELEMENT NAME="일반연구자지원▦200907024310300A" COUNT="3399" />
+<NAVIGATIONELEMENT
+NAME="개인기초연구(교육부)(R&amp;D)▦12111005005224002446301"
+COUNT="2933" />
+<NAVIGATIONELEMENT NAME="이공학학술연구기반구축(R&amp;D)▦12111005005224002446300"
+COUNT="2658" />
+<NAVIGATIONELEMENT
+NAME="개인기초연구(과기정통부)▦162111015015512001234301"
+COUNT="2381" />
+<NAVIGATIONELEMENT
+NAME="이공학개인기초연구지원▦12111005005224002446301"
+COUNT="1755" />
+<NAVIGATIONELEMENT NAME="중견연구자지원▦200907012310401A" COUNT="1721" />
+<NAVIGATIONELEMENT
+NAME="개인기초연구(미래부)▦13111015015112001234301"
+COUNT="1300" />
+<NAVIGATIONELEMENT NAME="개인연구지원▦13111015015112001234301" COUNT="1038" />
+<NAVIGATIONELEMENT
+NAME="개인기초연구(교육부)▦12111005005224002446301"
+COUNT="1013" />
+<NAVIGATIONELEMENT NAME="일반연구자지원▦13111005005224002446301" COUNT="958" />
+<NAVIGATIONELEMENT
+NAME="BK21플러스사업(R&amp;D)▦12111005005222002233300"
+COUNT="900" />
+
+- 12 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<NAVIGATIONELEMENT
+NAME="일반연구자지원(교육부)▦13111015015112001238300"
+COUNT="893" />
+<NAVIGATIONELEMENT
+NAME="나노·소재기술개발(R&amp;D)▦13126015015511001139301"
+COUNT="747" />
+<NAVIGATIONELEMENT NAME="일반연구자지원▦200807024310300A" COUNT="739" />
+<NAVIGATIONELEMENT
+NAME="이공학학술연구기반구축▦086111005005224002446300"
+COUNT="735" />
+<NAVIGATIONELEMENT NAME="BK21플러스사업(0.5)▦12111005005222002233300" COUNT="568"
+/>
+<NAVIGATIONELEMENT NAME="중견연구자지원▦13111015015112001238303" COUNT="560" />
+<NAVIGATIONELEMENT NAME="중견연구자지원▦12111015015112001238303" COUNT="519" />
+<NAVIGATIONELEMENT NAME="나노·소재기술개발▦13111015015111001139401" COUNT="491"
+/>
+<NAVIGATIONELEMENT NAME="중견연구자지원▦53111015015112001238303" COUNT="484" />
+<NAVIGATIONELEMENT NAME="나노소재기술개발▦162123815015511001139301" COUNT="467" />
+<NAVIGATIONELEMENT
+NAME="일반연구자지원(미래부)▦12111015015112001238300"
+COUNT="465" />
+<NAVIGATIONELEMENT NAME="신진연구자지원▦13111015015112001238300" COUNT="457" />
+<NAVIGATIONELEMENT
+NAME="창업성장기술개발(R&amp;D)▦28111011011921002134309"
+COUNT="456" />
+<NAVIGATIONELEMENT
+NAME="이공학학술연구기반구축▦12111005005224002446300"
+COUNT="456" />
+<NAVIGATIONELEMENT NAME="신진연구자지원▦12111015015112001238300" COUNT="451" />
+<NAVIGATIONELEMENT
+NAME="집단연구지원(R&amp;D)▦13111015015512001234302"
+COUNT="440" />
+<NAVIGATIONELEMENT
+NAME="나노·소재기술개발(R&amp;D)▦13111015015511001139401"
+COUNT="425" />
+<NAVIGATIONELEMENT NAME="나노바이오기술개발▦2000010017200300" COUNT="411" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="manageagency">
+<NAVIGATIONELEMENTS COUNT="50">
+<NAVIGATIONELEMENT NAME="한국연구재단" COUNT="50219" />
+<NAVIGATIONELEMENT NAME="한국산업기술평가관리원" COUNT="9448" />
+<NAVIGATIONELEMENT NAME="한국과학재단" COUNT="5253" />
+<NAVIGATIONELEMENT NAME="중소기업기술정보진흥원" COUNT="4779" />
+<NAVIGATIONELEMENT NAME="한국학술진흥재단" COUNT="3389" />
+<NAVIGATIONELEMENT NAME="한국산업기술평가원" COUNT="3118" />
+<NAVIGATIONELEMENT NAME="한국보건산업진흥원" COUNT="1785" />
+<NAVIGATIONELEMENT NAME="국가과학기술연구회" COUNT="994" />
+<NAVIGATIONELEMENT NAME="산업기술연구회" COUNT="770" />
+<NAVIGATIONELEMENT NAME="과학기술부" COUNT="741" />
+<NAVIGATIONELEMENT NAME="한국환경산업기술원" COUNT="588" />
+<NAVIGATIONELEMENT NAME="지식경제부" COUNT="558" />
+<NAVIGATIONELEMENT NAME="농촌진흥청" COUNT="517" />
+<NAVIGATIONELEMENT NAME="미래창조과학부" COUNT="513" />
+<NAVIGATIONELEMENT NAME="농림수산식품기술기획평가원" COUNT="418" />
+<NAVIGATIONELEMENT NAME="교육과학기술부" COUNT="388" />
+<NAVIGATIONELEMENT NAME="과학기술정보통신부" COUNT="346" />
+<NAVIGATIONELEMENT NAME="농림식품기술기획평가원" COUNT="327" />
+<NAVIGATIONELEMENT NAME="기초기술연구회" COUNT="326" />
+<NAVIGATIONELEMENT NAME="한국환경기술진흥원" COUNT="247" />
+<NAVIGATIONELEMENT NAME="국토교통과학기술진흥원" COUNT="219" />
+<NAVIGATIONELEMENT NAME="해양수산과학기술진흥원" COUNT="214" />
+<NAVIGATIONELEMENT NAME="산업자원부" COUNT="204" />
+<NAVIGATIONELEMENT NAME="산업통상자원부" COUNT="179" />
+<NAVIGATIONELEMENT NAME="정보통신기획평가원" COUNT="168" />
+<NAVIGATIONELEMENT NAME="식품의약품안전처" COUNT="139" />
+<NAVIGATIONELEMENT NAME="한국해양과학기술진흥원" COUNT="125" />
+<NAVIGATIONELEMENT NAME="식품의약품안전청" COUNT="106" />
+<NAVIGATIONELEMENT NAME="국무조정실" COUNT="102" />
+<NAVIGATIONELEMENT NAME="한국임업진흥원" COUNT="94" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="scienceclass1">
+<NAVIGATIONELEMENTS COUNT="50">
+<NAVIGATIONELEMENT NAME="재료▦G" COUNT="1367" />
+<NAVIGATIONELEMENT NAME="나노소재 합성기술▦EC0201" COUNT="1248" />
+<NAVIGATIONELEMENT NAME="나노소재기술▦EB0311" COUNT="1071" />
+<NAVIGATIONELEMENT NAME="나노소재화학▦NC0901" COUNT="952" />
+<NAVIGATIONELEMENT NAME="생명과학▦D" COUNT="930" />
+
+- 13 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<NAVIGATIONELEMENT NAME="나노바이오소재▦LA0703" COUNT="889" />
+<NAVIGATIONELEMENT NAME="나노세라믹 복합재료기술▦EB0211" COUNT="873" />
+<NAVIGATIONELEMENT NAME="태양광▦EF0601" COUNT="819" />
+<NAVIGATIONELEMENT NAME="전기·전자▦I" COUNT="717" />
+<NAVIGATIONELEMENT NAME="약물전달시스템▦LC0309" COUNT="687" />
+<NAVIGATIONELEMENT NAME="나노소재 제조기술▦EC0203" COUNT="679" />
+<NAVIGATIONELEMENT NAME="광/전자세라믹스▦EB0209" COUNT="671" />
+<NAVIGATIONELEMENT NAME="화학공정▦H" COUNT="650" />
+<NAVIGATIONELEMENT NAME="기타 재료▦I99" COUNT="619" />
+<NAVIGATIONELEMENT NAME="나노/마이크로 기계시스템▦H06" COUNT="619" />
+<NAVIGATIONELEMENT NAME="나노마이크로센서▦EA0601" COUNT="618" />
+<NAVIGATIONELEMENT NAME="나노복합재 제조기술▦EC0204" COUNT="602" />
+<NAVIGATIONELEMENT NAME="에너지소재기술▦EB0106" COUNT="586" />
+<NAVIGATIONELEMENT NAME="달리 분류되지 않는 나노/마이크로 기계시스템▦EA0699"
+COUNT="574" />
+<NAVIGATIONELEMENT NAME="응집물질물리▦B06" COUNT="564" />
+<NAVIGATIONELEMENT NAME="신재생에너지▦M06" COUNT="558" />
+<NAVIGATIONELEMENT NAME="연료전지▦EF0610" COUNT="523" />
+<NAVIGATIONELEMENT NAME="반도체▦NB0607" COUNT="523" />
+<NAVIGATIONELEMENT NAME="바이오센서▦LA0702" COUNT="522" />
+<NAVIGATIONELEMENT NAME="초소형 가공/조립/측정기술▦EA0604" COUNT="496" />
+<NAVIGATIONELEMENT NAME="기계▦F" COUNT="494" />
+<NAVIGATIONELEMENT NAME="촉매/반응기술▦EC0101" COUNT="481" />
+<NAVIGATIONELEMENT NAME="반도체 재료▦ED0405" COUNT="478" />
+<NAVIGATIONELEMENT NAME="나노 광학▦NB0509" COUNT="465" />
+<NAVIGATIONELEMENT NAME="나노재료▦G6" COUNT="463" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="sixtechnology">
+<NAVIGATIONELEMENTS COUNT="50">
+<NAVIGATIONELEMENT NAME="나노소재기술(나노분말소재, 광학용 나노소재, 고기능 시너지
+소재, 촉매·환경·기능소재에 중점)▦030211" COUNT="13615" />
+<NAVIGATIONELEMENT NAME="위의 미래유망신기술(6T) 103개 세분류에 속하지 않는 기타 연
+구▦070000" COUNT="7904" />
+<NAVIGATIONELEMENT NAME="기타 나노소재기술▦030212" COUNT="5388" />
+<NAVIGATIONELEMENT NAME="나노전자 소자기술▦030111" COUNT="3674" />
+<NAVIGATIONELEMENT NAME="에너지소재 기술▦050211" COUNT="3486" />
+<NAVIGATIONELEMENT NAME="NT분야▦030000" COUNT="2949" />
+<NAVIGATIONELEMENT NAME="의과학·의공학 기술▦020217" COUNT="2483" />
+<NAVIGATIONELEMENT NAME="기능성 바이오소재 기반기술▦020215" COUNT="2181" />
+<NAVIGATIONELEMENT NAME="바이오칩 개발기술▦020118" COUNT="2127" />
+<NAVIGATIONELEMENT NAME="나노 photonics기술▦030114" COUNT="1807" />
+<NAVIGATIONELEMENT NAME="차세대디스플레이기술▦010113" COUNT="1772" />
+<NAVIGATIONELEMENT NAME="나노 바이오 물질 합성 및 분석기술▦030311" COUNT="1742" />
+<NAVIGATIONELEMENT NAME="기타 나노소자 및 시스템기술▦030115" COUNT="1606" />
+<NAVIGATIONELEMENT NAME="의약 약물전달 시스템▦030312" COUNT="1561" />
+<NAVIGATIONELEMENT NAME="기타 에너지기술▦050218" COUNT="1382" />
+<NAVIGATIONELEMENT NAME="기타 나노기반 공정기술▦030418" COUNT="1375" />
+<NAVIGATIONELEMENT NAME="기타 보건의료 관련 응용기술▦020219" COUNT="1343" />
+<NAVIGATIONELEMENT NAME="나노패터닝 공정기술▦030416" COUNT="1318" />
+<NAVIGATIONELEMENT NAME="나노 측정기술(100 nm이하)▦030412" COUNT="1262" />
+<NAVIGATIONELEMENT NAME="BT분야▦020000" COUNT="1258" />
+<NAVIGATIONELEMENT NAME="계면 혹은 표면의 나노구조화기술▦030414" COUNT="1201" />
+<NAVIGATIONELEMENT NAME="기타 정보통신 부품기술▦010115" COUNT="1157" />
+<NAVIGATIONELEMENT NAME="기타기초·기반기술▦020119" COUNT="1147" />
+<NAVIGATIONELEMENT NAME="바이오신약 개발기술▦020211" COUNT="1094" />
+<NAVIGATIONELEMENT NAME="기타 나노바이오보건기술▦030313" COUNT="1017" />
+<NAVIGATIONELEMENT NAME="집적회로기술▦010112" COUNT="1014" />
+<NAVIGATIONELEMENT NAME="생명현상 및 기능연구▦020114" COUNT="990" />
+<NAVIGATIONELEMENT NAME="난치성 질환 치료기술▦020212" COUNT="978" />
+<NAVIGATIONELEMENT NAME="기타 정보기술▦010411" COUNT="975" />
+<NAVIGATIONELEMENT NAME="생체조직 재생기술▦020213" COUNT="969" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="commisionproject">
+<NAVIGATIONELEMENTS COUNT="4">
+<NAVIGATIONELEMENT NAME="N" COUNT="74771" />
+<NAVIGATIONELEMENT NAME="C" COUNT="7206" />
+<NAVIGATIONELEMENT NAME="Y" COUNT="4684" />
+<NAVIGATIONELEMENT NAME="A" COUNT="461" />
+</NAVIGATIONELEMENTS>
+
+- 14 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="ministryname">
+<NAVIGATIONELEMENTS COUNT="46">
+<NAVIGATIONELEMENT NAME="과학기술정보통신부" COUNT="19969" />
+<NAVIGATIONELEMENT NAME="교육부" COUNT="14207" />
+<NAVIGATIONELEMENT NAME="교육과학기술부" COUNT="12419" />
+<NAVIGATIONELEMENT NAME="미래창조과학부" COUNT="8634" />
+<NAVIGATIONELEMENT NAME="과학기술부" COUNT="5226" />
+<NAVIGATIONELEMENT NAME="산업통상자원부" COUNT="4736" />
+<NAVIGATIONELEMENT NAME="중소기업청" COUNT="4633" />
+<NAVIGATIONELEMENT NAME="지식경제부" COUNT="3383" />
+<NAVIGATIONELEMENT NAME="중소벤처기업부" COUNT="3007" />
+<NAVIGATIONELEMENT NAME="교육인적자원부" COUNT="2623" />
+<NAVIGATIONELEMENT NAME="산업자원부" COUNT="2328" />
+<NAVIGATIONELEMENT NAME="보건복지부" COUNT="1655" />
+<NAVIGATIONELEMENT NAME="환경부" COUNT="828" />
+<NAVIGATIONELEMENT NAME="다부처" COUNT="582" />
+<NAVIGATIONELEMENT NAME="농림축산식품부" COUNT="578" />
+<NAVIGATIONELEMENT NAME="농촌진흥청" COUNT="520" />
+<NAVIGATIONELEMENT NAME="해양수산부" COUNT="317" />
+<NAVIGATIONELEMENT NAME="국토교통부" COUNT="214" />
+<NAVIGATIONELEMENT NAME="농림수산식품부" COUNT="182" />
+<NAVIGATIONELEMENT NAME="산림청" COUNT="172" />
+<NAVIGATIONELEMENT NAME="식품의약품안전처" COUNT="149" />
+<NAVIGATIONELEMENT NAME="식품의약품안전청" COUNT="106" />
+<NAVIGATIONELEMENT NAME="국무조정실" COUNT="102" />
+<NAVIGATIONELEMENT NAME="보건복지가족부" COUNT="96" />
+<NAVIGATIONELEMENT NAME="정보통신부" COUNT="84" />
+<NAVIGATIONELEMENT NAME="기획재정부" COUNT="70" />
+<NAVIGATIONELEMENT NAME="국토해양부" COUNT="54" />
+<NAVIGATIONELEMENT NAME="농림부" COUNT="48" />
+<NAVIGATIONELEMENT NAME="행정안전부" COUNT="37" />
+<NAVIGATIONELEMENT NAME="해양경찰청" COUNT="22" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="performagent">
+<NAVIGATIONELEMENTS COUNT="9">
+<NAVIGATIONELEMENT NAME="대학" COUNT="59010" />
+<NAVIGATIONELEMENT NAME="중소기업" COUNT="12401" />
+<NAVIGATIONELEMENT NAME="출연연구소" COUNT="11327" />
+<NAVIGATIONELEMENT NAME="기타" COUNT="2094" />
+<NAVIGATIONELEMENT NAME="대기업" COUNT="817" />
+<NAVIGATIONELEMENT NAME="중견기업" COUNT="739" />
+<NAVIGATIONELEMENT NAME="국공립연구소" COUNT="567" />
+<NAVIGATIONELEMENT NAME="병원" COUNT="135" />
+<NAVIGATIONELEMENT NAME="정부부처" COUNT="19" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="developmentphases">
+<NAVIGATIONELEMENTS COUNT="4">
+<NAVIGATIONELEMENT NAME="기초연구" COUNT="52714" />
+<NAVIGATIONELEMENT NAME="개발연구" COUNT="20328" />
+<NAVIGATIONELEMENT NAME="응용연구" COUNT="11353" />
+<NAVIGATIONELEMENT NAME="기타" COUNT="2714" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="researchernumber">
+<NAVIGATIONELEMENTS COUNT="50">
+<NAVIGATIONELEMENT NAME="1" COUNT="26399" />
+<NAVIGATIONELEMENT NAME="2" COUNT="6416" />
+<NAVIGATIONELEMENT NAME="3" COUNT="5764" />
+<NAVIGATIONELEMENT NAME="4" COUNT="5678" />
+<NAVIGATIONELEMENT NAME="5" COUNT="4900" />
+<NAVIGATIONELEMENT NAME="0" COUNT="4398" />
+<NAVIGATIONELEMENT NAME="6" COUNT="4044" />
+<NAVIGATIONELEMENT NAME="7" COUNT="3246" />
+<NAVIGATIONELEMENT NAME="8" COUNT="2719" />
+<NAVIGATIONELEMENT NAME="9" COUNT="2268" />
+<NAVIGATIONELEMENT NAME="10" COUNT="2018" />
+<NAVIGATIONELEMENT NAME="11" COUNT="1875" />
+<NAVIGATIONELEMENT NAME="12" COUNT="1590" />
+
+- 15 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<NAVIGATIONELEMENT NAME="13" COUNT="1329" />
+<NAVIGATIONELEMENT NAME="14" COUNT="1143" />
+<NAVIGATIONELEMENT NAME="15" COUNT="1038" />
+<NAVIGATIONELEMENT NAME="16" COUNT="842" />
+<NAVIGATIONELEMENT NAME="17" COUNT="772" />
+<NAVIGATIONELEMENT NAME="18" COUNT="724" />
+<NAVIGATIONELEMENT NAME="19" COUNT="624" />
+<NAVIGATIONELEMENT NAME="20" COUNT="607" />
+<NAVIGATIONELEMENT NAME="21" COUNT="509" />
+<NAVIGATIONELEMENT NAME="22" COUNT="458" />
+<NAVIGATIONELEMENT NAME="24" COUNT="392" />
+<NAVIGATIONELEMENT NAME="23" COUNT="391" />
+<NAVIGATIONELEMENT NAME="25" COUNT="385" />
+<NAVIGATIONELEMENT NAME="26" COUNT="365" />
+<NAVIGATIONELEMENT NAME="27" COUNT="320" />
+<NAVIGATIONELEMENT NAME="29" COUNT="277" />
+<NAVIGATIONELEMENT NAME="28" COUNT="269" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="strategictechnique">
+<NAVIGATIONELEMENTS COUNT="50">
+<NAVIGATIONELEMENT NAME="소재·나노▦060000" COUNT="12891" />
+<NAVIGATIONELEMENT NAME="&lt;비전Ⅳ. 기반주력산업 가치창출" COUNT="9034" />
+<NAVIGATIONELEMENT NAME="&lt;비전Ⅱ. 건강한 생명사회 지향" COUNT="6397" />
+<NAVIGATIONELEMENT NAME="미래성장동력 확충▦020000" COUNT="6376" />
+<NAVIGATIONELEMENT NAME="생명·보건의료▦080000" COUNT="6113" />
+<NAVIGATIONELEMENT NAME="&lt;비전Ⅲ. 환경/에너지 프론티어 진흥" COUNT="6041" />
+<NAVIGATIONELEMENT NAME="융복합 소재▦060400" COUNT="5552" />
+<NAVIGATIONELEMENT NAME="다기능 융·복합소재 기술▦060401" COUNT="5552" />
+<NAVIGATIONELEMENT NAME="위의 국가기술지도(NTRM) 99개 핵심기술 분류에 속하지 않는
+기타 연구▦060000" COUNT="4995" />
+<NAVIGATIONELEMENT NAME="위의 국가전략기술에 속하지 않는 기타 연구▦060000"
+COUNT="4862" />
+<NAVIGATIONELEMENT NAME="ICT 융합 신산업 창출 분야▦010000" COUNT="4265" />
+<NAVIGATIONELEMENT NAME="&lt;비전Ⅰ. 정보-지식-지능화 사회 구현" COUNT="4242" />
+<NAVIGATIONELEMENT NAME="미래에너지와 자원 확보·활용▦020100" COUNT="4077" />
+<NAVIGATIONELEMENT NAME="나노 소재·소자기술▦041600" COUNT="3924" />
+<NAVIGATIONELEMENT NAME="세라믹·탄소·나노소재▦060300" COUNT="3863" />
+<NAVIGATIONELEMENT NAME="나노구조제어 세라믹·탄소 소재 기술▦060301" COUNT="3863"
+/>
+<NAVIGATIONELEMENT NAME="기타▦120000" COUNT="3466" />
+<NAVIGATIONELEMENT NAME="기타▦120100" COUNT="3466" />
+<NAVIGATIONELEMENT NAME="위의 중점과학기술에 속하지 않는 기타 연구▦120101"
+COUNT="3466" />
+<NAVIGATIONELEMENT NAME="에너지·자원▦090000" COUNT="3207" />
+<NAVIGATIONELEMENT NAME="주력 수출산업 고도화▦010500" COUNT="3031" />
+<NAVIGATIONELEMENT NAME="건강장수시대 구현▦040000" COUNT="2700" />
+<NAVIGATIONELEMENT NAME="유기·바이오소재▦060100" COUNT="2521" />
+<NAVIGATIONELEMENT NAME="바이오 융복합▦080600" COUNT="2200" />
+<NAVIGATIONELEMENT NAME="반도체·나노 신소자 기술▦010400" COUNT="2171" />
+<NAVIGATIONELEMENT NAME="신재생에너지▦090200" COUNT="2011" />
+<NAVIGATIONELEMENT NAME="기능성 유기소재 기술▦060101" COUNT="1842" />
+<NAVIGATIONELEMENT NAME="보건 ·의료 글로벌 시장 선점▦020200" COUNT="1710" />
+<NAVIGATIONELEMENT NAME="ICT·SW▦110000" COUNT="1625" />
+<NAVIGATIONELEMENT NAME="환자 맞춤형 의료서비스 실현▦040200" COUNT="1548" />
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+</NAVIGATION>
+<TOTALHITS>87122</TOTALHITS>
+<SECRETPROJECTHITS />
+<PROJECTRHITS>74423</PROJECTRHITS>
+<PROJECTCHITS>29133</PROJECTCHITS>
+<PROJECTCRHITS>24424</PROJECTCRHITS>
+<STARTPOSITION>1</STARTPOSITION>
+<HITS>1</HITS>
+<SEARCHTIME>0.303</SEARCHTIME>
+<RESULTSET>
+<HIT NO="1">
+<ProjectNumber>1711041912</ProjectNumber>
+<ProjectTitle>
+<Korean>스마트 센서 응용을 위한 &lt;span class="search_word"&gt;나노&lt;/span&gt;
+
+- 16 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+멤브레인 공정 플랫폼 개발</Korean>
+<English>Platform development of nano membrane process for smart sensor
+application</English>
+</ProjectTitle>
+<Manager>
+<Name>이종근</Name>
+</Manager>
+<Researchers>
+<Name>이동근;이기정;박범두;황선용;윤홍민;임웅선;이용수;김용신;이희관;이병오;성호근;
+김신근</Name>
+<ManCount>13</ManCount>
+<WomanCount>0</WomanCount>
+</Researchers>
+<Goal>
+<Full>○ 본 연구는 국내 인프라를 중심으로 하여 &lt;span class="search_word"&gt;나노
+&lt;/span&gt; 멤브레인 공정기술을 개발하고 IoT 센서 개발을 위한 표준 공정 플랫폼을 구축하여 산
+업체에 파운드리 서비스를 제공하기 위함임. 또한, 고감도/초소형/초저전력 특성의 스마트 센서 개발
+을
+위한
+&lt;span
+class="search_word"&gt;나노&lt;/span&gt;미세전자제어기술
+(Nano-electromechanical systems, NEMS)의 핵심 공정 기반 기술 개발 및 센서 ...</Full>
+<Teaser />
+</Goal>
+<Abstract>
+<Full>○ &lt;span class="search_word"&gt;나노&lt;/span&gt; 멤브레인 공정 플랫폼 개
+발 및 파운드리 서비스 - 전통적인 MEMS (Microelectromechanical systems) 공정기반 &lt;span
+class="search_word"&gt;나노&lt;/span&gt; 멤브레인 공정 플랫폼
+개발
+· 기판 크기 : 6 인치
+이상
+· 멤브레인 두께 : 0.5~3 μm
+· 최소 칩 크기 : 2 mm x 2 mm 이하 · cavity
+dimension : ...</Full>
+<Teaser />
+</Abstract>
+<Effect>
+<Full>○ IoT 센서 공정 분야 원천 특허 확보 : NEMS 공정 기술 기반 초소형·저전력 제
+품 개발을 위한 저응력 &lt;span class="search_word"&gt;나노&lt;/span&gt;멤브레인 핵심 공정 기술
+보유○ NEMS 공정 플랫폼을 구축할 경우 가스센서, 적외선 센서와 같은 정통적인 MEMS 분야뿐만 아니
+라 바이오 칩, DNA 분석, 질병진단, 음식물 부패감지, 보안 등 다양한 산업분야에 적용이 가능하여 큰
+기술적 파급효과를 ...</Full>
+<Teaser />
+</Effect>
+<Keyword>
+<Korean>&lt;span class="search_word"&gt;나노&lt;/span&gt; 멤브레인,NEMS,가스 센서,
+적외선 센서,공정플랫폼,마이크로 히터</Korean>
+<English>Nanomembrane,NEMS,Gassensor,Infraredsensor,Processplatform,Microheater</English>
+</Keyword>
+<OrderAgency>
+<Name>한국연구재단</Name>
+</OrderAgency>
+<ResearchAgency>
+<Name>한국&lt;span class="search_word"&gt;나노&lt;/span&gt;기술원</Name>
+</ResearchAgency>
+<BudgetProject>
+<Name>&lt;span class="search_word"&gt;나노&lt;/span&gt;·소재기술개발</Name>
+</BudgetProject>
+<BusinessName>&lt;span
+class="search_word"&gt;나노&lt;/span&gt;·소재기술개발
+</BusinessName>
+<BigprojectTitle>선행공정·플랫폼기술연구개발</BigprojectTitle>
+<ManageAgency>
+<Name>한국연구재단</Name>
+</ManageAgency>
+<Ministry>
+<Name>미래창조과학부</Name>
+</Ministry>
+<ProjectYear>2016</ProjectYear>
+<ProjectPeriod>
+<Start>20160701</Start>
+<End>20170630</End>
+<TotalStart>2015-10-01 00:00:00.0</TotalStart>
+<TotalEnd>2020-06-30 00:00:00.0</TotalEnd>
+</ProjectPeriod>
+<OrganizationPNumber>2015M3A7B7046615</OrganizationPNumber>
+<ScienceClass type="old">
+<Large />
+
+- 17 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<Medium />
+<Small />
+</ScienceClass>
+<ScienceClass type="new" sequence="1">
+<Large code="ED">전기/전자</Large>
+<Medium code="ED04">반도체소자/시스템</Medium>
+<Small code="ED0404">Sensor용 소자</Small>
+</ScienceClass>
+<ScienceClass type="new" sequence="2">
+<Large />
+<Medium />
+<Small />
+</ScienceClass>
+<ScienceClass type="new" sequence="3">
+<Large />
+<Medium />
+<Small />
+</ScienceClass>
+<MinistryScienceClass>
+<Large>원천기술개발사업</Large>
+<Medium>나노·소재 기술개발사업</Medium>
+<Small>선행공정·플랫폼기술연구개발사업</Small>
+</MinistryScienceClass>
+<TempScienceClass>
+<Large />
+<Medium />
+<Small />
+</TempScienceClass>
+<PerformAgent code="99">기타</PerformAgent>
+<DevelopmentPhases code="03">개발연구</DevelopmentPhases>
+<TechnologyLifecycle code="05">기타</TechnologyLifecycle>
+<Region code="08">경기도</Region>
+<EconomicSocialGoal />
+<SixTechnology code="030111">나노전자 소자기술</SixTechnology>
+<ApplyArea>
+<First code="Y08">제조업(전자부품, 컴퓨터, 영상, 음향 및 통신장비)</First>
+<Second>0000000</Second>
+<Third>00000300000000</Third>
+</ApplyArea>
+<ContinuousFlag>2</ContinuousFlag>
+<PolicyProjectFlag>N</PolicyProjectFlag>
+<GovernmentFunds>300000000</GovernmentFunds>
+<SbusinessFunds>0</SbusinessFunds>
+<TotalFunds>475000000</TotalFunds>
+<CorporateRegistrationNumber>135-82-10611</CorporateRegistrationNumber>
+<SeriesProject>before=1711029649after=1711105223,1711094190,1711077489,1711057783</SeriesProje
+ct>
+<PrePjtId>1711196102</PrePjtId>
+</HIT>
+</RESULTSET>
+</RESULT>
+
+- 18 -
+
+

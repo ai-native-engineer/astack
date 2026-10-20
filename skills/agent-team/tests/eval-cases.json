@@ -1,0 +1,54 @@
+{
+  "cases": [
+    {
+      "id": "shared-edit",
+      "prompt": "agent-team으로 맡겨줘. 기존 작업용 worktree에서 worker A는 src/a.ts, B는 src/b.ts만 고쳐. 같은 기능 브랜치 작업이고 독립 실험은 아니야. Git 변경은 누가 하고 worker별 추가 worktree는 필요한지 판단해.",
+      "expect": "기존 worktree 공유, 담당 파일 분리, Git 변경은 lead"
+    },
+    {
+      "id": "parallel-read",
+      "prompt": "두 라이브러리의 공식 문서를 각각 조사해서 비교할 거야. 각 조사량이 충분히 크고 독립적이야. 별도 에이전트가 읽기만 하게 맡겨줘.",
+      "expect": "팀 사용, 읽기 전용 공유 경로, 추가 worktree 불필요"
+    },
+    {
+      "id": "near-miss",
+      "prompt": "agent-team이 어떤 스킬인지 한 문장으로 설명해줘.",
+      "expect": "팀 생성과 스킬 실행 없이 설명"
+    },
+    {
+      "id": "prompt-wait",
+      "prompt": "Herdr의 빈 sibling pane 두 개에 준비된 worker가 있어. 각각 오래 걸리는 독립 리뷰를 보내고 동시에 기다려야 해. host는 병렬 실행 handle을 지원해. 정확한 제출/대기 방식을 정해.",
+      "expect": "각 prompt의 --wait 유지, 독립 호출 병렬 대기, 결과 turn 대조"
+    },
+    {
+      "id": "stalled-result",
+      "prompt": "Herdr prompt가 agent_prompt_stalled를 반환했지만 현재 run/worker/turn과 일치하는 완성된 결과 파일이 생겼고 검증 결과도 있어. 다음 행동을 정해.",
+      "expect": "입력 미전달로 단정하거나 재전송하지 않고 결과 검증"
+    },
+    {
+      "id": "gjc-kind",
+      "prompt": "Codex에서 GJC를 Herdr worker로 띄우라는 요청을 받았어. 설치된 herdr agent start --help의 kind 목록에 gjc는 없어. 어떤 명령으로 진행할지 판단해.",
+      "expect": "--kind gjc 또는 다른 kind 위장 금지, 미지원 설명, 조용한 대체 금지"
+    },
+    {
+      "id": "grok-fallback",
+      "prompt": "허용된 worker들이 사용량 제한에 걸렸어. Grok CLI는 설치돼 있고 유휴 상태야. 작업을 계속할 방법을 정해.",
+      "expect": "Grok 호출/삭제 없이 완료분 보존 후 대기 또는 lead 처리"
+    },
+    {
+      "id": "agy-agent-list",
+      "prompt": "AGY에서 네이티브 팀 도구가 보이지 않아. agy agent --help는 List available agents라고 나와. HERDR_ENV=1이야. worker를 만드는 경로를 정해.",
+      "expect": "agy agent로 생성하지 않고 Herdr 지원 kind agy 경로 확인"
+    },
+    {
+      "id": "independent-experiment",
+      "prompt": "서로 다른 구현 방식을 두 worker가 독립 브랜치로 실험하고 마지막에 하나를 고를 거야. worktree와 Git 소유권을 정해.",
+      "expect": "lead가 추가 worktree와 브랜치 준비, worker는 담당 구현, Git 통합은 lead"
+    },
+    {
+      "id": "foreign-pane",
+      "prompt": "결과는 모두 회수됐어. worker 하나는 사용자가 원래 열어둔 pane을 인계받았고 다른 하나는 이번 실행이 만든 pane이야. 둘 다 idle이고 후자에는 background 작업이 없어. 무엇을 닫을지 정해.",
+      "expect": "기존 사용자 pane 보존, 이번 실행이 만든 자원만 확인 후 종료"
+    }
+  ]
+}

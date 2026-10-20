@@ -1,0 +1,1655 @@
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+국가과학기술지식정보서비스
+R&D데 이 터 개 방 오 픈 API 활 용 가 이 드
+-출 연 (연 ) 연 구 자 정 보 검 색 서 비 스 (기 관 용 )-
+
+2025. 12. 10
+
+- 1 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+목
+
+차
+
+1. 서비스 활용 방법 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+1.1 홈페이지 가입 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+1.2 서비스 활용신청 및 인증키 발급 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+1.3 연구자정보제공동의 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+
+2. 출연(연) 연구자정보검색 서비스 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.1 서비스 개요 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.2 상세기능 목록 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·5
+2.3 상세기능 명세 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·6
+
+- 2 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+1. 서비스 활용 방법
+1.1. 홈페이지 가입
+해당 기관에서는 관리자가 NTIS홈페이지(www.ntis.go.kr)에 회원으로 가입하여 오픈API 활
+용신청을 할 수 있다.
+1.2 서비스 활용신청 및 인증키 발급
+NTIS홈페이지에 로그인 후 데이터활용 – OpenAPI 메뉴에서 신청하고자 하는 API의 ‘활용
+신청’버튼을 클릭해서 오픈API 활용신청을 할 수 있다. 신청 버튼을 클릭한 후 NTIS센터
+에서 승인을 하고 인증키를 발급합니다.
+바로가기 URL : http://www.ntis.go.kr/rndopen/api/mng/apiMain.do
+
+1.3 연구자정보제공동의
+NTIS홈페이지에서 연구자정보 제공에 동의한 연구자들의 정보를 제공합니다(2025.12.11.
+이후). 사용자가 동의를 원하지 않을 경우에는 ‘비동의’에 체크하면 됩니다.
+바로가기 방법: NTIS홈페이지 로그인 → 마이페이지(이름 밑에) 클릭 →
+‘연구자정보제공동의’메뉴 클릭 →
+내용을 읽어보고 동의나 비동의 클릭 후 맨 아래의‘확인’ 버튼 클릭
+
+<그림1. 연구자정보제공동의 화면>
+
+- 3 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2. 출연(연) 연구자정보검색 서비스
+2.1. 서비스 개요
+
+서비스
+정보
+
+서비스
+제공자정보
+
+서비스명
+서비스 설명
+
+출연(연) 연구자정보검색 서비스(기관용)
+연구자정보를 검색할 수 있는 서비스
+
+기관명
+
+한국과학기술정보연구원
+
+서비스
+
+[○] 서비스 Key
+
+[ ] 인증서 (GPKI)
+
+[
+
+[
+
+인증/권한
+서비스
+
+메시지 레벨
+
+보안
+
+암호화
+전송 레벨
+암호화
+
+] Basic (ID/PW)
+
+] 없음
+
+[
+
+]
+
+WS-Security
+[
+
+] 전자서명
+
+[ ] 암호화
+
+[
+
+] SSL
+
+[○] 없음
+
+[○] 없음
+
+[] SOAP 1.2
+인터페이스
+적용 기술
+
+표준
+
+교환 데이터
+표준
+서비스 URL
+
+운영환경
+
+서비스 WSDL
+
+운영환경
+서비스 버전
+
+배포 정보
+
+[○] REST (GET, POST, PUT, DELETE)
+[
+
+수준
+
+서비스
+
+(RPC-Encoded, Document Literal, Document Literal Wrapped)
+] RSS 1.0
+
+[○] XML
+
+] RSS 2.0
+
+[
+
+[ ] JSON
+
+] Atom 1.0
+
+[ ] MIME
+
+[ ] 기타
+
+[ ] MTOM
+
+https://www.ntis.go.kr/rndopen/openApi/rsrcInfo
+
+1.0
+
+유효일자
+
+2099.12.31
+
+서비스 이력
+
+최초 배포
+
+메시지 교환 유형
+
+[
+
+배포일자
+
+2025.12
+
+[○] Request-Response
+
+[
+
+[
+
+[ ] Notification
+
+] Fire-and-Forgot
+
+메시지 로깅 수준
+
+성공
+
+사용 제약 사항(비고)
+
+N/A
+
+[○] status [ ] contents
+
+- 4 -
+
+] Publish-Subscribe
+
+실패
+
+[○] status [ ] contents
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.2. 상세기능 목록
+일련
+번호
+1
+
+서비스명
+
+상세기능명
+
+출연(연)
+연구자정보검색
+서비스
+
+연구자정보 검색
+
+오퍼레이션명
+
+rsrcInfo
+
+- 5 -
+
+서비스 설명
+
+연구자정보에 동의한
+연구자들의 정보를 제공한다.
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3. 상세기능 명세
+2.3.1. 출연(연) 연구자정보검색 서비스
+오퍼레이션 번호
+
+1
+
+오퍼레이션 설명
+
+연구자정보에 동의한 연구자들의 정보를 제공한다.
+
+Call Back URL
+
+N/A
+
+최대 메시지 사이즈
+
+[
+
+오퍼레이션
+정보
+
+평균 응답 시간
+HTTP Method
+
+오퍼레이션명
+
+연구자정보검색
+
+2270 bytes]
+
+[ 0.37 ms]
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+요청URL
+(END POINT URL)
+Parameter
+
+https://www.ntis.go.kr/rndopen/openApi/rsrcInfo
+
+Parameter(KOR)
+
+(length)
+
+필수항목
+
+String
+
+nm
+
+이름
+
+rrno
+
+국가연구자번호(
+과학기술인등록
+번호)
+
+brthdt
+
+생년월일
+
+blngorgnm
+
+Type
+
+Y
+
+(10)
+
+소속기관명
+
+String
+
+국가연구자번
+호(과학기술
+인등록번호)
+or 생년월일
+(둘중 하나는
+
+(8)
+
+반드시 입력)
+
+String
+(20)
+
+String
+
+N
+
+(50)
+
+항목설명
+
+연구자명
+
+국가연구자번호(과학기술인등록번호)
+생년월일
+- 예시: brthdt=19790301
+소속기관명
+
+② 응답명세
+Field
+ResultList
+
+Attributes
+Count : 결과문서건수
+
+설명
+결과문서 리스트
+
+Result
+
+결과문서
+
+Nm
+
+이름
+
+Rrno
+
+국가연구자번호(과학기술인등
+록번호)
+
+BlngorNm
+
+소속기관명
+
+Keyword
+
+키워드
+
+PjtList
+
+Count : 과제건수
+
+과제 리스트
+
+KorPjtNm : 과제명
+PjtId : 과제고유번호
+Pjt
+
+StanYr : 기준년도
+
+과제 정보
+
+ProgNm : 예산사업명
+RschMngrNm : 연구책임자
+MainRschOrgNm : 과제수행기관
+
+- 6 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+Field
+
+Attributes
+
+설명
+
+DeptNm : 부처명
+TotRndco : 정부투자연구비
+PapertList
+
+Count : 논문건수
+
+논문 리스트
+
+PaperNm : 논문명
+PubYr: 발행년도
+JrnlSlct : 학술지구분
+AuthorSlct : 저자구분
+Paper
+
+AuthorNm : 저자명
+
+논문 정보
+
+JrnlNm : 저널(프로시딩)
+Volume : 개재권,집
+Number : 개재호
+StartPage : 시작페이지
+EndPage : 종료페이지
+
+TrnswrtList
+
+Count : 저역서건수
+
+저역서리스트
+
+TrnswrtSlct : 저역서구분
+TrnswrtNm : 저역서명
+Trnswrt
+
+PblctnNm : 저역서발행처명
+
+저역서 정보
+
+Isbn : ISBN번호
+PubYr : 발행년도
+IprList
+
+Count : 지식재산권건수
+
+지식재산권리스트
+
+IprNm : 지적재산권(발명)명칭
+Yr : 연도
+Ipr
+
+IprSlct : 지재권구분
+
+지적재산권 정보
+
+AcqSlct : 출원등록구분
+AplyRegistHm : 출원(등록)인
+AplyRegistNo : 출원(등록)번호
+
+ActList
+
+Count : 주요활동건수
+
+주요활동리스트
+
+ActRelOrgNm : 관계기관명
+ActNm : 활동명
+Act
+
+ActSlct : 활동구분
+
+주요활동 정보
+
+ActStartDt : 활동시작년월
+ActEndDt : 활동종료년월
+QualList
+
+Count : 자격사항건수
+
+자격사항리스트
+
+QualPblctnNm : 자격증발행처명
+Qual
+
+QualNm : 자격증명
+
+자격사항 정보
+
+QualAcqDt : 자격취득일자
+MdrwList
+
+Count : 훈포장상건수
+
+훈포장상리스트
+
+CnfOrgNm : 수여기관명
+Mdrw
+
+AwardedNm : 수상명
+
+훈포장상 정보
+
+AwardeYm : 수상년월
+
+- 7 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+③ 요청/ 응답 메시지 예시
+REST(URI)
+https://www.ntis.go.kr/rndopen/openApi/rsrcInfo?apprvKey={{NTIS_API_KEY}}&nm=이름&rrno=국가연구자
+번호(과학기술인등록번호)
+응답메시지
+<?xml version="1.0" encoding="UTF-8"?>
+<ResultList Count="1">
+<Result>
+<Nm>*****</Nm>
+<Rrno>*****</Rrno>
+<BlngorNm>한국과학기술정보연구원</BlngorNm>
+<Keyword>인공지능,프로그래밍 언어/자연어 처리,과학기술과 커뮤니케이션</Keyword>
+<PjtList Count="5">
+<Pjt>
+<KorPjtNm>국가과학기술지식정보서비스 사업</KorPjtNm>
+<PjtId>2710071124</PjtId>
+<StanYr>2024</StanYr>
+<ProgNm>국가과학기술지식정보서비스</ProgNm>
+<RschMngrNm>신동구</RschMngrNm>
+<MainRschOrgNm>한국과학기술정보연구원</MainRschOrgNm>
+<DeptNm>과학기술정보통신부</DeptNm>
+<TotRndco>3,600,000,000</TotRndco>
+</Pjt>
+<Pjt>
+<KorPjtNm>빅데이터 기반의 지능형 R&amp;D 정보서비스 요소기술 개발</KorPjtNm>
+<PjtId>2710018421</PjtId>
+<StanYr>2024</StanYr>
+<ProgNm>한국과학기술정보연구원연구운영비지원(주요사업비)</ProgNm>
+<RschMngrNm>신동구</RschMngrNm>
+<MainRschOrgNm>한국과학기술정보연구원</MainRschOrgNm>
+<DeptNm>과학기술정보통신부</DeptNm>
+<TotRndco>540,000,000</TotRndco>
+</Pjt>
+<Pjt>
+<KorPjtNm>국가과학기술지식정보서비스 사업</KorPjtNm>
+<PjtId>1711195990</PjtId>
+<StanYr>2023</StanYr>
+<ProgNm>국가과학기술지식정보서비스</ProgNm>
+<RschMngrNm>신동구</RschMngrNm>
+<MainRschOrgNm>한국과학기술정보연구원</MainRschOrgNm>
+<DeptNm>과학기술정보통신부</DeptNm>
+<TotRndco>8,105,000,000</TotRndco>
+</Pjt>
+<Pjt>
+<KorPjtNm>빅데이터 기반의 지능형 R&amp;D 정보서비스 요소기술 개발</KorPjtNm>
+<PjtId>1711196501</PjtId>
+<StanYr>2023</StanYr>
+<ProgNm>한국과학기술정보연구원연구운영비지원(주요사업비)</ProgNm>
+<RschMngrNm>신동구</RschMngrNm>
+<MainRschOrgNm>한국과학기술정보연구원</MainRschOrgNm>
+<DeptNm>과학기술정보통신부</DeptNm>
+<TotRndco>750,000,000</TotRndco>
+</Pjt>
+<Pjt>
+<KorPjtNm>빅데이터 기반의 지능형 R&amp;D 정보서비스 요소기술 개발</KorPjtNm>
+<PjtId>1711173845</PjtId>
+<StanYr>2022</StanYr>
+<ProgNm>한국과학기술정보연구원연구운영비지원(주요사업비)</ProgNm>
+<RschMngrNm>신동구</RschMngrNm>
+<MainRschOrgNm>한국과학기술정보연구원</MainRschOrgNm>
+<DeptNm>과학기술정보통신부</DeptNm>
+<TotRndco>750,000,000</TotRndco>
+</Pjt>
+</PjtList>
+<PaperList Count="5">
+
+- 8 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<Paper>
+<PaperNm>챗GPT 관련 논문 요약문에 나타난 다단어 표현과 두문자어의 분석 및 임베딩
+연구</PaperNm>
+<PubYr>2025</PubYr>
+<JrnlSlct>학술지</JrnlSlct>
+<AuthorSlct>교신저자</AuthorSlct>
+<AuthorNm>*****</AuthorNm>
+<JrnlNm>언어연구</JrnlNm>
+<Volume>41</Volume>
+<Number>2</Number>
+<StartPage>109</StartPage>
+<EndPage>126</EndPage>
+</Paper>
+<Paper>
+<PaperNm>한국의 국가 R&amp;D 과제정보 서비스 진단과 개선방안 탐색 연구</PaperNm>
+<PubYr>2025</PubYr>
+<JrnlSlct>학술지</JrnlSlct>
+<AuthorSlct>교신저자</AuthorSlct>
+<AuthorNm>*****</AuthorNm>
+<JrnlNm>아시아태평양융합연구교류논문지</JrnlNm>
+<Volume>11</Volume>
+<Number>8</Number>
+<StartPage>151</StartPage>
+<EndPage>166</EndPage>
+</Paper>
+<Paper>
+<PaperNm>지역 인공지능 산업 발전 전략 탐색을 위한 기술마이닝 및 이슈스캐닝 분석
+</PaperNm>
+<PubYr>2025</PubYr>
+<JrnlSlct>학술지</JrnlSlct>
+<AuthorSlct>교신저자</AuthorSlct>
+<AuthorNm>*****</AuthorNm>
+<JrnlNm>한국콘텐츠학회논문지</JrnlNm>
+<Volume>25</Volume>
+<Number>3</Number>
+<StartPage>71</StartPage>
+<EndPage>87</EndPage>
+</Paper>
+<Paper>
+<PaperNm>초소형모듈원자로 분야의 효율적인 두문자어 사전구축과 단어 임베딩을 이용한
+지식 분석</PaperNm>
+<PubYr>2025</PubYr>
+<JrnlSlct>학술지</JrnlSlct>
+<AuthorSlct>교신저자</AuthorSlct>
+<AuthorNm>*****</AuthorNm>
+<JrnlNm>한국정보기술학회 논문지</JrnlNm>
+<Volume>23</Volume>
+<Number>3</Number>
+<StartPage>161</StartPage>
+<EndPage>173</EndPage>
+</Paper>
+<Paper>
+<PaperNm>부산지역 AI 산업 생태계 조성을 위한 논문 및 특허 기반 기술 마이닝
+</PaperNm>
+<PubYr>2024</PubYr>
+<JrnlSlct>학술지</JrnlSlct>
+<AuthorSlct>교신저자</AuthorSlct>
+<AuthorNm>*****</AuthorNm>
+<JrnlNm>한국콘텐츠학회논문지</JrnlNm>
+<Volume>24</Volume>
+<Number>11</Number>
+<StartPage>107</StartPage>
+<EndPage>115</EndPage>
+</Paper>
+</PaperList>
+<TrnswrtList Count="2">
+<Trnswrt>
+<TrnswrtSlct>저서</TrnswrtSlct>
+<TrnswrtNm>연구개발 패러다임 동향과 국가R&amp;D정보 정책 및 사례 분석</TrnswrtNm>
+<PblctnNm>한국과학기술정보연구원</PblctnNm>
+<Isbn>9788929410445</Isbn>
+
+- 9 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<PubYr>2018</PubYr>
+</Trnswrt>
+<Trnswrt>
+<TrnswrtSlct>저서</TrnswrtSlct>
+<TrnswrtNm>국가RnD 데이터 품질평가와 개선방안</TrnswrtNm>
+<PblctnNm>한국과학기술정보연구원</PblctnNm>
+<Isbn>9788929408619</Isbn>
+<PubYr>2016</PubYr>
+</Trnswrt>
+</TrnswrtList>
+<IprList Count="2">
+<Ipr>
+<IprNm>용어 추출 시스템과 용어 생명주기 관리 시스템 및 용어생명주기 관리방법과 그
+방법에 대한 프로그램을 기록한컴퓨터로 읽을 수 있는 기록매체</IprNm>
+<Yr>2005</Yr>
+<IprSlct>특허</IprSlct>
+<AcqSlct>등록</AcqSlct>
+<AplyRegistHm>한국과학기술정보연구원</AplyRegistHm>
+<AplyRegistNo>1020050040251</AplyRegistNo>
+</Ipr>
+<Ipr>
+<IprNm>확장 마크업 언어로 작성된 문서를 위한 정보검색 시스템및 그 방법과 그 방법을
+실행시키기 위한 프로그램을기록한 컴퓨터로 읽을 수 있는 기록매체</IprNm>
+<Yr>2004</Yr>
+<IprSlct>특허</IprSlct>
+<AcqSlct>등록</AcqSlct>
+<AplyRegistHm>한국과학기술정보연구원</AplyRegistHm>
+<AplyRegistNo>1020040054131</AplyRegistNo>
+</Ipr>
+</IprList>
+<ActList Count="7">
+<Act>
+<ActRelOrgNm>한국현대언어학회</ActRelOrgNm>
+<ActNm>논문지 심사위원</ActNm>
+<ActSlct>평가위원</ActSlct>
+<ActStartDt>2025-11</ActStartDt>
+<ActEndDt>2025-11</ActEndDt>
+</Act>
+<Act>
+<ActRelOrgNm>TUV</ActRelOrgNm>
+<ActNm>ISO/IEC42001:2023 인공지능 AI경영시스템 세미나 초청강연자</ActNm>
+<ActSlct>자문</ActSlct>
+<ActStartDt>2025-06</ActStartDt>
+<ActEndDt>2025-06</ActEndDt>
+</Act>
+<Act>
+<ActRelOrgNm>(사)원정연구원, (사)AI 프렌즈학회</ActRelOrgNm>
+<ActNm>생성형 AI를 효율적으로 활용하는 R&amp;D 생태계 구축 방안 지정토론자</ActNm>
+<ActSlct>자문</ActSlct>
+<ActStartDt>2024-11</ActStartDt>
+<ActEndDt>2024-11</ActEndDt>
+</Act>
+<Act>
+<ActRelOrgNm>Technology Analysis &amp; Strategic Management</ActRelOrgNm>
+<ActNm>SSCI 국제논문 심사위원</ActNm>
+<ActSlct>평가위원</ActSlct>
+<ActStartDt>2024-04</ActStartDt>
+<ActEndDt>2024-04</ActEndDt>
+</Act>
+<Act>
+<ActRelOrgNm>한국정보처리학회</ActRelOrgNm>
+<ActNm>논문지 심사위원</ActNm>
+<ActSlct>평가위원</ActSlct>
+<ActStartDt>2024-02</ActStartDt>
+<ActEndDt>2024-05</ActEndDt>
+</Act>
+<Act>
+<ActRelOrgNm>항공우주시스템공학회</ActRelOrgNm>
+<ActNm>논문지 심사위원</ActNm>
+<ActSlct>평가위원</ActSlct>
+<ActStartDt>2023-08</ActStartDt>
+
+- 10 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<ActEndDt>2024-07</ActEndDt>
+</Act>
+<Act>
+<ActRelOrgNm>Sustainability</ActRelOrgNm>
+<ActNm>SSCI 국제논문 심사위원</ActNm>
+<ActSlct>평가위원</ActSlct>
+<ActStartDt>2022-01</ActStartDt>
+<ActEndDt>2023-02</ActEndDt>
+</Act>
+</ActList>
+<QualList Count="2">
+<Qual>
+<QualPblctnNm>국가기술표준원</QualPblctnNm>
+<QualNm>한국 ISO/TC37전문가 위촉</QualNm>
+<QualAcqDt>2024-02</QualAcqDt>
+</Qual>
+<Qual>
+<QualPblctnNm>대전광역시 서구</QualPblctnNm>
+<QualNm>지역정보화위원회 위원장</QualNm>
+<QualAcqDt>2023-02</QualAcqDt>
+</Qual>
+</QualList>
+<MdrwList Count="6">
+<Mdrw>
+<CnfOrgNm>인사혁신처</CnfOrgNm>
+<AwardedNm>인사혁신처장 표창장(제2022-510호)</AwardedNm>
+<AwardeYm>2022-12</AwardeYm>
+</Mdrw>
+<Mdrw>
+<CnfOrgNm>한국과학기술정보연구원</CnfOrgNm>
+<AwardedNm>KISTI주춧돌상(제20210531호)</AwardedNm>
+<AwardeYm>2021-05</AwardeYm>
+</Mdrw>
+<Mdrw>
+<CnfOrgNm>한국정보기술학회</CnfOrgNm>
+<AwardedNm>2020년 한국정보기술학회 종합학술대회 우수논문상(제20-005호)</AwardedNm>
+<AwardeYm>2020-10</AwardeYm>
+</Mdrw>
+<Mdrw>
+<CnfOrgNm>Convergence Society for SMB</CnfOrgNm>
+<AwardedNm>The 2nd International Conference on Small &amp; Medium Business Best
+Paper</AwardedNm>
+<AwardeYm>2015-01</AwardeYm>
+</Mdrw>
+<Mdrw>
+<CnfOrgNm>Korea Contents Association</CnfOrgNm>
+<AwardedNm>2013 ICC Best Paper</AwardedNm>
+<AwardeYm>2013-12</AwardeYm>
+</Mdrw>
+<Mdrw>
+<CnfOrgNm>한국과학기술정보연구원</CnfOrgNm>
+<AwardedNm>KISTI기여상(제09-0183호)</AwardedNm>
+<AwardeYm>2009-05</AwardeYm>
+</Mdrw>
+</MdrwList>
+</Result>
+</ResultList>
+
+- 11 -
+
+

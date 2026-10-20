@@ -1,52 +1,63 @@
 ---
 name: agent-team
-description: "Orchestrates independent work with a strong lead and lower-cost persistent workers in Claude Code, Codex, or observable herdr panes. Use when users invoke agent-team or say 에이전트 팀, 팀으로 해줘, 병렬로 맡겨, herdr로 위임, or 상위 모델이 하위 모델에 위임. Do NOT use for routine, sequential, same-file, or single-step tasks."
-argument-hint: "[task]"
+description: "Coordinates independent worker tasks in Claude Code, AGY, Codex, and GJC. Use for agent-team, agents-team, 에이전트 팀, 팀으로 해줘, 병렬로 맡겨, herdr로 위임, or explicit cross-harness delegation. Do NOT use for routine sequential work, overlapping file edits, or merely explaining team tools."
 ---
 
 # Agent Team
 
-강한 모델은 판단과 통합을 맡고, 저렴한 모델은 독립 실행을 맡긴다. 현재 요청과 호출 인자를 팀의 목표로 사용한다.
+Lead는 작업 분해, 판단, 통합을 맡고 worker는 한정된 범위를 실행한다. 개발 계획과 검토 기준은 작업에서 선택한 개발 스킬을 따르고, 이 스킬은 위임과 결과 회수를 맡는다.
 
-## 런타임 라우팅
+Hermes가 lead로 Herdr의 Codex/Claude Code worker를 제어할 때도 같은 작업 계약을 쓴다. 기기와 세션 선택, 창 제어, worker 시작과 복구는 공용 `herdr` 스킬을 따르고, Hermes 설정과 배포는 `hermes-ops`가 맡는다.
 
-1. 위임 전에 현재 coordinator 런타임을 확인한다.
-2. Claude Code에서는 [Claude Code 지침](references/claude-code.md)만 읽는다.
-3. Codex에서는 [Codex 지침](references/codex.md)만 읽는다.
-4. 다른 런타임의 reference는 읽지 않는다. 모델명과 팀 도구가 섞이면 잘못된 실행 표면을 선택한다.
-5. 예외: 사용자가 herdr pane을 요청하거나 현재 런타임에 없는 worker 모델명·harness를 지정하면 cross-harness 위임이다 — 모르는 모델명을 "없는 모델"로 단정하기 전에 다른 harness reference의 모델 절에서 확인하고, 해당 reference와 [herdr 지침](references/herdr.md)을 읽는다.
+## 실행 경로
 
-## 공통 계약
+- 대상은 Claude Code, AGY, Codex, GJC다. Grok은 설치 상태와 관계없이 이 스킬의 선택, 실행, 대체 worker 대상에서 제외한다. 설치 제거는 하지 않는다.
+- 현재 coordinator의 하네스, 모델, 노출된 팀 도구를 확인한다. 모델 이름으로 하네스를 추정하지 않는다.
+- 같은 하네스의 네이티브 팀 도구를 우선 사용한다. 다른 하네스로 위임하거나 관찰 가능한 pane이 필요하면 Herdr를 선택한다.
+- 선택한 하네스 지침만 읽는다. 다른 하네스로 위임할 때는 대상 하네스와 Herdr 지침을 함께 읽는다.
+- 실행 도구가 없으면 지원되지 않는 경로를 만들지 말고 lead가 직접 처리하거나 필요한 실행 환경을 알린다.
+- 사용자가 worker 하네스를 지정했으면 미지원이나 사용량 제한을 이유로 다른 하네스를 조용히 실행하지 않는다. 대체가 필요하면 선택을 확인하고, lead가 진행한 일은 지정 worker의 결과로 보고하지 않는다.
 
-- 서로 독립적으로 진행할 작업이 2개 이상일 때만 팀을 만든다.
-- 순차 의존, 같은 파일 편집, 작은 수정, 페르소나 부여, 테스트 러너 실행은 lead가 직접 처리한다. 코드리뷰는 위임이 낫다.
-- 독립 작업이어도 lead 한 컨텍스트에 무리 없이 들어가는 분량이면 팀 대신 lead가 직접 처리한다. 그런 작업을 나누면 계획, 전달, 병합 비용만 더 든다.
-- 팀을 쓰지 않으면 이유를 한 줄로 알리고 작업을 계속한다.
-- lead가 요구사항 해석, 작업 분해, 결과 통합, 테스트, 최종 diff 검증을 직접 수행한다.
-- worker에게 하위 worker 생성을 허용하지 않는다.
-- 삭제(휴지통 이동 포함), push, 머지, 외부 발송은 worker에게 맡기지 않는다. worker는 대상 목록과 근거만 돌려주고, lead가 대상을 확인한 뒤 직접 실행한다. worker가 실행하면 lead가 대상을 보기 전에 끝나 잘못 고른 대상을 되돌릴 기회가 없다.
-- 모든 위임 프롬프트에 다음 템플릿을 그대로 포함한다.
+| 조건 | 읽을 것 |
+|---|---|
+| Claude Code가 lead 또는 worker | [Claude Code](references/claude-code.md) |
+| Codex가 lead 또는 worker | [Codex](references/codex.md) |
+| AGY가 lead 또는 worker | [AGY](references/agy.md) |
+| GJC가 lead 또는 worker | [GJC](references/gjc.md) |
+| Herdr pane으로 위임 | [Herdr](references/herdr.md) |
+| 위임 시작, 결과 회수, 재개, 종료 | [실행 기록과 회수](references/run-lifecycle.md) |
+
+## 작업과 소유권
+
+- 독립 작업이 여러 개이고 전달 비용보다 병렬 실행의 이득이 클 때 팀을 만든다. 작은 수정, 순차 의존 작업, 단순 명령 실행은 lead가 직접 처리한다. 사용자가 특정 worker의 검토를 명시하면 한 건도 위임할 수 있다.
+- 기본값은 기존 작업용 worktree 공유다. worker마다 새 worktree를 만들지 않는다. 독립 브랜치나 별도 구현 실험이 필요할 때만 lead가 추가 worktree를 준비한다.
+- 읽기 전용 worker는 같은 폴더를 읽는다. 편집 worker는 담당 파일을 나누며, 같은 파일, 생성물, 잠금 파일을 바꾸는 작업은 순차로 처리한다.
+- worker는 Git 상태와 diff를 읽을 수 있다. stage, commit, branch 변경, fetch, merge, push와 worktree 생성/제거는 lead가 맡는다.
+- 삭제와 휴지통 이동, 외부 발송은 worker에게 맡기지 않는다. worker는 대상과 근거를 보고하고 lead가 사용자 승인 범위 안에서 실행한다.
+- worker는 하위 worker를 만들지 않는다. 현재 모델을 유지하고, worker 모델은 해당 런타임에서 실제로 지원하는 모델 중 작업 난도와 비용에 맞춰 고른다.
+- lead는 시작 전 기존 변경과 작업 경로를 기록하고, 통합 전 worker의 주장과 실제 diff, 검증 결과를 대조한다.
+
+## 위임 계약
+
+모든 위임에 다음 템플릿을 포함한다. 경로는 절대 경로로 적고 결과 예산은 숫자로 정한다.
 
 ```text
 목표:
 범위:
+담당 파일:
+작업 경로:
+금지 작업: 담당 밖 편집, Git 변경, 삭제, 외부 발송, 하위 worker 생성
+허용 부수 효과:
 출력 형식:
 결과 예산:
 완료 조건:
-담당 파일:
-부수 효과:
+실행 식별: run_id / worker_id / turn_id
+결과 경로:
 Obstacles:
 ```
 
-- `부수 효과:`에는 담당 파일 밖에서 허용하는 변경(브랜치, 커밋, fetch, 임시 파일, 띄운 프로세스)을 적는다.
-- worker는 원문 로그 대신 결론, 변경 파일, 실제로 남긴 부수 효과, 검증 결과, Obstacles를 반환한다. 보고되지 않은 흔적은 lead가 정리하지 못해 출처를 모르는 잔재로 남는다.
-- lead는 worker 결과를 다른 worker에게 전달할 때 원문 대신 필요한 사실과 쟁점만 요약한다.
-
-## 규모·안정성
-
-- 동시 fan-out은 현재 런타임 cap 이내로 제한한다. 일반 작업은 2~4개, 광범위 read-only 탐색만 최대 6개로 나누며, 초과 fan-out은 rate limit과 529 cascade를 키운다.
-- 529가 연속 3회면 재시도하지 말고 대기하거나 lead가 직접 수행한다. 에이전트 정의(`~/.claude/agents/<name>.md`)를 읽으면 같은 절차를 그대로 밟을 수 있다.
-- 에이전트 수는 복잡도에 비례시킨다. 단순 작업 1개, 비교 2~4개, 광범위 탐색에만 다수.
-- 권한 프롬프트가 뜰 수 있는 Bash는 한 병렬 블록에 묶지 않는다. 하나가 거부되면 블록 전체가 cascade-cancel된다.
-- worker가 보고한 수치, 인용, 경로 중 결론을 좌우하는 것은 lead가 원문에서 `rg` 등으로 직접 확인한 뒤 통합한다. worker의 cwd는 리셋될 수 있으므로 확인 명령은 절대 경로로 쓴다.
-- Workflow가 사용량 한도로 일부 실패하면 한도 리셋 후 같은 `scriptPath`와 `resumeFromRunId`로 재개한다. 완료분은 캐시에서 복원된다.
+- 결과는 결론, 담당 범위, 변경 파일, 실제 부수 효과, 검증 결과, Obstacles를 포함한다. 긴 원문 로그는 결과 파일에 두고 대화에는 요약과 경로를 반환한다.
+- lead는 다른 worker에게 필요한 사실과 쟁점만 전달한다. 검증되지 않은 보고를 확정 사실로 넘기지 않는다.
+- 시작은 보통 2~3명으로 제한하고 현재 런타임의 동시 실행 한도를 따른다. 권한 판단이 필요한 변경은 병렬 블록에 묶지 않는다.
+- 사용량 제한이나 일시 오류가 반복되면 무한 재시도하지 않는다. 완료분을 보존하고 실제 실행 식별자로 재개한다.
+- 결과가 잘렸거나 session이 유실됐으면 남은 범위를 새 worker에 전달한다. 이미 완료된 일을 다시 실행시키지 않는다.

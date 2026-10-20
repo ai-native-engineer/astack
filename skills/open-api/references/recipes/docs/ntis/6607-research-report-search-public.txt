@@ -1,0 +1,1324 @@
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+국가과학기술지식정보서비스
+R&D데 이 터 개 방 오 픈 API 활 용 가 이 드
+-국 가 R&D 연 구 보 고 서 검 색 서 비 스 (전 체 용 )-
+
+2024. 01. 03
+
+- 1 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+목
+
+차
+
+1. 서비스 활용 방법 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+2. 국가R&D연구보고서 검색 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.1 서비스 개요 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.2 상세기능 목록 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·5
+2.3 상세기능 명세 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·6
+
+- 2 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+1. 서비스 활용 방법
+1.1. 홈페이지 가입
+NTIS홈페이지(www.ntis.go.kr)에서 회원으로 가입하면 오픈API 활용신청을 할 수 있다.
+1.2 서비스 활용신청 및 인증키 발급
+NTIS홈페이지에 로그인 후 데이터활용 – OpenAPI 메뉴에서 신청하고자
+하는 API의 ‘활용신청’버튼을 클릭해서 오픈API 활용신청을 할 수 있다.
+바로가기 URL : http://www.ntis.go.kr/rndopen/api/mng/apiMain.do
+* 이용대상 : 대국민
+
+- 3 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2. 국가R&D 연구보고서 검색
+2.1. 서비스 개요
+
+서비스
+정보
+
+서비스
+제공자정보
+
+서비스명
+서비스 설명
+
+국가R&D 연구보고서 검색 서비스(전체용)
+국가R&D 연구보고서 메타정보를 검색할 수 있는 서비스
+
+기관명
+
+한국과학기술정보연구원
+
+서비스
+
+[○] 서비스 Key
+
+[ ] 인증서 (GPKI)
+
+[
+
+[
+
+인증/권한
+서비스
+
+메시지 레벨
+
+보안
+
+암호화
+전송 레벨
+암호화
+
+] Basic (ID/PW)
+
+] 없음
+
+[
+
+]
+
+WS-Security
+[
+
+] 전자서명
+
+[ ] 암호화
+
+[
+
+] SSL
+
+[○] 없음
+
+[○] 없음
+
+[] SOAP 1.2
+인터페이스
+적용 기술
+
+표준
+
+교환 데이터
+표준
+서비스 URL
+
+운영환경
+
+서비스 WSDL
+
+운영환경
+서비스 버전
+
+배포 정보
+
+[○] REST (GET, POST, PUT, DELETE)
+[
+
+수준
+
+서비스
+
+(RPC-Encoded, Document Literal, Document Literal Wrapped)
+] RSS 1.0
+
+[○] XML
+
+] RSS 2.0
+
+[○] JSON
+
+[
+
+] Atom 1.0
+
+[ ] 기타
+
+[
+
+] MIME
+
+[ ] MTOM
+
+https://www.ntis.go.kr/rndopen/openApi/rresearchpdf/
+
+1.0
+
+유효일자
+
+2099.12.31
+
+서비스 이력
+
+최초 배포
+
+메시지 교환 유형
+
+[
+
+배포일자
+
+2021.06
+
+[○] Request-Response
+
+[
+
+[
+
+[ ] Notification
+
+] Fire-and-Forgot
+
+메시지 로깅 수준
+
+성공
+
+사용 제약 사항(비고)
+
+N/A
+
+[○] status [ ] contents
+
+- 4 -
+
+] Publish-Subscribe
+
+실패
+
+[○] status [ ] contents
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.2. 상세기능 목록
+일련
+번호
+1
+
+서비스명
+
+상세기능명
+
+국가R&D
+연구보고서 검색
+서비스
+
+국가R&D
+연구보고서 검색
+
+오퍼레이션명
+
+rresearchpdf
+
+- 5 -
+
+서비스 설명
+
+국가R&D 연구보고서 검색
+결과를 제공한다.
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3. 상세기능 명세
+2.3.1. 국가R&D 연구보고서 검색 서비스
+
+오퍼레이션
+정보
+
+오퍼레이션 번호
+
+1
+
+오퍼레이션 설명
+
+국가R&D 연구보고서 검색 결과를 제공한다.
+
+Call Back URL
+
+N/A
+
+최대 메시지 사이즈
+평균 응답 시간
+HTTP Method
+
+오퍼레이션명
+
+국가R&D 연구보고서 검색
+
+[2270 bytes]
+[0.37 ms]
+
+초당 최대 트랜잭션
+
+[30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+요청URL
+(END POINT URL)
+Parameter
+
+https://www.ntis.go.kr/rndopen/openApi/rresearchpdf/
+
+Parameter(KOR)
+
+Type
+
+필수항목
+
+항목설명
+
+userKey
+
+승인키
+
+String
+
+Y
+
+승인된 발급키
+
+userId
+
+사용자
+
+String
+
+N
+
+로그인한 경우에만 사용자 ID 기재
+입력하지 않아도 국가R&D 연구보고서만
+
+collection
+
+검색 컬렉션명
+
+String
+
+Y
+
+검색됨
+사용 예) collection=researchpdf
+검색 질의어 입력
+연산자
+AND
+OR
+
+query
+
+검색어
+
+String
+
+Y
+NOT
+“”
+
+필드 설명
+띄워쓰기로 구분
+query=나노 기술
+| 특수문자로 구분
+query=나노|기술
+! 특수문자로 구분
+query=!나노
+일치 문자열 검색
+query=“나노 기술”
+
+사용 예) query=나노&searchField=BI
+* UTF-8 인코딩 필요
+
+- 6 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+필드명
+BI
+
+필드 설명
+전체 (하위 모두 포함)
+보고서명 한글
+
+TI
+
+보고서명 영문
+발행기관명
+키워드 한글
+
+PB
+
+searchField
+
+검색 필드지정
+
+String
+
+N
+
+KW
+
+키워드 영문
+초록 한글
+
+AB
+
+초록 영문
+목차
+
+사용 예) searchField=BI
+* UTF-8 인코딩 필요
+
+addQuery
+
+상세검색 지정
+
+String
+
+N
+
+필드명
+CN
+PY(int)
+TI01
+TI02
+PB01
+KW01
+KW02
+AB01
+AB02
+AB04
+
+필드 설명
+성과번호
+발행년도
+보고서명(한글)
+보고서명(영문)
+발행기관명
+키워드(한글)
+키워드(영문)
+초록(한글)
+초록(영문)
+목차
+
+사용 예)addQuery=CN=11110000
+int형
+2004/MORE,2
+009/UNDER
+2006/MORE
+2002/UNDER
+2006/SAME
+
+필드 설명
+2004 이상,2009 이하
+2004 이상
+2002 이하
+2006 같음
+
+사용 예) addQuery=PY=2006/SAME
+* UTF-8 인코딩 필요
+검색 결과에 대한 정렬
+
+sortBy
+
+검색 정렬
+
+String
+
+N
+
+필드명
+RANK/DESC
+DATE/DESC
+DATE/ASC
+
+필드 설명
+검색 랭킹 내림차순
+날짜 내림차순
+날짜 오름차순
+
+사용 예) sortBy=DATE/DESC
+검색결과 시작위치를 지정
+startPosition
+
+검색 시작위치
+
+Integer
+
+N
+사용 예) startPosition=10
+
+displayCount
+
+검색 결과 수
+
+Integer
+
+N
+
+화면에 보여줄 검색 결과 수
+사용 예) displayCount=100
+결과 양식 리턴
+
+returnType
+
+결과 형태
+
+String
+
+N
+
+- 7 -
+
+필드명
+xml
+json
+
+필드 설명
+출력 포맷을 xml로 제공(기본)
+출력 포맷을 json으로 제공
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+② 응답명세
+Field
+
+Attributes
+
+Iteration
+
+RESULT
+
+설명
+결과문서의 최상위 필드
+
+QUERYTRANSFORMS
+ORIGINALQUERY
+COUNTLIST
+
+사용자 질의어
+NAME : 오퍼레이션명
+
+검색 오퍼레이션
+
+TOTALHITS
+
+검색건수(전체)
+1base index, 현재 결과로 넘겨준
+
+STARTPOSITION
+
+문서의 시작위치
+
+HITS
+
+검색건수(출력건수)
+
+SEARCHTIME
+
+검색시간
+
+RESULTSET
+참고 : highlight tag 는
+HIT
+
+NO : 검색결과문서순서
+
+O
+
+<span class=search_word>
+</span> 으로 리턴됨
+
+TermSn
+
+성과번호
+
+PublicationYear
+
+발행년도
+
+ResearchPublicNo
+
+보고서등록번호
+
+PublicationAgency
+ResultTitle
+Abstract
+Keyword
+
+발행기관명
+Korean : 한글
+English : 영어
+Korean : 한글
+English : 영어
+Korean : 한글
+English : 영어
+
+보고서명(한, 영)
+
+키워드(한, 영)
+
+Contents
+
+목차
+
+PublicationCountry
+
+발행국가명
+
+PublicationLanguage
+
+사용언어
+
+DocUrl
+
+원문정보 URL
+
+ProjectNumber
+
+과제 고유번호
+
+ProjectTitle
+
+과제명
+
+LeadAgency
+
+과제 수행기관명
+
+ManagerName
+
+과제 연구책임자명
+
+SpecializedAgency
+
+전문기관
+
+AgencyDetailProjectNumber
+
+세부과제번호(기관)
+
+- 8 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+③ 요청/ 응답 메시지 예시 (xml)
+REST(URI)
+
+https://www.ntis.go.kr/rndopen/openApi/rresearchpdf?apprvKey={{NTIS_API_KEY}}&query=나노&use
+rId=&collection=rresearchpdf&searchField=&displayCount=10&startPosition=1&naviCount=30&sortby=
+&boostquery=&addQuery=&returnType=
+
+응답메시지
+
+<?xml version="1.0" encoding="UTF-8"?>
+<RESULT
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation="https://www.ntis.go.kr/searchapi/schema/title.1.0.xsd"
+>
+<QUERYTRANSFORMS>
+<ORIGINALQUERY>나노</ORIGINALQUERY>
+</QUERYTRANSFORMS>
+<COUNTLIST>
+<COLCOUNT NAME="rresearchpdf">9482</COLCOUNT>
+</COUNTLIST>
+<NAVIGATION />
+<TOTALHITS>9482</TOTALHITS>
+<STARTPOSITION>1</STARTPOSITION>
+<HITS>1</HITS>
+<SEARCHTIME>0.01</SEARCHTIME>
+<RESULTSET>
+<HIT NO="1">
+<TermSn>REP-2011-0115016243</TermSn>
+<PublicationYm>201112</PublicationYm>
+<ResearchPublicNo>TRKO201300016082</ResearchPublicNo>
+<PublicationAgency>&lt;span class="search_word"&gt;나노&lt;/span&gt;융합산업
+연구조합</PublicationAgency>
+<ResultTitle>
+<Korean>&lt;span class="search_word"&gt;나노&lt;/span&gt;융합산업 인적자
+원개발협의체 활성화</Korean>
+<English>Nano Convergence Industry Sector Council</English>
+</ResultTitle>
+<Abstract>
+<Korean>1 사업목표ㅇ &lt;span class="search_word"&gt;나노&lt;/span&gt;융
+합산업분야 인적자원수급에 대한 정책적 대안 제시 및 자발적 협의체 활동 확대운영으로 인
+력수급에
+대한
+선순환 사이클 구조 기반 확립2 사업내용ㅇ
+국내
+&lt;span
+class="search_word"&gt;나노&lt;/span&gt;융합산업분야 기업체 기술인력활용실태조사 실시
+4차ㅇ 수요공급을 고려한 &lt;span class="search_word"&gt;나노&lt;/span&gt;융합산업분야
+기술 인력에 대한 종합적 현상 진단 보고서 발간ㅇ 3차 고용동향 실시 및 3개년 간
+&lt;span class="search_word"&gt;나노&lt;/span&gt;융합산업분야 고용동향에 ...</Korean>
+<English />
+</Abstract>
+<Keyword>
+<Korean>&lt;span
+class="search_word"&gt;나노&lt;/span&gt;;&lt;span
+class="search_word"&gt;나노&lt;/span&gt;기술;인적자원개발협의체;산업인력;인적자
+원;</Korean>
+<English>Nano;Nanotechnology;Sector Council;HRD;Human Resource;</English>
+</Keyword>
+<Contents />
+<PublicationCountry>대한민국</PublicationCountry>
+<PublicationLanguage>Korean</PublicationLanguage>
+<DocUrl>https://nrms.kisti.re.kr/sc/fullDvsSrch/pop_srchList.do?rpt_ctrl_no=RTTRKO000
+000174834</NrmsUrl>
+
+- 9 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<ProjectNumber>1415118731</ProjectNumber>
+<ProjectTitle>나노융합산업 인적자원개발협의체활성화 지원</ProjectTitle>
+<ManageAgency>나노융합산업연구조합</ManageAgency>
+<Manager />
+</HIT>
+</RESULTSET>
+</RESULT>
+④ 요청/ 응답 메시지 예시 (json)
+REST(URI)
+
+https://www.ntis.go.kr/rndopen/openApi/rresearchpdf?apprvKey={{NTIS_API_KEY}}&query=나노&use
+rId=&collection=rresearchpdf&searchField=&displayCount=10&startPosition=1&naviCount=30&sortby=
+&boostquery=&addQuery=&returnType=json
+
+응답메시지
+
+{
+"RESULT" : {
+"HITS" : 1,
+"NAVIGATION" : { },
+"SEARCHTIME" : 0.012,
+"RESULTSET" : {
+"HIT" : {
+"ProjectTitle" : "나노융합산업 인적자원개발협의체활성화 지원",
+"PublicationAgency" : "<span class=\"search_word\">나노</span>융합산업연구조
+합",
+"Keyword" : {
+"Korean"
+:
+"<span
+class=\"search_word\">나노</span>;<span
+class=\"search_word\">나노</span>기술;인적자원개발협의체;산업인력;인적자원;",
+"English" : "Nano;Nanotechnology;Sector Council;HRD;Human Resource;"
+},
+"PublicationCountry" : "대한민국",
+"PublicationYm" : 201112,
+"ResearchPublicNo" : "TRKO201300016082",
+"NO" : 1,
+"ProjectNumber" : 1415118731,
+"ResultTitle" : {
+"Korean" : "<span class=\"search_word\">나노</span>융합산업 인적자원개발협
+의체 활성화",
+"English" : "Nano Convergence Industry Sector Council"
+},
+"PublicationLanguage" : "Korean",
+"TermSn" : "REP-2011-0115016243",
+"DocUrl"
+:
+"https://nrms.kisti.re.kr/sc/fullDvsSrch/pop_srchList.do?rpt_ctrl_no=RTTRKO0000001748
+34",
+"Manager" : "",
+"Contents" : "",
+"ManageAgency" : "나노융합산업연구조합",
+"Abstract" : {
+"Korean" : "1 사업목표ㅇ <span class=\"search_word\">나노</span>융합산업분
+야 인적자원수급에 대한 정책적 대안 제시 및 자발적 협의체 활동 확대운영으로 인력수급에
+대한 선순환 사이클 구조 기반 확립2 사업내용ㅇ 국내 <span class=\"search_word\">나노
+</span>융합산업분야 기업체 기술인력활용실태조사 실시4차ㅇ 수요공급을 고려한 <span
+class=\"search_word\">나노</span>융합산업분야 기술 인력에 대한 종합적 현상 진단 보고
+서 발간ㅇ 3차 고용동향 실시 및 3개년 간 <span class=\"search_word\">나노</span>융합산
+업분야 고용동향에 ...",
+"English" : ""
+}
+
+- 10 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+}
+},
+"COUNTLIST" : {
+"COLCOUNT" : {
+"content" : 9482,
+"NAME" : "rresearchpdf"
+}
+},
+"QUERYTRANSFORMS" : {
+"ORIGINALQUERY" : "나노"
+},
+"xsi:noNamespaceSchemaLocation"
+"https://www.ntis.go.kr/searchapi/schema/title.1.0.xsd",
+"xmlns:xsi" : "http://www.w3.org/2001/XMLSchema-instance",
+"STARTPOSITION" : 1,
+"TOTALHITS" : 9482
+}
+}
+
+- 11 -
+
+:
+
+

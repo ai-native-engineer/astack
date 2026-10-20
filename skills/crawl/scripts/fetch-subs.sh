@@ -5,6 +5,7 @@
 # "has no automatic captions"로 응답한다. client를 바꿔가며 탐지해 이 오탐을 없앤다.
 #
 # Usage: fetch-subs.sh <YouTube URL> [output_dir]
+# env: YT_SUB_CLIENTS 시도할 client 순서 / YT_COOKIES_FROM_BROWSER 쿠키를 읽을 브라우저(기본 chrome, 빈 값이면 읽지 않음)
 # stdout: VIDEO_ID= / TITLE= / SUB_LANG= / KIND= / CLIENT= / SRT_PATH=
 # exit: 0 취득 / 2 모든 client에서 자막 없음 / 3 자막은 탐지됐으나 내려받기 실패
 
@@ -22,9 +23,10 @@ mkdir -p "$OUTPUT_DIR"
 
 # 기본 client가 막혔을 때 순서대로 시도한다. default를 먼저 둬 정상 영상은 추가 호출 없이 끝낸다.
 CLIENTS="${YT_SUB_CLIENTS:-default web_embedded web_safari mweb tv_embedded}"
-COOKIE_BROWSER="${YT_COOKIES_FROM_BROWSER:-chrome}"
+# 빈 값을 기본값으로 덮지 않도록 `:-`가 아니라 `-`로 읽는다. 시크릿 읽기가 막힌 작업자는 빈 값을 넘긴다.
+COOKIE_BROWSER="${YT_COOKIES_FROM_BROWSER-chrome}"
 
-# 쿠키는 있으면 쓰고 없으면 없는 대로 간다. 연령제한·지역제한 영상에서만 실제로 필요하다.
+# 쿠키는 연령제한, 지역제한 영상에서만 실제로 필요하다.
 COOKIE_ARGS=()
 [ -n "$COOKIE_BROWSER" ] && COOKIE_ARGS=(--cookies-from-browser "$COOKIE_BROWSER")
 

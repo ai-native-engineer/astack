@@ -1,6 +1,6 @@
 ---
 name: html-explainer
-description: "로컬 단일 HTML로 시각 설명물, 인터랙티브 walkthrough, 검색 가능한 위키/용어집, 사용자가 영상/이미지/원문을 보고 항목별로 고르는 확인 시트를 만든다. Use for 구조도, 플로우, 비교, 단계별 설명, 시각화, 확인 시트(고르기, 체크, 메모를 받아 대화로 회신) 요청. Do not use for 운영 웹사이트, 영상/슬라이드/마크다운, 일반 프론트엔드 구현."
+description: "로컬 단일 HTML로 시각 설명물, 인터랙티브 walkthrough, 검색 가능한 위키/용어집, 사용자가 영상/이미지/원문을 보고 항목별로 고르는 확인 시트를 만든다. Use for 구조도, 플로우, 비교, 단계별 설명, 시각화, 확인 시트(고르기, 체크, 메모를 받아 대화로 회신) 요청. Do not use for 운영 웹사이트, 영상/슬라이드/마크다운, 일반 프론트엔드 구현, 편집 가능한 excalidraw나 SVG/PNG 파일이 목적인 도식(diagram)."
 argument-hint: "[visual|interactive|wiki|sheet] [topic]"
 ---
 
@@ -25,7 +25,13 @@ argument-hint: "[visual|interactive|wiki|sheet] [topic]"
 4. **CDP 검수는 명시 요청만**: 콘솔·스크린샷·Lighthouse를 사용자가 요청한 경우에만 chrome-devtools CLI 또는 `scripts/verify.sh`를 쓴다. CLI를 호출하는 순간 자동화 Chrome 프로세스가 따로 뜬다. 탭을 닫아도 프로세스는 남는다. 썼으면 그 작업 끝에 `chrome-devtools stop`으로 프로세스를 내린다.
 5. **공개 링크가 필요할 때만 배포**: 사용자가 지정한 정적 호스팅·배포 도구로 넘긴다. 배포 단계는 파일 배치·버전 백업·실제 URL 검증만 맡고, 디자인·카피·레이아웃 판단은 이 스킬 안에서 끝낸다.
 
-출력 경로는 기본 `${TMPDIR:-/tmp}/<slug>.html`(1회성 열람). 보관·공유를 원하면 프로젝트 폴더에 둔다.
+## 출력 경로
+
+대화 중 만들어 사용자가 확인하거나 공유하는 HTML과 React 아티팩트는 `~/.agents/artifacts/` 바로 아래에 `YYMMDD-하네스-세션ID-이름.html`로 둔다. 이 스킬을 거치지 않고 만드는 파일에도 같은 규칙이 적용된다.
+
+- 하네스: 실제 실행 주체의 이름을 그대로 쓴다. 예: `claude-code`, `claude-desktop`, `cowork`, `codex`, `grok`, `cursor`, `gemini`, `antigravity`, `opencode`, `aside`, `openclaw`, `senpi`, `gjc`, `copilot`. 목록에 없는 하네스도 이름을 생략하지 않는다.
+- 세션 ID: `session-history`가 `show <session-id>`나 prefix로 찾을 수 있는 원본 ID를 쓴다. 다음 세션이 파일 이름만 보고 그 파일을 만든 대화로 돌아간다.
+- 프로젝트에 커밋하는 소스와 배포 산출물은 그 저장소의 정본을 따른다.
 
 ## 철칙 (모든 타입 공통)
 

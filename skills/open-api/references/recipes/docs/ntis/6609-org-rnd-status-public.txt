@@ -1,0 +1,1175 @@
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+국가과학기술지식정보서비스
+R&D데 이 터 개 방 오 픈 API 활 용 가 이 드
+-국 가 R&D 수 행 기 관 R&D현 황 조 회 서 비 스 (전 체 용 )-
+
+2024. 01. 03
+
+- 1 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+목
+
+차
+
+1. 서비스 활용 방법 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+2. 국가R&D 수행기관 R&D현황조회 서비스 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.1 서비스 개요 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.2 상세기능 목록 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·5
+2.3 상세기능 명세 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·6
+
+- 2 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+1. 서비스 활용 방법
+1.1. 홈페이지 가입
+NTIS홈페이지(www.ntis.go.kr)에서 회원으로 가입하면 오픈API 활용신청을 할 수 있다.
+1.2 서비스 활용신청 및 인증키 발급
+NTIS홈페이지에 로그인 후 데이터활용 – OpenAPI 메뉴에서 신청하고자 하는 API의 ‘활용
+신청’버튼을 클릭해서 오픈API 활용신청을 할 수 있다.
+바로가기 URL : http://www.ntis.go.kr/rndopen/api/mng/apiMain.do
+* 이용대상 : 대국민
+※ 신청 시 활용 용도를 웹페이지, 모바일과 같이 대외용으로 사용하는 경우, 아래의
+항목만 사용 가능합니다.
+- 대외용 사용 시, 제공 가능 항목
+항목명
+기관명
+NTIS 수행기관링크
+국문연구키워드
+영문연구키워드
+연구분야
+R&D현황리스트
+연도
+과제건수
+논문건수
+특허건수
+보고서건수
+R&D현황리스트갯수
+- 위 항목을 제외한 정보는 NTIS의 국가R&D수행기관 서비스를 통해서 확인하시길 바
+랍니다.
+* 국가R&D수행기관 서비스 URL
+https://www.ntis.go.kr/orginfo/index.jsp
+※ 국가R&D수행기관 서비스의 상세페이지를 조회하는 이용자는 로그인이 필수
+
+- 3 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2. 국가R&D 수행기관 R&D현황조회 서비스
+2.1. 서비스 개요
+
+서비스
+정보
+
+서비스
+제공자정보
+
+서비스명
+서비스 설명
+
+국가R&D 수행기관 R&D현황조회 서비스
+수행기관 요청 내용에 대한 관련 정보를 제공하여 국가R&D 수행기관 정
+보를 공동 활용할 수 있도록 지원
+
+기관명
+
+한국과학기술정보연구원
+
+서비스
+
+[○] 서비스 Key
+
+[ ] 인증서 (GPKI)
+
+[
+
+[
+
+인증/권한
+서비스
+
+메시지 레벨
+
+보안
+
+암호화
+전송 레벨
+암호화
+
+] Basic (ID/PW)
+
+] 없음
+
+[
+
+]
+
+WS-Security
+[
+
+] 전자서명
+
+[ ] 암호화
+
+[
+
+] SSL
+
+[○] 없음
+
+[○] 없음
+
+[] SOAP 1.2
+인터페이스
+적용 기술
+
+표준
+
+(RPC-Encoded, Document Literal, Document Literal Wrapped)
+[○] REST (GET, POST, PUT, DELETE)
+[
+
+수준
+교환 데이터
+표준
+
+] RSS 1.0
+
+[○] XML
+
+[
+
+] RSS 2.0
+
+[
+
+[ ] JSON
+
+] Atom 1.0
+
+[ ] MIME
+
+[ ] 기타
+
+[ ] MTOM
+
+서비스 URL
+
+운영환경
+
+https://www.ntis.go.kr/rndopen/openApi/orgRndInfo/
+
+서비스 WSDL
+
+운영환경
+
+N/A
+
+서비스 버전
+
+1.0
+
+서비스
+배포 정보
+
+유효일자
+서비스 이력
+
+메시지 교환 유형
+
+2099.12.31
+
+배포일자
+
+2021. 12. 31.
+
+최초 배포(2021.12.31.)
+[○] Request-Response
+
+[
+
+[
+
+[ ] Notification
+
+] Fire-and-Forgot
+
+메시지 로깅 수준
+
+성공
+
+사용 제약 사항(비고)
+
+N/A
+
+[○] status [ ] contents
+
+- 4 -
+
+] Publish-Subscribe
+
+실패
+
+[○] status [ ] contents
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.2. 상세기능 목록
+일련
+번호
+1
+
+서비스명
+
+상세기능명
+
+국가R&D 수행기관
+R&D현황조회
+서비스
+
+기관의 국가R&D
+R&D현황정보 제공
+
+오퍼레이션명
+
+orgRndInfo
+
+- 5 -
+
+서비스 설명
+
+요청한 사업자등록번호에 대한
+수행기관의 R&D현황정보 제공
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.3. 상세기능 명세
+2.3.1. 국가R&D 수행기관 공동 활용
+
+오퍼레이션
+
+오퍼레이션 번호
+
+1
+
+오퍼레이션 설명
+
+요청한 사업자등록번호에 대한 수행기관의 R&D현황정보를
+제공한다.
+
+요청URL
+
+정보
+
+서비스
+오퍼레이션명
+
+https://www.ntis.go.kr/rndopen/openApi/orgRndInfo
+
+최대 메시지 사이즈
+
+[ 300 bytes]
+
+평균 응답 시간
+
+[ 0.37 ms]
+
+HTTP Method
+
+orgRndInfo
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+- 요청한 사업자등록번호에 대한 수행기관의 R&D현황정보를 제공한다.
+요청URL
+(END POINT URL)
+Parameter
+
+https://www.ntis.go.kr/rndopen/openApi/orgRndInfo
+
+Parameter(KOR)
+
+apprvKey
+
+승인키
+
+reqOrgBno
+
+사업자등록번호
+
+reqOrgNm
+
+기관명
+
+Type
+(length)
+
+필수항목
+
+String
+
+Y
+
+(64)
+
+항목설명
+
+승인된 발급키
+R&D현황이 필요한 사업자등록번호
+
+String
+
+N
+
+(12)
+
+xxx-xx-xxxxx 또는 숫자10자리로 입력
+사용 예) reqOrgBno=205-82-04043
+
+String
+
+N
+
+(256)
+
+- 6 -
+
+검색어 기반의 기관명 검색
+사용 예) reqOrgNm=한국과학기술정보연구원
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+② 응답명세
+Parameter
+
+Parameter
+
+항목크기
+
+(KOR)
+
+항목구분
+
+설명
+결과
+
+resultCode
+
+결과코드
+
+2
+
+1
+
+결과값
+00 정상
+01 비정상
+02 비정상
+03 비정상
+04 비정상
+
+설명
+
+결과값
+결과메시지
+00 요청작업이 성공하였습니다
+사업자등록번호 또는 기관명이
+01
+입력되지 않았습니다.
+사업자등록번호 형식이 맞지
+resultMsg
+
+결과메시지
+
+100
+
+1
+
+02
+
+03
+04
+
+않습니다.(숫자 10자리, 또는
+xxx-xx-xxxxx로 입력해야 합니다.)
+요청하신 기관정보가 NTIS에
+없습니다.
+요청하신 사업자등록번호가
+수행한 R&D과제정보가
+없습니다.
+
+orgName
+
+기관명
+
+100
+
+1
+
+사업자등록번호에 해당되는 기관명
+
+orgPageInfo
+
+NTIS 수행기관링크
+
+50
+
+1
+
+기관상세정보를 볼 수 있는 링크
+
+rndKorKeyword
+
+국문연구키워드
+
+50
+
+0..5
+
+기관이 수행한 과제들의 국문 연구키워드 Top5
+
+rndEngKeyword
+
+영문연구키워드
+
+50
+
+0..5
+
+기관이 수행한 과제들의 영문 연구키워드 Top5
+
+rndCategory
+
+연구분야
+
+50
+
+0..3
+
+기관이 수행한 과제들의 연구분야 Top3
+
+rndStatusList
+
+R&D현황리스트
+
+array
+
+0..n
+
+기관이 수행한 과제를 연도별로 표기
+
+year
+
+연도
+
+4
+
+1
+
+과제 기준년도
+
+pjtCnt
+
+과제건수
+
+5
+
+1
+
+기관이 수행한 과제건수
+
+rndBudget
+
+연구비합계
+
+16
+
+1
+
+기관이 수행한 과제의 연구비합계
+
+govBudget
+
+정부투자연구비합계
+
+16
+
+1
+
+기관이 수행한 과제의 정부투자연구비합계
+
+paperCnt
+
+논문건수
+
+5
+
+1
+
+기관이 수행한 과제에서 유발된 논문건수
+
+patentCnt
+
+특허건수
+
+5
+
+1
+
+기관이 수행한 과제에서 유발된 특허건수
+
+reportcnt
+
+보고서건수
+
+5
+
+1
+
+기관이 수행한 과제의 연구보고서건수
+사업자등록번호로 검색 시
+
+numOfList
+
+R&D현황리스트갯수
+
+2
+
+1
+
+특정 기관이 과제를 수행한 R&D현황리스트의 개수
+기관명으로 검색 시
+검색어와 매칭되는 기관의 개수
+
+- 7 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+③ 요청/ 응답 메시지 예시
+REST(URI)
+https://www.ntis.go.kr/rndopen/openApi/orgRndInfo?apprvKey={{NTIS_API_KEY}}&reqOrgBno=205-82-04043&reqOrgN
+m=한국과학기술정보연구원
+https://www.ntis.go.kr/rndopen/openApi/orgRndInfo?apprvKey={{NTIS_API_KEY}}&reqOrgBno=205-82-04043
+
+응답메시지 (resultCode가 00인 경우에만 body가 포함된다.)
+<?xml version=“1.0” encoding=“UTF-8”?>
+<response>
+<header>
+<resultCode>00</resultCode>
+<resultMsg>요청작업이 성공하였습니다.</resultMsg>
+</header>
+<body>
+<orgName>한국과학기술정보연구원</orgName>
+<orgPageInfo>https://www.ntis.go.kr/orgInfo/profile/profileMain.do?orgCd=0014235</orgPageInfo>
+<rndKorKeword>인공지능</rndKorKeword>
+<rndKorKeword>슈퍼컴퓨팅</rndKorKeword>
+<rndKorKeword>빅데이터</rndKorKeword>
+<rndKorKeword>슈퍼컴퓨터</rndKorKeword>
+<rndKorKeword>기술사업화</rndKorKeword>
+<rndEngKeword>ARTIFICIAL INTELLIGENCE</rndEngKeword>
+<rndEngKeword>INFORMATION SERVICE</rndEngKeword>
+<rndEngKeword>SUPERCOMPUTER</rndEngKeword>
+<rndEngKeword>SME</rndEngKeword>
+<rndEngKeword>INFORMATION SECURITY</rndEngKeword>
+<rndCategory>정보/통신 > 기타정보/통신</rndCategory>
+<rndCategory>정보/통신 > 기타정보/통신</rndCategory>
+<rndCategory>정보/통신 > 소프트웨어</rndCategory>
+<rndStatusList>
+<year>2010</year>
+<pjtCnt>46</pjtCnt>
+<rndBudget>103086477000</rndBudget>
+<govBudget>102321997000</govBudget>
+<paperCnt>313</paperCnt>
+<patentCnt>71</patentCnt>
+<reportCnt>30</reportCnt>
+</rndStatusList>
+<rndStatusList>
+<year>2011</year>
+<pjtCnt>44</pjtCnt>
+...
+</rndStatusList>
+<rndStatusList>
+<year>2021</year>
+<pjtCnt>29</pjtCnt>
+<rndBudget>38688741000</rndBudget>
+<govBudget>38089692000</govBudget>
+<paperCnt>2</paperCnt>
+<patentCnt>0</patentCnt>
+<reportCnt>0</reportCnt>
+</rndStatusList>
+<numOfList>12</numOfList>
+</body>
+</response>
+
+- 8 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+https://www.ntis.go.kr/rndopen/openApi/orgRndInfo?apprvKey={{NTIS_API_KEY}}&reqOrgNm=한국과학기술
+
+응답메시지 (resultCode가 00인 경우에만 body가 포함된다.)
+<?xml version=“1.0” encoding=“UTF-8”?>
+<response xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<header>
+<resultCode>00</resultCode>
+<resultMsg>요청작업이 성공하였습니다.</resultMsg>
+</header>
+<body>
+<orgName>(사)한국과학기술융합협회</orgName>
+<orgName>한국과학기술원부설 고등과학원</orgName>
+<orgName>한국과학기술원</orgName>
+<orgName>한국과학기술원부설 나노종합기술원</orgName>
+<orgName>한국과학기술지주(주)</orgName>
+<orgName>(사)한국과학기술단체총연합회</orgName>
+<orgName>한국과학기술기획평가원부설 국가과학기술인력개발원</orgName>
+<orgName>한국과학기술연구원부설 녹색기술센터</orgName>
+<orgName>한국과학기술연구원</orgName>
+<orgName>한국과학기술연구원</orgName>
+<orgName>한국과학기술기획평가원</orgName>
+<orgName>한국과학기술정보연구원</orgName>
+<orgName>한국과학기술원부설한국과학영재학교</orgName>
+<orgName>(사)한국과학기술한림원</orgName>
+<orgName>한국과학기술정책플랫폼협동조합</orgName>
+<numOfList>15</numOfList>
+</body>
+</response>
+
+- 9 -
+
+

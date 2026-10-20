@@ -1,6 +1,6 @@
 ---
 name: goal-plan
-description: "Creates and maintains a lightweight /goal plan with GOAL.md instructions, AGENTS.md harness rules, and progress.tsv state. Use for resumable long-running work or explicit goal setup. Do not use for short one-shot tasks without persistent state."
+description: "Creates and maintains a lightweight /goal plan with GOAL.md instructions, AGENTS.md harness rules, and progress.tsv state. Use for resumable long-running work or explicit goal setup. Do not use for short one-shot tasks without persistent state, or for goal mode inside a gjc session (gjc's built-in ultragoal)."
 ---
 
 # Goal Plan

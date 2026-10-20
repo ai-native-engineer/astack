@@ -23,7 +23,7 @@
 
 마지막 보고는 전체 작업 목록이 아니라 대조할 근거 중 하나다. 앞선 미완료 항목이 마지막 보고에서 빠졌다는 이유만으로 완료가 되지는 않는다.
 
-1. 실제 사용자 요청과 이후 범위 변경, 중간 미완료 목록, 마지막 보고를 읽어 작업 후보를 합친다.
+1. 실제 사용자 요청과 이후 범위 변경, 중간 미완료 목록, 마지막 보고를 읽어 작업 후보를 합친다. 복원 경고나 입력 기록 출처가 있으면 그 이후 요청까지 대조한다. 전사 누락을 대화 종료로 해석하지 않는다.
 2. 연결된 이슈의 최신 본문과 댓글, PR 상태와 검증 근거를 조회해 후보별 상태를 대조한다. 관련 없는 이슈나 PR은 복원 범위에 넣지 않는다.
 3. 항목마다 `완료 / 미완료 / 보류 / 사용자 담당 / 제외`를 나누고 판단 근거를 붙인다. 승인이나 직접 확인이 남았으면 사용자 담당으로, 사용자가 범위에서 뺐으면 제외로 적는다. 제외는 완료 실적에 넣지 않는다.
 4. 원격 머지, 배포, 실제 사용하는 live checkout/config 반영을 각각 확인한다. PR의 `MERGED`만으로 배포나 live 반영까지 완료라고 쓰지 않는다.
@@ -64,12 +64,15 @@
 
 ## Codex
 
-- `~/.codex/history.jsonl`: prompt preview
+- `~/.codex/history.jsonl`: 사용자 입력 기록. 전사에 없는 입력을 출처와 함께 보충하지만 응답, 실행 결과, 첨부 이미지 본문은 복원하지 못한다.
 - `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`: 메타, 대화, tool record, patch event, token event
 - `~/.codex/archived_sessions/rollout-*.jsonl`: 보관된 세션. 포맷이 같아 함께 인덱싱한다.
-- 변경 파일은 `apply_patch`, `patch_apply_begin`, mutation 형태의 `shell` 호출에서 추출한다.
+- 같은 논리 세션의 분할 rollout은 `history_base`를 따라 읽고 이전 segment의 cutoff 이후 기록은 제외한다. 파일 크기와 byte offset이 어긋나면 ordinal 경계로 읽되 불완전 경고를 표시한다. 이전 파일이 없거나 연결이 순환하면 읽을 수 있는 부분만 반환한다.
+- 입력 기록은 본문과 제출/전달 시각을 함께 대조한다. 대응이 불확실하면 입력을 보존하고 출처를 표시한다. cutoff 밖에 실제로 남은 입력은 제외 건수로 알리고 현재 분기에 다시 넣지 않는다.
+- 대화는 기존 `event_msg`와 `response_item.message`, `item_completed`를 읽고 동일 메시지의 이벤트 사본을 묶는다. 주입된 지침은 사용자 요청에서 제외한다. `--full`은 function/custom 도구 호출과 리스트형 결과도 읽는다.
+- 변경 파일은 연결된 전사의 `apply_patch`, `patch_apply_begin`, mutation 형태의 `shell` 호출에서 추출한다. 사용자 입력 복원은 변경 파일 복원이 아니다.
 - 세션 이름과 `model_provider`는 `~/.codex/state_5.sqlite`에서 읽어 목록·검색에 보충한다. SQLite가 없거나 읽을 수 없으면 rollout 메타와 첫 사용자 메시지로 계속 표시한다.
-- provider가 현재 Codex와 다르면 Codex 자체 `resume` 목록에서 숨을 수 있다. 확인한 provider/profile로 재개하고 rollout이나 SQLite를 직접 수정하지 않는다.
+- provider가 현재 Codex와 다르면 Codex 자체 `resume` 목록에서 숨을 수 있다. 확인한 provider/profile로 재개하고 rollout이나 SQLite를 직접 수정하지 않는다. 이 도구의 읽기 복원은 `codex resume`의 상태 복구가 아니다.
 - 다른 앱이 codex를 감싸도 rollout은 `~/.codex/sessions`로 모인다. orca(`codex-runtime-home`)는 hardlink, AionUi는 `cwd=~/.aionui/...`로 나타나 이미 커버된다.
 
 ## Grok

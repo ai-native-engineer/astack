@@ -577,7 +577,11 @@ def cmd_grep(args):
         except OSError:
             continue
         if hits:
-            results.append(grep_result(sid, info, fpath, hits))
+            result = grep_result(sid, info, fpath, hits)
+            status = getattr(adapter, "conversation_status", lambda _: {})(sid)
+            if status.get("warnings"):
+                result["warnings"] = status["warnings"]
+            results.append(result)
     if args.sort == "relevance":
         # 흔한 키워드 하나는 그 말이 든 파일을 여러 번 읽은 세션에서 도구 출력 hit로 쌓인다.
         # 주제를 실제로 다룬 세션은 동의어를 여러 종류 맞히고 대화에서 말한다
@@ -627,9 +631,16 @@ def cmd_grep(args):
             count += " (" + ", ".join(f"{t} {n}" for t, n in r["terms"].items()) + ")"
         lines.append(f"\n{tool_tag} {r['sid'][:hit_width]}  {proj}  {start}  {count}")
         lines.append(f"  파일: {r['fpath']}")
+        for warning in r.get("warnings", []):
+            lines.append(f"  주의: {warning}")
         for hit in r["hits"][:3]:
             role_icon = {"user": "👤", "assistant": "🤖"}.get(hit["role"], "🔧")
-            lines.append(f"  {role_icon} {local_time(hit['ts'])}  {hit['excerpt']}")
+            source_label = (
+                " [입력 기록만 복원]" if hit.get("source") == "history" else ""
+            )
+            lines.append(
+                f"  {role_icon} {local_time(hit['ts'])}{source_label}  {hit['excerpt']}"
+            )
         if len(r["hits"]) > 3:
             lines.append(f"  ... 외 {len(r['hits']) - 3}건 더")
 
@@ -734,6 +745,8 @@ def format_conversation(
         time_str = local_time(msg.get("ts"), "%m-%d %H:%M:%S")
         phase = msg.get("phase", "")
         phase_str = f" ({phase})" if phase else ""
+        if msg.get("source") == "history":
+            phase_str += " (입력 기록만 복원, 응답/실행 미확인)"
         model = msg.get("model", "")
         model_str = f" [{model}]" if model else ""
         match_str = "  일치" if is_match else ""
@@ -835,6 +848,10 @@ def cmd_show(args):
 
     if getattr(args, "files", False):
         changes, bash_hints = adapter.extract_changed_files(session_id)
+        if hasattr(adapter, "conversation_status"):
+            # 입력만 남은 구간에는 변경 파일도 없다고 단정할 수 없다.
+            adapter.read_conversation(session_id)
+        _print_conversation_warnings(adapter, session_id)
         fpath = adapter.find_session_file(session_id)
         if changes is None:
             print(f"세션 파일을 찾을 수 없습니다: {session_id}")
@@ -858,6 +875,7 @@ def cmd_show(args):
         return
 
     messages, fpath = adapter.read_conversation(session_id, full)
+    _print_conversation_warnings(adapter, session_id)
     if messages is None:
         print(f"세션 파일을 찾을 수 없습니다: {session_id}")
         sys.exit(1)
@@ -924,6 +942,24 @@ def cmd_show(args):
 _REDACT_SUFFIXES = (".jsonl", ".json", ".txt", ".md", ".log")
 
 
+def _print_conversation_warnings(adapter, session_id):
+    status = getattr(adapter, "conversation_status", lambda _: {})(session_id)
+    for warning in status.get("warnings", []):
+        print(f"주의: {redact_sensitive_text(warning)}", file=sys.stderr)
+
+
+def _is_paginated_rollout(path):
+    try:
+        with path.open(encoding="utf-8") as stream:
+            first = json.loads(stream.readline())
+        meta = first.get("payload") or {}
+        return first.get("type") == "session_meta" and (
+            meta.get("history_mode") == "paginated" or bool(meta.get("history_base"))
+        )
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
 def iter_redact_targets(roots):
     for root in roots:
         if root.is_file():
@@ -975,6 +1011,16 @@ def cmd_redact(args):
             print(f"  ... 외 {len(changed) - 20}개")
         print("\n실제로 지우려면 --apply를 붙인다. 붙이면 먼저 백업한다")
         return
+
+    protected = [path for path, _ in changed if _is_paginated_rollout(path)]
+    if protected:
+        print(
+            "Codex paginated rollout은 byte offset으로 연결됩니다. 원본 치환을 중단합니다. 조회 마스킹을 사용하세요.",
+            file=sys.stderr,
+        )
+        for path in protected:
+            print(f"  {path}", file=sys.stderr)
+        raise SystemExit(1)
 
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     backup = Path(

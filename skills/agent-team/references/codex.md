@@ -1,23 +1,18 @@
 # Codex
 
-Codex가 coordinator일 때 적용한다. 다른 coordinator가 Codex를 worker harness로 쓸 때는 아래 모델 절만 참조한다.
+공통 계약은 루트 SKILL.md를 따른다. Codex가 coordinator이거나 Herdr worker일 때만 읽는다.
 
-## 모델과 팀
+## 네이티브 팀
 
-- 현재 coordinator의 모델을 유지한다. 특정 모델이 아니라 작업의 품질·비용·지연 요구로 역할을 고른다.
-- `gpt-6-astra`는 복잡한 통합, 높은 위험, 깊은 검토에 쓴다.
-- `gpt-6.1-sol`은 일반적인 코딩, 조사, 판단이 필요한 worker에 쓴다. Astra에 가까운 성능을 Astra 단가의 5분의 1로 내므로 worker 기본값이다.
-- `gpt-6-luna`는 범위가 좁고 반복적이며 비용·지연에 민감한 worker에 쓴다.
-- 모델을 지정할 때는 Codex가 해석하는 실제 모델 ID를 `-m`에 전달한다. `gpt-6-astra`, `gpt-6.1-sol`, `gpt-6-luna`를 사용한다.
-- coordinator가 Astra가 아니라는 이유만으로 세션을 재시작하지 않는다.
-- 네이티브 subagent thread를 사용한다.
+- 현재 세션에 노출된 subagent 생성, 메시지, 대기 도구와 스키마를 사용한다. CLI 버전이나 모델 이름만 보고 팀 도구가 있다고 가정하지 않는다.
+- coordinator 모델을 유지한다. worker 모델을 지정할 수 있으면 현재 도구가 허용하는 실제 ID를 사용하고, 허용되지 않으면 상속된 모델을 기록한다.
+- 컨텍스트를 상속하지 않는 worker에는 목표, 파일, 근거, 금지 작업을 빠짐없이 전달한다. 컨텍스트 상속 여부와 모델 변경 조건은 현재 생성 도구의 제약을 따른다.
+- 기본 작업 경로는 lead의 작업용 worktree다. worker에게 자동 worktree 생성이나 Git 변경을 맡기지 않는다.
+- 수정과 추가 확인은 기존 worker 식별자로 보낸다. 반환된 thread/session ID와 결과 경로를 실행 기록에 남긴다.
+- 도구에 종료 기능이 없으면 종료됐다고 보고하지 않는다. 실행 중인 작업이 끝났는지 확인하고 세션 상태를 기록한다.
 
-## 실행
+## Herdr worker
 
-1. 서로 겹치지 않는 범위로 subagent 2~3명을 만든다.
-2. 루트 스킬의 공통 계약으로 각 subagent에게 위임한다.
-3. 같은 작업의 수정과 추가 확인은 기존 subagent에게 보낸다.
-4. 통합이 끝날 때까지 subagent thread를 유지한다.
-5. 충돌하거나 근거가 약한 결과는 담당 subagent에게 되돌린다.
-6. 통합 후 subagent를 종료한다.
-7. 사용한 worker 모델, subagent 수, 검증 결과를 짧게 보고한다.
+- `herdr agent start`의 대상 kind는 `codex`다.
+- `codex --help`에서 현재 모델과 작업 경로 인자를 확인하고, 허용된 인자만 Herdr의 `--` 뒤에 전달한다.
+- `codex exec`를 관찰 가능한 Herdr pane의 대체 경로로 사용하지 않는다.

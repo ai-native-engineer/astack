@@ -1,0 +1,1023 @@
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+국가과학기술지식정보서비스
+R&D데 이 터 개 방 오 픈 API 활 용 가 이 드
+
+- 위 탁 /공 동 연 구 과 제 정 보 제 공 API(기 관 용 ) -
+
+2023. 11. 10
+
+- 1 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+목
+
+차
+
+1. 서비스 활용 방법 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·3
+2. 위탁/공동연구 과제 정보 제공 서비스(기관용) ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.1 서비스 개요 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·4
+2.2 상세기능 명세 ·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·
+·6
+
+- 2 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+1. 서비스 활용 방법
+1.1. 홈페이지 가입
+NTIS홈페이지(www.ntis.go.kr)에서 회원으로 가입하면 오픈API 활용신청을 할 수 있다.
+1.2 서비스 활용신청 및 인증키 발급
+NTIS홈페이지에 로그인 후 데이터활용 – OpenAPI 메뉴에서 신청하고자 하는 API의 ‘활용
+신청’버튼을 클릭해서 오픈API 활용신청을 할 수 있다.
+바로가기 URL : http://www.ntis.go.kr/rndopen/api/mng/apiMain.do
+* 이용대상 : 전문기관, 연구성과전담기관, 과제관리기관, 정부출연(연), 대학연구자
+
+- 3 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2. 위탁/공동연구 과제 정보 제공 서비스
+2.1. 서비스 개요
+
+서비스
+정보
+
+서비스
+제공자정보
+
+서비스명
+서비스 설명
+
+위탁/공동연구 과제 정보 제공 API(기관용)
+위탁/공동연구 과제 메타정보를 검색할 수 있는 서비스
+
+기관명
+
+한국과학기술정보연구원
+
+서비스
+
+[○] 서비스 Key [ ] 인증서 (GPKI)
+
+인증/권한
+서비스
+
+메시지 레벨
+
+보안
+
+암호화
+전송 레벨
+암호화
+
+[ ] Basic (ID/PW) [ ] 없음
+
+[]
+WS-Security
+
+[ ] 전자서명 [ ] 암호화 [○] 없음
+
+[ ] SSL [○] 없음
+
+[] SOAP 1.2
+인터페이스
+적용 기술
+
+표준
+
+교환 데이터
+표준
+서비스 URL
+
+운영환경
+
+서비스 WSDL
+
+운영환경
+서비스 버전
+
+배포 정보
+
+[○] REST (GET, POST, PUT, DELETE)
+[ ] RSS 1.0 [ ] RSS 2.0 [ ] Atom 1.0 [ ] 기타
+
+수준
+
+서비스
+
+(RPC-Encoded, Document Literal, Document Literal Wrapped)
+
+[○] XML [ ] JSON [ ] MIME [ ] MTOM
+
+https://www.ntis.go.kr/rndopen/openApi/projectuOrg/
+
+1.0
+
+유효일자
+
+2099.12.31
+
+서비스 이력
+
+최초 배포
+
+메시지 교환 유형
+
+배포일자
+
+2024.01
+
+[○] Request-Response [ ] Publish-Subscribe
+[ ] Fire-and-Forgot [ ] Notification
+
+메시지 로깅 수준
+
+성공
+
+사용 제약 사항(비고)
+
+N/A
+
+[○]status [ ] contents
+
+- 4 -
+
+실패
+
+[○] status [ ] contents
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+2.2. 상세기능 명세
+2.2.1. 위탁/공동 연구 과제 서비스
+오퍼레이션 번호
+
+1
+
+오퍼레이션 설명
+
+위탁/공동 연구 과제 메타정보를 제공한다.
+
+오퍼레이션
+
+요청URL
+
+정보
+
+오퍼레이션명
+
+https://www.ntis.go.kr/rndopen/openApi/projectuOrg
+
+최대 메시지 사이즈
+
+[ 300 bytes]
+
+평균 응답 시간
+
+[ 0.37 ms]
+
+HTTP Method
+
+위탁/공동 연구 과제
+
+초당 최대 트랜잭션
+
+[ 30 tps]
+
+[○] REST (GET, POST, PUT, DELETE)
+
+① 요청명세
+
+요청URL
+(END POINT URL)
+
+https://www.ntis.go.kr/rndopen/openApi/projectuOrg
+
+Parameter
+
+Parameter(KOR)
+
+apprvKey
+
+인증키
+
+pjtId
+
+주관/협동고유번
+호
+
+Type
+
+필수항목
+
+String
+
+Y
+
+String
+
+Y
+
+항목설명
+
+승인된 인증키
+검색할 위탁/공동 연구 과제 데이터의 주
+관과제고유번호 또는 위탁과제번호를 입
+력
+
+- 5 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+② 응답명세
+
+Field
+
+Attributes
+
+RESULT
+
+설명
+
+결과문서의 최상위 필드
+
+QUERYTRANSFORMS
+ORIGINALQUERY
+COUNTLIST
+
+사용자 원래 질의어
+NAME : 오퍼레이션명
+
+검색 오퍼레이션
+
+NAVIGATION
+Description
+
+과제수행기관명+코드
+전문기관명+코드
+연구책임자명
+기준년도
+사업명+코드
+국가과학기술표준분류(연구분야) +코드
+
+6T분류명+코드
+위탁과제존재유무
+부처명
+연구수행주체
+연구개발단계
+참여연구원수
+국가전략기술+코드
+최종과제여부
+국가과학기술표준분류(1번) 대
+국가과학기술표준분류(2번) 중
+국가과학기술표준분류(3번) 소
+중점과학기술분류-대
+중점과학기술분류-중
+중점과학기술분류-소
+국가과학기술표준분류(대,대,대)
+국가과학기술표준분류(중,중,중)
+국가과학기술표준분류(소,소,소)
+과제별 연구비 총액 구간
+과학기술표준분류(대, 매핑)
+6T관련기술 대+코드
+6T관련기술 증+코드
+6T관련기술 소+코드
+지역분류
+
+NAVIGATIONENTRY
+
+NAVIGATIONELEMENTS
+
+NAVIGATIONELEMENT
+
+COUNT : 하위요소개수
+NAME : 네비게이터이름
+COUNT : 개수
+
+- 6 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+Field
+
+Attributes
+
+TOTALHITS
+
+설명
+
+검색건수(전체)
+1base index, 현재 결과로 넘겨준
+
+STARTPOSITION
+
+문서의 시작위치
+
+HITS
+
+검색건수(가져온 건수)
+
+SEARCHTIME
+
+검색시간
+
+RESULTSET
+NO="1" //순서번호
+NO : 검색결과문서 순서
+HIT
+
+SITENAME : 오퍼레이션구분
+SITEID : 오퍼레이션ID
+
+"1-1" //"1"번의 하위 과제
+"1"번
+SITENAME="project" // 과제
+"subproject" // 하위과제
+SITEID="1" //ID
+
+ProjectNumber
+
+주관/협동 고유번호 or 위탁/공동 고유번호
+
+CommissionNumber
+
+위탁 과제번호
+
+ProjectYear
+
+기준년도
+
+ProjectTitle
+
+과제명
+
+Korean
+
+한글 과제명
+
+English
+
+영문 과제명
+
+Manager
+
+과제 책임자
+
+Name
+
+과제 책임자명
+
+CommissionManager
+
+위탁연구 책임자명
+
+OrderAgency
+
+위탁 과제 책임자명
+
+LeadAgency
+
+과제관리(전문)기관명
+
+CommissionLeadAgency
+
+위탁수행기관명
+
+CommissionType
+
+위탁/공동연구 구분
+
+PerformAgent
+
+code : 연구수행주체 코드
+
+연구수행 주체명
+
+Country
+
+code : 연구수행 국가코드
+
+연구수행 국가명
+
+ProjectPeriod
+
+참여기간
+
+Start
+
+참여기간 시작일
+
+End
+
+참여기간 종료일
+
+Total
+
+참여기간 시작일 ~ 참여기간 종료일
+
+CorporateRegistrationNumber
+
+수행기관명
+
+ResearcherCount
+
+참여자수
+
+ProjectOrderAgency
+
+과제수행기관명
+
+ProjectResearchManagerName
+
+과제 연구책임자명
+
+CollaborativeResearchFunds
+
+공동연구비
+
+- 7 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+ConsignmentCollaborativeProjectNumber
+
+위탁/공동 과제번호
+
+ConsignmentCollaborativeResearchType
+
+위탁/공동연구 구분명
+
+ConsignmentProjectTitle
+
+위탁과제명(*공동연구는명칭없음)
+
+OrderAgencyBusinessNumber
+
+사업자번호
+
+ConsignmentCollaborativeOrderAgency
+
+위탁/공동연구 수행기관명
+
+ConsignmentResearchManagerName
+
+위탁 연구책임자명(*공동연구는 없음)
+
+ParticipateCountryCode
+
+참여국가코드
+
+ParticipateCountry
+
+참여국가명
+
+ParticipateTypeCode
+
+참여형태코드
+
+ParticipateType
+
+참여형태명
+
+ParticipateResearcherNumber
+
+참여연구 인원수
+
+ConsignmentProjectStartDate
+
+위탁과제 시작일
+
+ConsignmentProjectEndDate
+
+위탁과제 종료일
+
+ConsignmentProjectResearchFunds
+
+위탁과제 연구비
+
+CollaborativeResearchFundExpense
+
+공동연구비 지출
+
+CollaborativeResearchFundIncome
+
+공동연구비 수입
+
+- 8 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+③ 요청/ 응답 메시지 예시
+REST(URI)
+
+https://www.ntis.go.kr/rndopen/openApi/projectuOrg?apprvKey={{NTIS_API_KEY}}&pjtId=1425072712
+
+응답메시지
+This XML file does not appear to have any style information associated with it. The document tree is shown below.
+<RESULT
+
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+
+xsi:noNamespaceSchemaLocation="https://www.ntis.go.kr/searchapi/schema/title.1.0.xsd">
+<QUERYTRANSFORMS>
+<ORIGINALQUERY/>
+</QUERYTRANSFORMS>
+<COUNTLIST>
+<COLCOUNT NAME="projectU">1</COLCOUNT>
+</COUNTLIST>
+<NAVIGATION>
+<NAVIGATIONENTRY NAME="researchorg">
+<NAVIGATIONELEMENTS COUNT="1">
+<NAVIGATIONELEMENT NAME="한국전자기술연구원" COUNT="1"/>
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="performagent">
+<NAVIGATIONELEMENTS COUNT="1">
+<NAVIGATIONELEMENT NAME="기타" COUNT="1"/>
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="managername">
+<NAVIGATIONELEMENTS COUNT="0"/>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="projectyear">
+<NAVIGATIONELEMENTS COUNT="1">
+<NAVIGATIONELEMENT NAME="2020" COUNT="1"/>
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="participationtype">
+<NAVIGATIONELEMENTS COUNT="1">
+<NAVIGATIONELEMENT NAME="㈜셀코스" COUNT="1"/>
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+<NAVIGATIONENTRY NAME="projecttype">
+<NAVIGATIONELEMENTS COUNT="1">
+<NAVIGATIONELEMENT NAME="공동연구(국내)▦20" COUNT="1"/>
+
+- 9 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+</NAVIGATIONELEMENTS>
+</NAVIGATIONENTRY>
+</NAVIGATION>
+<TOTALHITS>1</TOTALHITS>
+<SECRETPROJECTHITS/>
+<PROJECTRHITS/>
+<PROJECTCHITS/>
+<PROJECTCRHITS/>
+<STARTPOSITION>1</STARTPOSITION>
+<HITS>1</HITS>
+<SEARCHTIME>0.002</SEARCHTIME>
+<RESULTSET>
+<HIT NO="1">
+<ProjectNumber>9991006361</ProjectNumber>
+<CommissionNumber>SIMSCO-0000743374</CommissionNumber>
+<ProjectYear>2020</ProjectYear>
+<ProjectTitle>
+<Korean>표면평탄화 나노분산코팅제 기술을 이용한 도금대체용 친환경 금속코팅 공정장비 기술개발</Korean>
+<English>Development of eco-friendly metallic coating equipment that can replace plating by using nanodisperse
+surface leveling technology</English>
+<Commission>표면평탄화 나노분산코팅제 기술을 이용한 도금대체용 친환경 금속코팅 공정장비 기술개발</Commission>
+</ProjectTitle>
+<Manager>
+<Name>이상문</Name>
+</Manager>
+<CommissionManager>
+<Name/>
+</CommissionManager>
+<OrderAgency>(재)나노융합2020사업단</OrderAgency>
+<LeadAgency>㈜셀코스</LeadAgency>
+<CommissionLeadAgency>한국전자기술연구원</CommissionLeadAgency>
+<CommissionType>공동연구(국내)</CommissionType>
+<PerformAgent code="99">기타</PerformAgent>
+<Country code="KR">대한민국</Country>
+<ProjectPeriod>
+<Start/>
+<End/>
+<Total>N</Total>
+</ProjectPeriod>
+<CorporateRegistrationNumber>*******23*</CorporateRegistrationNumber>
+<ResearcherCount>4</ResearcherCount>
+<ProjectOrderAgency>㈜셀코스</ProjectOrderAgency>
+<ProjectResearchManagerName>이상문</ProjectResearchManagerName>
+<CollaborativeResearchFunds>0</CollaborativeResearchFunds>
+<ConsignmentCollaborativeProjectNumber>SIMSCO-0000743374</ConsignmentCollaborativeProjectNumber>
+
+- 10 -
+
+국가과학기술지식정보서비스 (National Science & Technology Information Service)
+
+<ConsignmentCollaborativeResearchType>공동연구(국내)</ConsignmentCollaborativeResearchType>
+<ConsignmentProjectTitle>표면평탄화 나노분산코팅제 기술을 이용한 도금대체용 친환경 금속코팅 공정장비 기술개발
+</ConsignmentProjectTitle>
+<OrderAgencyBusinessNumber>*******23*</OrderAgencyBusinessNumber>
+<ConsignmentCollaborativeOrderAgency>㈜셀코스</ConsignmentCollaborativeOrderAgency>
+<ConsignmentResearchManagerName/>
+<ParticipateCountryCode>KR</ParticipateCountryCode>
+<ParticipateCountry>대한민국</ParticipateCountry>
+<ParticipateTypeCode>10</ParticipateTypeCode>
+<ParticipateType>연구 기술개발</ParticipateType>
+<ParticipateResearcherNumber>4</ParticipateResearcherNumber>
+<ConsignmentProjectStartDate/>
+<ConsignmentProjectEndDate/>
+<ConsignmentProjectResearchFunds>0</ConsignmentProjectResearchFunds>
+<CollaborativeResearchFundExpense>150000000</CollaborativeResearchFundExpense>
+<CollaborativeResearchFundIncome>0</CollaborativeResearchFundIncome>
+</HIT>
+</RESULTSET>
+</RESULT>
+
+- 11 -
+
+
