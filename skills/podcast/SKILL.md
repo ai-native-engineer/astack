@@ -1,7 +1,7 @@
 ---
 argument-hint: "[draft|render|publish] [기간/주제]"
 name: podcast
-description: "Podcast episode drafting, voice rendering, and explicit publishing from a script or news recap to TTS audio, formatted show notes, GitHub Releases, RSS, Spotify, and Apple Podcasts. Use when user asks 팟캐스트 만들어, 에피소드 제작, 뉴스 팟캐스트, 대본, 쇼노트, RSS feed, Spotify/Apple publish, or podcast automation. Do NOT use for TTS-only generation, news recap text only, YouTube production, or generic audio editing."
+description: "Use for: Draft podcast scripts/show notes, render TTS episodes from scripts/news recaps, and explicitly publish through GitHub Releases, RSS, Spotify, and Apple Podcasts. Not for TTS alone, text-only recaps, YouTube production, or generic audio edits."
 ---
 
 # Podcast

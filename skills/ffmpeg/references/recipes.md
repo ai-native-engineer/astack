@@ -6,7 +6,7 @@
 ## 목차
 
 - 자르기
-- 합치기 (이어붙이기)
+- 합치기 (이어붙이기), 이미지를 시간표대로 이어 영상 만들기
 - 압축 (용량 줄이기) — 재인코딩
 - 포맷·컨테이너 변환
 - 오디오 추출 / 변환
@@ -14,6 +14,7 @@
 - 회전
 - GIF — 재인코딩 (팔레트 2-pass로 화질 확보)
 - 자막
+- 겹치기 (overlay)와 출력 길이
 - 프레임 / 썸네일 추출
 - 속도 변경 (배속) — 재인코딩
 - 볼륨 / 오디오 정규화
@@ -48,6 +49,27 @@ ffmpeg -y -i a.mp4 -i b.mp4 -filter_complex "[0:v][0:a][1:v][1:a]concat=n=2:v=1:
 ```
 
 **함정**: copy 합치기는 코덱·해상도·fps·픽셀포맷이 **전부 같아야** 깨지지 않는다. 하나라도 다르면 concat 필터(재인코딩). `-safe 0`은 절대경로/특수문자 파일명일 때 필요.
+
+### 이미지를 시간표대로 이어 영상 만들기
+
+```bash
+# 파일마다 30fps 시계와 프레임 단위 길이(n/30초, 소수 6자리). 마지막 파일은 한 번 더 적는다
+cat > list.txt <<'EOF'
+file 'a.png'
+option framerate 30
+duration 1.733333
+file 'b.png'
+option framerate 30
+duration 2.000000
+file 'b.png'
+option framerate 30
+EOF
+ffmpeg -y -f concat -safe 0 -i list.txt -vf "fps=30,format=yuv420p" -frames:v 112 -c:v libx264 out.mp4
+```
+
+**함정**
+- image2는 `framerate`가 없으면 이미지를 25fps 시계로 읽는다. `duration`이 1/25초 격자로 반올림되고 뒤의 `fps=30`이 가장 가까운 프레임을 골라, 전환이 원하는 프레임보다 한 프레임 앞서거나 늦는다. 전환 프레임(예: `ceil(시각*30)`)을 먼저 정하고 그 차이를 `duration`으로 적는다. 소수 6자리로 적은 프레임 길이는 30fps 시계에서 그 프레임에 정확히 떨어진다.
+- 마지막 파일을 한 번 더 적지 않으면 마지막 `duration`이 지켜지지 않는다. 한 번 더 적으면 끝에 프레임이 더 붙으므로 출력 길이를 `-frames:v`로 고정한다.
 
 ## 압축 (용량 줄이기) — 재인코딩
 
@@ -122,6 +144,19 @@ ffmpeg -y -i in.mp4 -vf "subtitles=sub.srt" -c:a copy out.mp4
 **함정**: mp4의 자막 코덱은 `mov_text`. mkv는 `srt`/`ass` 그대로 copy. 하드섭은 폰트·스타일을 ass로 제어. Homebrew ffmpeg에 libass/freetype가 없으면 `subtitles`/`ass`/`drawtext` 필터가 없다. `ffmpeg -hide_banner -filters`로 확인하고 없으면 Pillow RGBA를 만든 뒤 `overlay`만 쓴다.
 
 `amix` 기본 `duration=first`는 첫 입력 길이에 맞춰 나머지를 자른다. TTS처럼 짧은 클립과 긴 영상을 섞을 때는 `duration=longest`와 짧은 쪽 `apad`를 쓴다.
+
+## 겹치기 (overlay)와 출력 길이
+
+```bash
+# 30fps 바탕에 로고를 2초부터 5초까지만: 바탕과 같은 fps로 보이는 3초만 읽고(-t), 2초에 놓고(-itsoffset), 끝나면 지운다(eof_action=pass)
+ffmpeg -y -i base.mp4 -loop 1 -framerate 30 -t 3 -itsoffset 2 -i logo.png \
+  -filter_complex "[0:v][1:v]overlay=40:40:eof_action=pass" -c:a copy out.mp4
+```
+
+**함정**
+- overlay 둘째 입력의 기본값 `eof_action=repeat`는 그 입력이 끝난 뒤에도 마지막 프레임을 계속 겹친다. 둘째 입력이 바탕보다 길면 출력이 그 길이까지 늘어나고, 짧으면 끝난 뒤에도 화면에 남는다. 보이는 구간에서만 겹치려면 `eof_action=pass`를 준다.
+- `-loop 1` 정지 이미지를 영상 전체 길이만큼 읽고 `enable`로 숨기면 안 보이는 프레임까지 모두 합성해 느려진다. 입력 쪽 `-t`와 `-itsoffset`으로 보이는 구간만 읽게 한다.
+- 출력 `-t`는 바탕(첫) 입력의 시간 단위로 끊긴다. 길이가 프레임 사이에 걸리면 PNG 바탕(1/30)은 가장 가까운 프레임으로 반올림하고 mp4 바탕은 걸친 프레임을 남겨, 같은 `-t`에서 프레임 수가 하나 달라진다. 프레임 수가 중요하면 `-frames:v N`으로 고정한다.
 
 ## 프레임 / 썸네일 추출
 

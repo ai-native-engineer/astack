@@ -1,6 +1,6 @@
 ---
 name: project-collect
-description: "Collects project context from Slack, Notion, Google Workspace, Obsidian, recordings, and local sources into a source-faithful context folder with attachments. Use for project context collection or context gathering. Do not use for organizing existing files, vault ingest, external web research, or company research."
+description: "Use for: Collect source-faithful project context and attachments from Slack, Notion, Workspace, Obsidian, recordings, and local sources into a context folder. Not for existing-file organization, vault ingest, external web research, or company research."
 ---
 
 # Project Collect

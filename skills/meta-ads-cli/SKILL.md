@@ -1,7 +1,7 @@
 ---
 name: meta-ads-cli
 disable-model-invocation: true
-description: "Manages Meta Facebook/Instagram ads through the CLI: campaigns, creatives, insights, pixels, catalogs, and page lookup. Use for Meta ads, ROAS/CTR/CPC, pixels, catalogs, or campaign CRUD. Do not use for Google Ads, organic posting, general marketing strategy, or non-Meta analytics."
+description: "Use for: Manage Meta Facebook/Instagram campaigns, creatives, insights, ROAS/CTR/CPC, pixels, catalogs, and page lookup through CLI. Not for Google Ads, organic publishing, general marketing strategy, or non-Meta analytics."
 ---
 
 # Meta Ads CLI (`meta`)

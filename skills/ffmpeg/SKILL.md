@@ -29,7 +29,7 @@ ffmpeg 작업은 두 모드뿐이다. 어느 쪽인지부터 정한다.
 
 | 작업 | 읽을 것 |
 |---|---|
-| 자르기·합치기·압축·추출·포맷변환·해상도/fps·회전·GIF·자막·썸네일/프레임·배속·볼륨/정규화 | `references/recipes.md` |
+| 자르기, 합치기, 이미지 시간표로 잇기, 압축, 추출, 포맷 변환, 해상도/fps, 회전, GIF, 자막, 겹치기(overlay)와 출력 프레임 수, 썸네일/프레임, 배속, 볼륨/정규화 | `references/recipes.md` |
 | Apple HDR(HLG/BT.2020)→SDR, 사이니지/안드로이드 호환, HEIC→JPG/PNG | `references/apple-hdr.md` |
 
 기본 명령은 해당 reference의 레시피를 베끼고, 전체 옵션은 `ffmpeg -h full` / https://ffmpeg.org/ffmpeg.html 에 위임한다.

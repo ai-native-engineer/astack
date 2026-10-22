@@ -1,7 +1,7 @@
 ---
 argument-hint: "[query]"
 name: voice-memos
-description: "Apple Voice Memos, 에이닷 통화 녹음, Apple Notes, Tiro 회의 노트를 검색·읽고, 로컬 녹음은 추출·전사·교정·요약·알림·이어붙이기·워처 진단으로 처리. Use when user asks 음성 메모, voice memo, 티로, Tiro, 회의 노트, 전사, 녹음 합치기, 이어붙이기, 녹음 내용, 메모 찾아줘, 최근/오늘 메모, 전문 가져와줘, 텔레그램으로 보내줘, 전사가 안 됐어, 알림이 안 와. Do NOT use for YouTube 자막, 일반 영상/오디오 이어붙이기(ffmpeg), 붙여넣은 텍스트만으로 회의록 작성, Tiro 실시간 녹음/파일 업로드, 일반 파일 검색, or non-personal audio production."
+description: "Use for: Apple Voice Memos·에이닷 통화 녹음·Apple Notes·Tiro 회의 노트를 검색·읽고, 로컬 녹음을 추출·전사·교정·요약·병합하며 알림/Telegram 전송·워처를 진단한다. YouTube 자막, 일반 미디어 병합(ffmpeg), 붙여넣은 텍스트 회의록, Tiro 실시간 녹음·업로드, 일반 파일 검색, 비개인 오디오 제작에는 쓰지 않는다."
 ---
 
 # Voice Memos

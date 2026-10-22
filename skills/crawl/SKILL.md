@@ -1,7 +1,7 @@
 ---
 argument-hint: "[url]"
 name: crawl
-description: "Free local web/documentation crawler that converts URLs and sites to markdown without API keys, accounts, credits, or quotas. Use when user gives a URL to read/save/analyze, asks 크롤링/crawl/웹페이지 읽어/사이트 긁어/문서 크롤링, or needs local markdown extraction from pages/docs. Do NOT use for broad web search/ranking, paid API research, local files, Google Workspace/Notion data, or Korean public-data APIs."
+description: "Use for: Extract URLs/sites/docs into local Markdown without API keys, accounts, credits, or quotas. Use to read, save, analyze, or crawl supplied web pages. Not for broad search/ranking, paid-API research, local files, Workspace/Notion data, or Korean public-data APIs."
 ---
 
 # Crawl

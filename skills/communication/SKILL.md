@@ -1,7 +1,7 @@
 ---
 argument-hint: "[channel|recipient|message]"
 name: communication
-description: "Cross-channel work-message orchestrator and shared writing contract. Use when drafting, rewriting, sending, editing, or reviewing outbound messages for Slack, Discord, KakaoTalk, Gmail/Google Chat, iMessage/SMS, PR/issue comments, stakeholder handoffs, requests, status updates, or personal/team style matching. Do NOT use for long-form docs, curriculum content, blog posts, or channel mechanics without message composition; use the channel transport skill for execution details."
+description: "Use for: Compose/rewrite/review/send/edit work messages across Slack, Discord, KakaoTalk, Gmail/Chat, iMessage/SMS, PR/issue comments, and stakeholder handoffs, including style matching, requests, and updates. Channel skills handle transport. Not for long-form docs, curricula, blogs, or mechanics without composition."
 ---
 
 # Communication

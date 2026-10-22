@@ -1,7 +1,7 @@
 ---
 argument-hint: "[query]"
 name: session-history
-description: "Claude, Codex, Cursor 등 로컬 AI 에이전트 세션의 목록·전사·도구 호출·변경 파일·토큰·비용을 검색하고 로그의 키를 마스킹한다. Use for 과거 작업·세션·사용량 조회. Do not use for Hermes state.db, 현재 저장소 검색, 회고 작성, 메모리 갱신."
+description: "Use for: Claude·Codex·Cursor 등 로컬 AI 세션의 목록, 전사, 도구 호출, 변경 파일, 토큰·비용을 검색하고 키를 마스킹한다. Hermes state.db, 현재 저장소 검색, 회고 작성, 메모리 갱신에는 쓰지 않는다."
 ---
 
 # Session History

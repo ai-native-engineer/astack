@@ -1,6 +1,6 @@
 ---
 name: agent-team
-description: "Coordinates independent worker tasks in Claude Code, AGY, Codex, and GJC. Use for agent-team, agents-team, 에이전트 팀, 팀으로 해줘, 병렬로 맡겨, herdr로 위임, or explicit cross-harness delegation. Do NOT use for routine sequential work, overlapping file edits, or merely explaining team tools."
+description: "Use for: Coordinate independent workers across Claude Code, AGY, Codex, and GJC for explicit team, parallel-agent, Herdr delegation, or cross-harness requests. Not for sequential work, overlapping edits, or tool explanations."
 ---
 
 # Agent Team

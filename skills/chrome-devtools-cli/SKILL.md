@@ -1,7 +1,7 @@
 ---
 argument-hint: "[subcommand]"
 name: chrome-devtools-cli
-description: "Controls headless Chrome from the terminal with chrome-devtools CLI for navigation, screenshots, DOM/JS evaluation, console and network inspection, Lighthouse, and performance traces. Use for chrome-devtools, CDP, Lighthouse, Core Web Vitals, performance traces, or console and network checks. Do not use for app QA or screen-operation flows (browse is the default), URL-to-markdown extraction (crawl), or ordinary web research."
+description: "Use for: Use terminal-driven headless Chrome for navigation, screenshots, DOM/JS, console/network inspection, CDP, Lighthouse, Core Web Vitals, and performance traces. App QA/screen flows: browse; URL-to-Markdown: crawl. Not for ordinary web research."
 compatibility: Requires the chrome-devtools CLI and a local Chrome install.
 metadata:
   requires:

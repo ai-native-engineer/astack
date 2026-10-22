@@ -1,6 +1,6 @@
 ---
 name: html-explainer
-description: "로컬 단일 HTML로 시각 설명물, 인터랙티브 walkthrough, 검색 가능한 위키/용어집, 사용자가 영상/이미지/원문을 보고 항목별로 고르는 확인 시트를 만든다. Use for 구조도, 플로우, 비교, 단계별 설명, 시각화, 확인 시트(고르기, 체크, 메모를 받아 대화로 회신) 요청. Do not use for 운영 웹사이트, 영상/슬라이드/마크다운, 일반 프론트엔드 구현, 편집 가능한 excalidraw나 SVG/PNG 파일이 목적인 도식(diagram)."
+description: "Use for: 단일 로컬 HTML로 구조·흐름·비교·단계별 설명, 인터랙티브 walkthrough, 검색형 위키/용어집, 원문·미디어를 보며 선택·체크·메모해 회신하는 확인 시트를 만든다. 운영 사이트, 영상·슬라이드·Markdown, 일반 프론트엔드, 편집형 Excalidraw나 SVG/PNG 도식(diagram)에는 쓰지 않는다."
 argument-hint: "[visual|interactive|wiki|sheet] [topic]"
 ---
 
@@ -21,7 +21,7 @@ argument-hint: "[visual|interactive|wiki|sheet] [topic]"
 
 1. **타입 선택**: 시각형/인터랙티브형은 위 표의 시작 템플릿을 출력 경로로 복사해 내용만 채운다. **위키/지식베이스형은 템플릿 강제 금지** - source 문서를 구조화해 커스텀 단일 HTML로 만든다. **확인 시트형도 시작 템플릿이 없다** - 항목 구성이 요청마다 달라 reference의 골격에서 시작한다.
 2. **내용 작성**: 작성 전 그 타입의 reference에서 쓸 기능의 함정·레시피를 읽는다. 템플릿에 없는 표면·버튼·이미지·아이콘을 새로 만들면 `references/ui-polish.md`도 함께 읽는다. 용도별 정보 구조가 필요하면 `assets/AGENTS.md`에서 가장 가까운 번호형 HTML을 골라 참고하되, 타입별 시작 템플릿과 철칙은 유지한다.
-3. **열기**: `open <파일>`. 사용자 브라우저가 정본이다.
+3. **검수와 열기**: 확인 시트는 `references/confirm-sheet.md`의 전달 전 검수로 최종 HTML의 문법과 선택/메모/복사 동작을 확인한 뒤 `open <파일>`로 연다. 사용자 브라우저가 정본이다.
 4. **CDP 검수는 명시 요청만**: 콘솔·스크린샷·Lighthouse를 사용자가 요청한 경우에만 chrome-devtools CLI 또는 `scripts/verify.sh`를 쓴다. CLI를 호출하는 순간 자동화 Chrome 프로세스가 따로 뜬다. 탭을 닫아도 프로세스는 남는다. 썼으면 그 작업 끝에 `chrome-devtools stop`으로 프로세스를 내린다.
 5. **공개 링크가 필요할 때만 배포**: 사용자가 지정한 정적 호스팅·배포 도구로 넘긴다. 배포 단계는 파일 배치·버전 백업·실제 URL 검증만 맡고, 디자인·카피·레이아웃 판단은 이 스킬 안에서 끝낸다.
 
@@ -57,6 +57,7 @@ argument-hint: "[visual|interactive|wiki|sheet] [topic]"
 | 인터랙티브형 문맥 구성 예시 | `examples/chat-context-composition-lab.html` |
 | 위키/지식베이스형 작성 전 | `references/wiki-knowledge-base.md` |
 | 확인 시트형 작성 전 | `references/confirm-sheet.md` |
+| 확인 시트의 최종 JavaScript 문법 검사 | `scripts/verify.sh --syntax <파일.html>` (Python 3, Node.js 필요, 브라우저를 띄우지 않음) |
 | 새 표면·버튼·이미지·아이콘 추가 | `references/ui-polish.md` |
 | 새 파일 시작 | `assets/template.html`(시각형) / `assets/interactive-template.html`(인터랙티브형) / 커스텀 단일 HTML(위키형, 확인 시트형) |
 | 용도별 단일 HTML 예시 | `assets/AGENTS.md`에서 20개 번호형 템플릿의 용도 확인 |

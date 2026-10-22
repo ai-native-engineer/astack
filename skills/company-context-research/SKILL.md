@@ -1,7 +1,7 @@
 ---
 argument-hint: "[company or domain]"
 name: company-context-research
-description: "Company context research before outreach, sales prep, diligence, or account review using public surfaces, first-party pages, attachments, press, and official data such as DART/KRX/data.go.kr/Naver DataLab/KIPRIS/NTIS. Use when user asks 이 회사 맥락, company research, sales call prep, prospect qualification, target account review, or fragmented brand/legal/entity mapping. Do NOT use for standalone data.go.kr API calls, personal career research, generic web browsing, internal project context gathering, SimilarWeb-only traffic checks, or non-company topics."
+description: "Use for: Research companies for outreach, sales, diligence, qualification, or account review using public/first-party pages, attachments, press, DART, KRX, data.go.kr, Naver DataLab, KIPRIS, and NTIS; resolve brand/legal/entity mappings. Not for standalone public-API calls, career research, generic browsing, internal project collection, SimilarWeb-only checks, or non-company topics."
 ---
 
 # Company Context Research
