@@ -1,6 +1,6 @@
 ---
 name: ocr
-description: "Local OCR, searchable PDF text-layer creation/repair, and table extraction. Use for OCR, 이미지 글자 읽기, 스캔 PDF 텍스트화, OCR 레이어 교체, 문자 사이 공백 문제, or 표를 Markdown/CSV로 추출. Do NOT use for speech transcription, routine reading or keyword search in searchable PDFs, Freeform boards, Obsidian handwriting notes, or image generation."
+description: "Use for: Perform local image OCR, searchable-PDF text-layer creation/repair, spacing correction, and table extraction to Markdown/CSV. Not for STT, ordinary searchable-PDF reading/search, Freeform, Obsidian handwriting, or image generation."
 compatibility: "macOS; OCRmyPDF with AppleOCR for PDF OCR. Swift/PDFKit and Poppler for PDF text-layer verification."
 metadata:
   requires:

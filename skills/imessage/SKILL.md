@@ -1,7 +1,7 @@
 ---
 argument-hint: "[search|read|recent|send] [contact] [message]"
 name: imessage
-description: "macOS iMessage/SMS/RCS read/search/send automation without MCP, using readonly chat.db for lookup and Messages.app for sending. Use when user asks 아이메시지, iMessage, 문자 검색, 메시지 읽어, 최근 메시지, 누구랑 대화 찾아줘, 문자 보내, iMessage send, or chat.db. Do NOT use for KakaoTalk, Slack, Gmail/Google Chat, voice memos/call recordings, or generic message writing without iMessage execution."
+description: "Use for: Read/search macOS iMessage/SMS/RCS via readonly chat.db and send via Messages.app without MCP. Not for other messengers, mail/Chat, voice memos/call recordings, or copywriting without iMessage execution."
 allowed-tools: Bash
 ---
 

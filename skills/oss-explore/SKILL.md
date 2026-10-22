@@ -1,7 +1,7 @@
 ---
 argument-hint: "[주제] [username]"
 name: oss-explore
-description: "Discovers and compares GitHub open-source repositories, adoption, contribution entry points, trends, forks, and contribution stats. Use for OSS alternatives, good-first-issue searches, repo comparisons, or contribution planning. Do not use for private-repo review, generic issue triage, or non-GitHub research."
+description: "Use for: Discover/compare GitHub OSS alternatives, adoption, trends, forks, contribution stats, good-first-issues, and contribution paths. Not for private-repo review, generic issue triage, or non-GitHub research."
 ---
 
 # oss-explore

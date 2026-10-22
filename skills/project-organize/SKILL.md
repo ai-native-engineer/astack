@@ -1,7 +1,7 @@
 ---
 argument-hint: "[project-root]"
 name: project-organize
-description: "Organizes a project folder by identifying canonical and stale files, applying numbered layout, and syncing AGENTS.md and context indexes. Use for project cleanup, root reorganization, stale-file review, or index repair. Do not use for collecting external context or editing rule sentences."
+description: "Organize project folders: identify canonical/stale files, apply numbered layout, and sync AGENTS.md/context indexes. Use for cleanup, root reorganization, or index repair. Not for external collection or rule-sentence editing."
 ---
 
 # Project Organize

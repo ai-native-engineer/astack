@@ -1,7 +1,7 @@
 ---
 argument-hint: "[audio-path]"
 name: stt
-description: "Local speech-to-text transcription and optional speaker diarization for audio/video files, meetings, lectures, interviews, and selected time ranges. Use when user asks STT, 전사, 받아쓰기, 오디오/녹음/회의록/강의/인터뷰 전사, 화자 분리, speaker diarization, or 누가 말했는지. Do NOT use for text-to-speech, Apple Voice Memos personal workflow, YouTube caption extraction, OCR, or audio editing."
+description: "Use for: Transcribe local audio/video, meetings, lectures, interviews, or selected ranges with optional speaker diarization. Not for TTS, personal Apple Voice Memos workflows, YouTube captions, OCR, or audio editing."
 ---
 
 # STT - Apple 로컬 전사 + 선택적 화자 분리

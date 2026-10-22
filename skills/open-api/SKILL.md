@@ -1,6 +1,6 @@
 ---
 name: open-api
-description: "Routes Korean official APIs including data.go.kr, DART, KIPRIS, and NTIS for disclosures, patents, trademarks, R&D, procurement, and registry lookups. Use for provider selection or Korean public-data API calls. Do not use for generic OpenAPI specs, non-Korean APIs, Snowflake, or web crawling."
+description: "Use for: Route Korean official APIs including data.go.kr, DART, KIPRIS, and NTIS for disclosures, patents, trademarks, R&D, procurement, and registries. Not for OpenAPI specifications, non-Korean APIs, Snowflake, or crawling."
 argument-hint: "[할 작업]"
 license: MIT
 ---

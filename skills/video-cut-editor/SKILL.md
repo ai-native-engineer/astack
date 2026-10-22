@@ -1,7 +1,7 @@
 ---
 argument-hint: "[video-path]"
 name: video-cut-editor
-description: "Edits local lecture and screen recordings from retake markers and reviewed long-silence evidence. Use for 컷편집, 말실수·retake 정리, 편집점 마커, 긴 무음 제거, 접합부 QA, 최종 청취 검수, 영상 병합, or editing-artifact cleanup. Preserves unmarked speech and renders one reviewed plan from the original timeline. Do NOT use for ordinary ffmpeg conversion, CapCut project editing, pure STT, or YouTube planning."
+description: "Use for: Edit local lecture/screen recordings from retake markers and reviewed long silences; preserve unmarked speech and render a reviewed plan from the original timeline. Includes cut markers, join QA, final listening, merging, and artifact cleanup. Not for ordinary ffmpeg conversion, CapCut, pure STT, or YouTube planning."
 ---
 
 # Video Cut Editor

@@ -1,8 +1,83 @@
 #!/bin/bash
 # html-explainer 생성물 헤드리스 렌더 검증
-# usage: verify.sh <file.html>
+# usage: verify.sh <file.html> | verify.sh --syntax <file.html>
 # 확인: 콘솔 에러, Mermaid SVG 렌더, ECharts 캔버스, Iconify 아이콘, 전체 스크린샷
 set -euo pipefail
+
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  echo "usage: verify.sh <file.html>                 # CDP render checks (explicit request only)"
+  echo "       verify.sh --syntax <file.html>        # inline JavaScript syntax only; Python 3 + Node.js"
+  exit 0
+fi
+
+if [ "${1:-}" = "--syntax" ]; then
+  shift
+  exec python3 - "$@" <<'PY'
+import argparse
+import json
+import shutil
+import subprocess
+import sys
+import tempfile
+from html.parser import HTMLParser
+from pathlib import Path
+
+class Scripts(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.scripts, self.active, self.unchecked = [], None, 0
+    def handle_starttag(self, tag, attrs):
+        if tag != "script":
+            return
+        attrs = dict(attrs)
+        kind = (attrs.get("type") or "").strip().lower()
+        self.active = None
+        if kind in ("application/json", "application/ld+json"):
+            return
+        if "src" in attrs or kind not in ("", "text/javascript", "application/javascript", "module"):
+            self.unchecked += 1
+            return
+        self.active = {"line": self.getpos()[0], "module": kind == "module", "parts": []}
+        self.scripts.append(self.active)
+    def handle_data(self, data):
+        if self.active is not None:
+            self.active["parts"].append(data)
+    def handle_endtag(self, tag):
+        if tag == "script":
+            self.active = None
+
+parser = argparse.ArgumentParser(description="Check final HTML inline JavaScript without running it or opening a browser.")
+parser.add_argument("html_file", type=Path)
+args = parser.parse_args()
+result = {"ok": False, "scope": "inline-javascript-syntax", "runtime": "not-checked", "checked": 0, "errors": []}
+code = 2
+try:
+    node = shutil.which("node")
+    if not node:
+        raise ValueError("Node.js is required; use an installed node or report syntax as unverified.")
+    page = Scripts()
+    page.feed(args.html_file.read_text(encoding="utf-8"))
+    page.close()
+    if not page.scripts or page.unchecked:
+        raise ValueError("Inline JavaScript is missing or script dependencies/types remain unchecked; verify with the matching browser workflow.")
+    with tempfile.TemporaryDirectory(prefix="html-inline-js-") as folder:
+        for index, script in enumerate(page.scripts, 1):
+            file = Path(folder) / (str(index) + (".mjs" if script["module"] else ".js"))
+            file.write_text("".join(script["parts"]), encoding="utf-8")
+            run = subprocess.run([node, "--check", str(file)], capture_output=True, text=True, check=False)
+            result["checked"] += 1
+            if run.returncode:
+                # Report the error category, not source lines that may contain private values.
+                error = next((line for line in run.stderr.splitlines() if line.startswith("SyntaxError:")), "Node.js syntax check failed")
+                result["errors"].append({"script": index, "htmlLine": script["line"], "message": error})
+    result["ok"] = not result["errors"]
+    code = 0 if result["ok"] else 1
+except (OSError, UnicodeError, ValueError) as exc:
+    result["errors"].append({"message": str(exc)})
+print(json.dumps(result, ensure_ascii=False))
+sys.exit(code)
+PY
+fi
 
 f="${1:?usage: verify.sh <file.html>}"
 f="$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
