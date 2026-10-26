@@ -39,9 +39,13 @@ def main() -> None:
             f"missing description: {skill_md}"
         )
 
-    for helper in ("extract_transcript.sh", "srt-to-md.sh", "fetch-subs.sh"):
+    for helper in ("captions.py", "fetch-subs.sh", "transcribe_ids.py"):
         assert (SKILLS / "crawl" / "scripts" / helper).is_file(), (
             f"missing bundled crawl helper: {helper}"
+        )
+    for obsolete in ("extract_transcript.sh", "srt-to-md.sh"):
+        assert not (SKILLS / "crawl" / "scripts" / obsolete).exists(), (
+            f"obsolete bundled crawl parser: {obsolete}"
         )
 
     forbidden_paths = {

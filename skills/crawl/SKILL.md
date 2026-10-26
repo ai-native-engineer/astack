@@ -23,8 +23,16 @@ PATH에서 확인되는 공식 `crwl` CLI(crawl4ai) + 이 스킬의 `scripts/`�
 | 미러의 소유 호스트 PDF 원본 수집 | `scripts/pdf-mirror.py` (`--host` 필수, 100MB 초과 로컬 보관은 `--oversize-dir`) |
 | 대형 생성 Markdown을 순서 보존 조각으로 분할 | `scripts/split-markdown.py` |
 | 저장된 미러의 자막 fold·대용량 문서·빈 이미지·깨진 로컬 참조 검증 | `scripts/verify-mirror.py` |
+| 미러의 YouTube 링크 자막 취득 | `scripts/youtube-transcripts.sh`: 원본·메타데이터·JSON 보존, 검증된 성공만 재사용 |
 
-⚠ `crwl crawl`의 기본 출력은 마크다운이 **아니다** — `-o`를 빼면 stdout이든 `-O` 파일이든 html 포함 JSON 덤프가 나온다(`.md` 확장자도 무시됨). `-O`는 경로만 정하고 포맷은 `-o`가 정한다. 마크다운은 항상 `-o md`(본문만은 `-o md-fit`)로 명시한다. (`crawl-mirror.py`는 포맷을 자체 처리하므로 예외.)
+YouTube 자막은 공용 `fetch-subs.sh`와 `captions.py`를 사용한다. 이 둘은 배포 시
+`scripts/`에 함께 놓이며 정본에서는 형제 `youtube` 스킬의 `scripts/`를 읽는다.
+명시 경로가 필요하면 `YOUTUBE_SCRIPTS`로 두 파일이 있는 폴더를 지정한다.
+`scripts/transcribe-ids.sh <destination> [--force]`는 stdin의 영상 ID를 처리한다.
+원본과 JSON은 `<destination>/transcripts/`에 남고, 자막 부재와 취득 실패를
+구분한다. 기존 Markdown 파일만으로 성공을 판단하지 않는다.
+
+⚠ `crwl crawl`의 기본 출력은 마크다운이 **아니다** — `-o`를 빼면 stdout이든 `-O` 파일이든 html 포함 JSON 덤프가 나온다(`.md` 확장자도 무시됨). 마크다운은 항상 `-o md`(본문만은 `-o md-fit`)로 명시한다. (`crawl-mirror.py`는 포맷을 자체 처리하므로 예외.)
 
 ## 문서 사이트 -> URL 경로 미러링 (주력)
 
