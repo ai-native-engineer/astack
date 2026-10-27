@@ -1,7 +1,8 @@
 #!/bin/bash
-# 미러 페이지에 포함된 YouTube 링크의 자막을 youtube-digest 방식으로 추출해 <out>/_yt-cache/<ID>.md 로 저장.
-# ID 수집(rg)만 여기서 하고, 전사 루프(429 백오프·자막없음 stub·증분 skip)는 transcribe-ids.sh 와 공유한다.
-# 증분: 기존 <out>/_yt-cache/<ID>.md 는 skip. --force 로 전체 재추출.
+# 미러의 YouTube 링크를 공용 자막 JSON으로 취득해 <out>/_yt-cache/<ID>.md 로 저장.
+# ID 수집만 여기서 하고, 원본 보존·상태 구분·성공 검증은 transcribe-ids.sh가 맡는다.
+# 원본과 JSON은 _yt-cache/transcripts/에 남기고, 해시 검증된 성공만 skip한다.
+# 자막없음 기록은 재확인하며 --force는 기존 성공도 다시 취득한다.
 #
 # Usage: youtube-transcripts.sh <out_dir> [--force] [--exclude <glob>]...
 #   범용 기본 제외(_yt-cache/**, youtube.com/**)만 내장 -- 도메인 하드코딩 없음(crawl 범용 유지).

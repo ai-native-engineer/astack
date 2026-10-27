@@ -76,11 +76,9 @@ for skill in "${SKILLS[@]}"; do
     "$source/" "$stage/skills/$skill/"
 done
 
-# extract_transcript.sh는 fetch-subs.sh에 위임하므로 둘을 같이 옮긴다. 여기서는 평면 배치라
-# 위임자가 같은 폴더의 fetch-subs.sh를 찾는다.
+# crawl은 공용 취득기와 정규화 모듈을 같은 폴더에서 실행한다.
 for helper in \
-  "$SOURCE_ROOT/youtube/youtube-digest/scripts/extract_transcript.sh" \
-  "$SOURCE_ROOT/youtube/youtube-digest/scripts/srt-to-md.sh" \
+  "$SOURCE_ROOT/youtube/scripts/captions.py" \
   "$SOURCE_ROOT/youtube/scripts/fetch-subs.sh"; do
   [[ -f "$helper" ]] || { echo "error: missing crawl helper: $helper" >&2; exit 1; }
   rsync -a "$helper" "$stage/skills/crawl/scripts/$(basename "$helper")"

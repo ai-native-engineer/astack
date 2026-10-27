@@ -7,7 +7,8 @@
 설계(두 미러 공용, 단일 enumerator):
 1. enumerate: yt-dlp --flat-playlist로 채널 전 영상 ID (메타데이터만 -- 전사의 'raw yt-dlp 금지'와 다른 작업).
 2. 전사: ID를 transcribe-ids.sh로 직접 흘려 <out>/_yt-cache/<ID>.md 공용 캐시 생성
-   (srt-to-md.sh가 --dump-json으로 title/date/duration/lang 주입. 기존 캐시는 skip = 재요청 0).
+   (공유 fetch-subs.sh/captions.py가 원본·메타데이터·JSON을 transcripts/<ID>/에 보존.
+   검증된 JSON과 Markdown의 체크섬이 일치하는 성공 캐시만 skip; 무자막은 재확인).
 3. 렌더: 그 캐시에서 <out>/youtube.com/<handle>/<yymmdd>-<slug>.md 발행 페이지를 [썸네일 + 접이식 <details> 자막]으로 생성
    (render-video-refs.py·inline-transcripts.py와 동일 형태 -> 미러 전체 일관). 채널 인덱스 <out>/youtube.com/<handle>.md 도.
 
@@ -16,11 +17,15 @@
   yymmdd-제목슬러그.md (yymmdd=업로드일, slug=영상제목). 같은 날 동일 슬러그 충돌 시 -<ID6> 접미.
 - 전사 캐시는 _yt-cache/<ID>.md(점/호스트 아닌 이름, gitignore, ID-keyed -- inline-transcripts가 youtube_id로 조회).
 - 전사는 캐시 한 벌, 발행은 거기서 렌더 = 자막 중복 0. 같은 영상이 글에 인용되면 inline-transcripts가 같은 캐시에서 인라인.
-- 멱등/증분: 캐시·발행 페이지 있으면 skip. --render-only(전사 생략, 캐시에서 렌더만), --force(재렌더), --refetch(재전사).
+- 멱등/증분: 검증된 전사 성공·기존 발행 페이지는 skip. --render-only(전사 생략, 캐시에서 렌더만), --force(재렌더), --refetch(재전사).
+- 재전사 실패 시 이전 성공 캐시는 보존해 렌더할 수 있지만, 이번 실행의 실패 종료 코드는 유지한다.
 - 범용: 채널을 인자로 받아 두 미러가 같은 스크립트를 쓴다.
 """
 import glob
+import html
+import json
 import os
+from pathlib import Path
 import re
 import subprocess
 import sys
@@ -32,7 +37,15 @@ ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
 
 def yaml_str(s):
-    return s.replace('"', "'").replace("\n", " ").replace("\r", " ").strip()
+    text = json.dumps(s, ensure_ascii=False)
+    for number in (*range(0x7f, 0xa0), 0x2028, 0x2029):
+        text = text.replace(chr(number), f"\\u{number:04x}")
+    return text
+
+
+def markdown_text(text):
+    text = " ".join(text.splitlines())
+    return html.escape(re.sub(r"([\\`*_{}\[\]()#+.!|~-])", r"\\\1", text))
 
 
 def slugify(s):
@@ -80,39 +93,51 @@ def enumerate_channel(channel_id, tabs=("videos", "shorts", "streams")):
 
 def transcribe(ids, cache_dir, force=False):
     if not ids:
-        return
+        return 0
     cmd = ["bash", os.path.join(HERE, "transcribe-ids.sh"), cache_dir]
     if force:
         cmd.append("--force")
     p = subprocess.run(cmd, input="\n".join(ids) + "\n", text=True)
     if p.returncode != 0:
         sys.stderr.write("  transcribe-ids.sh 비정상 종료(부분 실패는 재실행 시 증분 재시도)\n")
+    return p.returncode
 
 
 def backfill_date(vid, meta, cache_fp):
-    """무자막 stub은 date가 없다(전사 안 해 srt-to-md가 안 돎). upload_date만 따로 받아 meta+캐시에 채운다.
-    메타 fetch는 자막 다운로드와 달리 throttle이 적다. 멱등(캐시에 date 생기면 다음 실행은 skip), 실패 시 그냥 무날짜."""
+    """date 누락 시 upload_date로 렌더 메타를 보강한다. 성공 캐시는 체크섬 보존을 위해 수정하지 않는다.
+    무자막 stub에는 날짜를 저장하며, stub이 갱신되기 전까지 재조회하지 않는다. 실패 시 그냥 무날짜."""
     if meta.get("date"):
         return
-    r = subprocess.run(["yt-dlp", "--print", "%(upload_date)s", "--skip-download",
-                        "--cookies-from-browser", "chrome", f"https://www.youtube.com/watch?v={vid}"],
+    cmd = ["yt-dlp", "--print", "%(upload_date)s", "--skip-download"]
+    browser = os.environ.get("YT_COOKIES_FROM_BROWSER", "chrome")
+    if browser:
+        cmd.extend(["--cookies-from-browser", browser])
+    cmd.append(f"https://www.youtube.com/watch?v={vid}")
+    r = subprocess.run(cmd,
                        stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
     d = r.stdout.strip()
     if re.match(r"^\d{8}$", d):
         iso = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
         meta["date"] = iso
-        t = open(cache_fp, encoding="utf-8", errors="ignore").read()
+        if meta.get("transcript_status") == "success":
+            return
+        with open(cache_fp, encoding="utf-8", errors="ignore") as cache:
+            t = cache.read()
         if "\ndate:" not in t and "\nyoutube_id:" in t:  # 캐시 stub에 persist
-            open(cache_fp, "w", encoding="utf-8").write(t.replace("\nyoutube_id:", f"\ndate: {iso}\nyoutube_id:", 1))
+            with open(cache_fp, "w", encoding="utf-8") as cache:
+                cache.write(t.replace("\nyoutube_id:", f"\ndate: {iso}\nyoutube_id:", 1))
 
 
 def parse_cache(fp):
-    """캐시 .md -> {title,date,duration,youtube_id, transcript}. inline-transcripts.py와 동일 파싱."""
-    t = open(fp, encoding="utf-8", errors="ignore").read()
+    """공유 Markdown의 JSON 문자열 frontmatter와 자막 본문을 읽는다."""
+    t = Path(fp).read_text(encoding="utf-8", errors="ignore")
     fm = {}
     m = re.match(r"---\n(.*?)\n---", t, re.S)
     if m:
-        for k, v in re.findall(r'^(\w+):\s*"?(.*?)"?\s*$', m.group(1), re.M):
+        for k, v in re.findall(r'^(\w+):[ \t]*(.*)$', m.group(1), re.M):
+            v = v.strip()
+            if v.startswith('"'):
+                v = json.loads(v)
             fm[k] = v
     body = ""
     if "## 자막" in t:
@@ -126,11 +151,19 @@ def stale_pages(ddir, desired):
     """같은 YouTube ID의 제목/파일명이 바뀌어 남은 구 생성물."""
     stale = []
     for fp in glob.glob(os.path.join(ddir, "*.md")):
-        text = open(fp, encoding="utf-8", errors="ignore").read(1000)
+        with open(fp, encoding="utf-8", errors="ignore") as source:
+            text = source.read(1000)
         match = re.search(r"^youtube_id:\s*([A-Za-z0-9_-]{11})\s*$", text, re.M)
         if match and match.group(1) in desired and os.path.abspath(fp) != os.path.abspath(desired[match.group(1)]):
             stale.append(fp)
     return stale
+
+
+def has_captions(meta):
+    status = meta.get("transcript_status")
+    if status:
+        return status == "success" and bool(meta.get("transcript", "").strip())
+    return bool(meta.get("transcript", "").strip())
 
 
 def render_page(vid, handle, meta, out_page):
@@ -140,23 +173,23 @@ def render_page(vid, handle, meta, out_page):
     watch = f"https://www.youtube.com/watch?v={vid}"
     thumb = f"https://img.youtube.com/vi/{vid}/hqdefault.jpg"
     transcript = meta.get("transcript", "")
-    has_caption = len(transcript) >= 40
+    has_caption = has_captions(meta)
     dur = meta.get("duration", "")
-    fm = ["---", f'title: "{yaml_str(title)}"', f"channel: {handle}",
+    fm = ["---", f'title: {yaml_str(title)}', f"channel: {yaml_str(handle)}",
           f"url: {watch}", f"youtube_id: {vid}"]
     if meta.get("date"):
         fm.append(f"published: {meta['date']}")
     if dur:
-        fm.append(f'duration: "{dur}"')
-    fm.append(f"captions: {(meta.get('lang') or 'en') if has_caption else 'none'}")
+        fm.append(f'duration: {yaml_str(dur)}')
+    fm.append("captions: " + yaml_str((meta.get('lang') or 'en') if has_caption else 'none'))
     fm.append("---")
-    body = [f"# {title}", "", f"[![{title}]({thumb})]({watch})"]
+    body = [f"# {markdown_text(title)}", "", f"[![{markdown_text(title)}]({thumb})]({watch})"]
     if has_caption:
         summ = f"자막: {title}" + (f" ({dur})" if dur else "")
-        body += ["", "<details>", f"<summary>{summ}</summary>", "", transcript, "", "</details>"]
+        body += ["", "<details>", f"<summary>{html.escape(summ)}</summary>", "", transcript, "", "</details>"]
     else:
         body += ["", "_(자막 없음)_"]
-    open(out_page, "w", encoding="utf-8").write("\n".join(fm) + "\n\n" + "\n".join(body) + "\n")
+    Path(out_page).write_text("\n".join(fm) + "\n\n" + "\n".join(body) + "\n", encoding="utf-8")
 
 
 def main():
@@ -175,6 +208,7 @@ def main():
         print("usage: youtube-channels.py <out_dir> <handle>:<channel_id> [...] [--tabs=videos,shorts,streams] [--force] [--refetch] [--render-only] [--prune-stale]"); return
     out = args[0]
     cache_dir = os.path.join(out, CACHE)
+    status = 0
     for spec in args[1:]:
         if ":" not in spec:
             print(f"  잘못된 인자(무시): {spec}  -- 형식은 handle:channel_id"); continue
@@ -184,7 +218,8 @@ def main():
             print(f"{handle}: enumerate 실패 -- 기존 발행물 보존"); continue
         print(f"{handle}: 채널 영상 {len(ids)}개")
         if not render_only:
-            transcribe([v for v, _ in ids], cache_dir, force=refetch)
+            if transcribe([v for v, _ in ids], cache_dir, force=refetch):
+                status = 1
         ddir = os.path.join(out, PUB, handle)
         os.makedirs(ddir, exist_ok=True)
         rendered = 0
@@ -208,7 +243,7 @@ def main():
                 render_page(vid, handle, meta, page_fp)
                 rendered += 1
             d = f" — {meta['date']}" if meta.get("date") else ""
-            nc = "" if len(meta.get("transcript", "")) >= 40 else " (자막없음)"
+            nc = "" if has_captions(meta) else " (자막없음)"
             index.append(f"- [{meta.get('title', vid)}]({handle}/{fname}){d}{nc}")
         stale = stale_pages(ddir, desired)
         if prune_stale:
@@ -217,8 +252,9 @@ def main():
         elif stale:
             print(f"{handle}: 구 파일 후보 {len(stale)}개 (--prune-stale로 정리)")
         idx = [f"# {handle} (YouTube)\n", f"영상 {len(index)}개. 썸네일 + 자막(있으면 접이식, 없으면 '자막없음').\n"] + index
-        open(os.path.join(out, PUB, f"{handle}.md"), "w", encoding="utf-8").write("\n".join(idx) + "\n")
+        Path(out, PUB, f"{handle}.md").write_text("\n".join(idx) + "\n", encoding="utf-8")
         print(f"{handle}: 발행 {len(index)}개 (신규 렌더 {rendered}개, 구 파일 정리 {len(stale) if prune_stale else 0}개) -> {PUB}/{handle}/")
+    return status
 
 
 if __name__ == "__main__":
@@ -254,4 +290,4 @@ if __name__ == "__main__":
         assert "# Promo Clip" in o2 and "hqdefault.jpg" in o2, "무자막도 제목+썸네일"
         print("self-test ok")
     else:
-        main()
+        sys.exit(main())
