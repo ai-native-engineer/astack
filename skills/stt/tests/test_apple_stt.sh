@@ -13,9 +13,14 @@ HELP=$($BIN --help)
 grep -q -- '--analysis-json' <<<"$HELP"
 grep -q -- '--json' <<<"$HELP"
 grep -q -- '--vocab-file' <<<"$HELP"
+grep -q -- '--word-json' <<<"$HELP"
 
 if "$BIN" --analysis-json --json missing.m4a >/dev/null 2>&1; then
   echo "analysis mode must reject legacy output flags" >&2
+  exit 1
+fi
+if "$BIN" --word-json --json missing.m4a >/dev/null 2>&1; then
+  echo "word JSON mode must reject other output flags" >&2
   exit 1
 fi
 
@@ -35,11 +40,11 @@ struct ContextTest {
         options.oneOffVocab = ["중복", "일회성"]
         let context = try contextTerms(for: options)
         precondition(context.selected.count == 100)
-        precondition(context.selected[0] == "첫용어")
-        precondition(context.selected[1] == "중복")
+        precondition(context.selected[0] == "중복")
+        precondition(context.selected[1] == "일회성")
+        precondition(context.selected[2] == "첫용어")
         precondition(context.selected.filter { $0 == "중복" }.count == 1)
         precondition(context.dropped.count == 8)
-        precondition(!context.selected.contains("일회성"))
 
         let segment = Segment(
             start: 1.0, end: 2.25, text: "테스트", confidenceSpans: [],
@@ -53,6 +58,22 @@ struct ContextTest {
         subtitles.srt = true
         let subtitleText = try render([segment], options: subtitles, analysis: nil)
         precondition(subtitleText == "1\n00:00:01,000 --> 00:00:02,250\n테스트\n")
+
+        let words = timedWords([
+            (text: " ", range: nil), (text: "첫", range: (0.0, 0.5)),
+            (text: ",", range: nil), (text: " 말", range: (0.6, 1.0)),
+        ])
+        precondition(words == [
+            Word(start: 0.0, end: 0.5, text: " 첫,"), Word(start: 0.6, end: 1.0, text: " 말"),
+        ])
+        var wordSegment = segment
+        wordSegment.words = words
+        var wordJSON = Options()
+        wordJSON.wordJSON = true
+        let wordText = try render([wordSegment], options: wordJSON, analysis: nil)
+        let decoded = try JSONSerialization.jsonObject(with: Data(wordText.utf8)) as! [[String: Any]]
+        precondition(Set(decoded[0].keys) == ["start", "end", "text", "words"])
+        precondition((decoded[0]["words"] as! [[String: Any]]).count == 2)
     }
 }
 SWIFT
@@ -84,17 +105,24 @@ if [ -n "${APPLE_STT_TEST_AUDIO:-}" ]; then
   "$BIN" --quiet --timestamps "$APPLE_STT_TEST_AUDIO" > "$TMP/timestamps.txt"
   "$BIN" --quiet --srt "$APPLE_STT_TEST_AUDIO" > "$TMP/subtitles.srt"
   "$BIN" --quiet --json "$APPLE_STT_TEST_AUDIO" > "$TMP/legacy.json"
+  "$BIN" --quiet --word-json "$APPLE_STT_TEST_AUDIO" > "$TMP/words.json"
   "$BIN" --quiet --analysis-json --vocab-file "$TMP/vocab.txt" \
     "$APPLE_STT_TEST_AUDIO" > "$TMP/analysis.json"
   grep -Eq '^\[[0-9]{2}:[0-9]{2}\]' "$TMP/timestamps.txt"
   grep -Eq '^[0-9]+$' "$TMP/subtitles.srt"
   grep -q -- '-->' "$TMP/subtitles.srt"
-  python3 - "$TMP/legacy.json" "$TMP/analysis.json" <<'PY'
+  python3 - "$TMP/legacy.json" "$TMP/analysis.json" "$TMP/words.json" <<'PY'
 import json
 import sys
 
 legacy = json.load(open(sys.argv[1], encoding="utf-8"))
 analysis = json.load(open(sys.argv[2], encoding="utf-8"))
+words = json.load(open(sys.argv[3], encoding="utf-8"))
+assert [segment["text"] for segment in words] == [segment["text"] for segment in legacy]
+for segment in words:
+    assert segment["words"]
+    assert "".join(word["text"] for word in segment["words"]).strip() == segment["text"]
+    assert all(word["start"] <= word["end"] for word in segment["words"])
 assert isinstance(legacy, list) and legacy
 assert set(legacy[0]) == {"start", "end", "text"}
 assert analysis["schema_version"] == 1

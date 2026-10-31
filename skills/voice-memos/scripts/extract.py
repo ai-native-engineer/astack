@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import os
-import re
 import shutil
 import sqlite3
 import subprocess
@@ -22,6 +21,7 @@ from config import (
     Outcome,
     OutcomeStatus,
     PipelineError,
+    RECORDING_TIMESTAMP_RE,
     RECORDINGS_DIR,
     REVIEW_DB_PATH,
     RecordingBusy,
@@ -52,10 +52,18 @@ from review import (
 )
 
 LOCALE = "ko-KR"
-_TIMESTAMP_RE = re.compile(r"(\d{8})\s+(\d{6})")
 
 
 def _recording_files(directory: Path) -> list[Path]:
+    """List recordings; raise OSError when the folder exists but cannot be read.
+
+    Path.glob swallows PermissionError, so a watcher without Full Disk Access
+    would otherwise see an empty folder and report nothing to do.
+    """
+    try:
+        names = os.listdir(directory)
+    except FileNotFoundError:
+        return []
     unavailable: set[str] = set()
     database = directory / "CloudRecordings.db"
     if database.exists():
@@ -72,10 +80,9 @@ def _recording_files(directory: Path) -> list[Path]:
         except sqlite3.Error as error:
             print(f"  [WARN] Voice Memos state unavailable: {error}", file=sys.stderr)
     return sorted(
-        path
-        for pattern in ("*.m4a", "*.qta")
-        for path in directory.glob(pattern)
-        if path.name not in unavailable
+        directory / name
+        for name in names
+        if name.endswith((".m4a", ".qta")) and name not in unavailable
     )
 
 
@@ -156,7 +163,7 @@ def transcribe(
 
 
 def parse_filename(filename: str) -> tuple[str, str, str]:
-    match = _TIMESTAMP_RE.search(filename)
+    match = RECORDING_TIMESTAMP_RE.search(filename)
     if match:
         date_part, time_part = match.groups()
         try:
@@ -368,7 +375,14 @@ def main() -> None:
 
     if args.file:
         raise SystemExit(_run([Path(args.file).expanduser()], args.force))
-    files = _recording_files(RECORDINGS_DIR)
+    try:
+        files = _recording_files(RECORDINGS_DIR)
+    except OSError as error:
+        print(
+            f"  [ERROR] RecordingsUnreadable {type(error).__name__}: {RECORDINGS_DIR}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from error
     raise SystemExit(_run(files, args.force))
 
 

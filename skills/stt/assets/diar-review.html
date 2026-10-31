@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="darkreader-lock">
+<title>화자 확인</title>
+<style>
+:root {
+  --bg: #f7f7f5; --fg: #1b1b1a; --muted: #6b6b66; --card: #fff; --accent: #2f6fdd; --danger: #c2410c;
+  --now: oklch(0.95 0.04 250);
+  --shadow-border: 0 0 0 1px oklch(0 0 0 / .06), 0 1px 2px -1px oklch(0 0 0 / .06), 0 2px 4px 0 oklch(0 0 0 / .04);
+  --line: oklch(0 0 0 / .08);
+  --s0: #2f6fdd; --s1: #d9480f; --s2: #2b8a3e; --s3: #9c36b5; --s4: #0b7285; --s5: #b08900; --s6: #c2255c; --s7: #5c5f66;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413; --fg: #ecebe7; --muted: #9a9993; --card: #1e1e1c; --accent: #7aa7ff; --danger: #fb923c;
+    --now: oklch(0.32 0.05 250);
+    --shadow-border: 0 0 0 1px oklch(1 0 0 / .08);
+    --line: oklch(1 0 0 / .08);
+    --s0: #7aa7ff; --s1: #ff9a62; --s2: #69db7c; --s3: #e599f7; --s4: #66d9e8; --s5: #ffd43b; --s6: #f783ac; --s7: #adb5bd;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, "Apple SD Gothic Neo", sans-serif; word-break: keep-all; }
+h1 { font-size: 1.15rem; margin: 0; overflow-wrap: anywhere; }
+h2 { font-size: .95rem; margin: 24px 0 8px; color: var(--muted); font-weight: 600; }
+.sub, small { color: var(--muted); font-size: .85rem; font-weight: 400; }
+p { margin: 0; }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; border-radius: 8px; background: none;
+  transition-property: scale, background-color; transition-duration: 150ms; transition-timing-function: ease-out; }
+button:active { scale: .96; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: default; }
+.primary { background: var(--accent); color: #fff; padding: 6px 14px; }
+.ghost { box-shadow: var(--shadow-border); background: var(--card); padding: 6px 12px; }
+.link { color: var(--muted); padding: 2px 0; font-size: .85rem; text-decoration: underline; text-underline-offset: 3px; }
+.link.danger { color: var(--danger); }
+.icon { width: 1.05em; height: 1.05em; vertical-align: -0.15em; }
+
+.bar { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); }
+.bar-in { max-width: 1120px; margin: 0 auto; padding: 14px 16px 10px; }
+.head { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.head > div { min-width: 0; }
+#copy { flex: none; white-space: nowrap; }
+audio { width: 100%; margin-top: 10px; display: block; }
+#msg { position: fixed; z-index: 3; left: 50%; bottom: 16px; translate: -50% 0; width: max-content; max-width: calc(100% - 32px);
+  background: var(--card); box-shadow: var(--shadow-border), 0 8px 24px oklch(0 0 0 / .12); border-radius: 12px; padding: 10px 16px; font-size: .9rem; }
+#msg:empty { display: none; }
+#msg.error { color: var(--danger); }
+
+.layout { max-width: 1120px; margin: 0 auto; padding: 4px 16px 80px; display: grid; gap: 8px 32px; }
+@media (min-width: 900px) {
+  .layout { grid-template-columns: 340px 1fr; align-items: start; }
+  .side { position: sticky; top: 132px; max-height: calc(100vh - 140px); overflow-y: auto; padding: 2px; }
+}
+
+.spk { background: var(--card); box-shadow: var(--shadow-border); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+.spk-head { display: flex; gap: 10px; align-items: center; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c); flex: none; align-self: flex-start; margin-top: 5px; }
+.spk-name { flex: 1; min-width: 0; line-height: 1.35; }
+.spk-name strong { display: block; overflow-wrap: anywhere; }
+.suggest { margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--c); background: var(--bg); border-radius: 0 8px 8px 0; font-size: .9rem; }
+.suggest .acts { display: flex; gap: 8px; margin-top: 6px; }
+.name-form { margin-top: 12px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.name-form input[type=text] { font: inherit; color: inherit; min-width: 0; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid oklch(.5 0 0 / .3); background: transparent; }
+.remember { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; font-size: .85rem; color: var(--muted); cursor: pointer; }
+.spk-foot { margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; }
+
+.voice { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 2px; border-bottom: 1px solid var(--line); }
+.empty { color: var(--muted); font-size: .9rem; }
+
+#rows { list-style: none; margin: 0; padding: 0; }
+.row { display: grid; grid-template-columns: 64px 1fr; gap: 4px 10px; padding: 10px 8px; border-radius: 10px;
+  transition-property: background-color; transition-duration: 150ms; }
+.row.now { background: var(--now); }
+.ts { font: 13px/1.6 ui-monospace, Menlo, monospace; color: var(--muted); padding: 2px 6px; align-self: start; text-align: left; }
+.ts:hover { color: var(--accent); }
+.who { font-weight: 600; font-size: .9rem; color: var(--c); overflow-wrap: anywhere; }
+.row p { overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { button, .row { transition-duration: 1ms; } }
+</style>
+</head>
+<body>
+<header class="bar"><div class="bar-in">
+  <div class="head">
+    <div><h1 id="title">화자 확인</h1><p class="sub" id="meta">불러오는 중</p></div>
+    <button id="copy" class="ghost" type="button">Markdown 복사</button>
+  </div>
+  <audio id="player" controls preload="metadata"></audio>
+  <p id="audio-note" class="sub" hidden></p>
+</div></header>
+<p id="msg" role="status" aria-live="polite"></p>
+<main class="layout">
+  <aside class="side">
+    <h2>화자</h2>
+    <div id="speakers"></div>
+    <h2>기억한 목소리</h2>
+    <div id="voices"></div>
+  </aside>
+  <section>
+    <h2>전사본</h2>
+    <ol id="rows"></ol>
+  </section>
+</main>
+<script>
+const token = new URLSearchParams(location.search).get('t') || '';
+const $ = id => document.getElementById(id);
+const player = $('player');
+let state = null;
+let stopAt = null;
+let offline = false;
+
+const PLAY = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clock = s => { const m = Math.floor(s / 60), r = Math.floor(s % 60); return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`; };
+const span = s => s >= 60 ? `${Math.floor(s / 60)}분 ${Math.round(s % 60)}초` : `${Math.round(s)}초`;
+
+function color(label) {
+  const i = state.speakers.findIndex(s => s.label === label);
+  return i < 0 ? 'var(--muted)' : `var(--s${i % 8})`;
+}
+
+let sayTimer = null;
+function say(text, error = false) {
+  $('msg').textContent = text;
+  $('msg').className = error ? 'error' : '';
+  clearTimeout(sayTimer);
+  // Errors stay until the next message; confirmations clear themselves.
+  if (!error) sayTimer = setTimeout(() => { $('msg').textContent = ''; }, 5000);
+}
+
+async function api(path, body) {
+  const res = await fetch(`${path}?t=${encodeURIComponent(token)}`, body === undefined ? {} : {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `요청이 실패했습니다 (${res.status}).`);
+  return data;
+}
+
+async function act(path, body, done) {
+  if (offline) return;
+  try {
+    state = await api(path, body);
+    render();
+    say(done);
+  } catch (err) {
+    say(err.message === 'Failed to fetch' ? '확인 화면 서버가 꺼져 있습니다. 에이전트에게 다시 열어 달라고 하면 됩니다.' : err.message, true);
+  }
+}
+
+function play(start, end = null) {
+  if (!state.audio) return;
+  stopAt = end;
+  player.currentTime = start;
+  player.play().catch(() => {});
+}
+
+function renderSpeakers() {
+  const box = $('speakers');
+  if (!state.speakers.length) { box.innerHTML = '<p class="empty">화자를 찾지 못했습니다.</p>'; return; }
+  box.innerHTML = state.speakers.map(s => {
+    const short = s.seconds < state.minEnrollSeconds;
+    const suggestion = s.name && !s.sure;
+    const named = s.name && s.sure;
+    return `<article class="spk" data-label="${esc(s.label)}" style="--c:${color(s.label)}">
+  <div class="spk-head">
+    <span class="dot"></span>
+    <div class="spk-name"><strong>${esc(named ? s.name : s.label)}</strong>
+      <small>${named ? esc(s.label) + ', ' : ''}말한 시간 ${span(s.seconds)}${named && !s.manual ? ', 자동으로 찾음' : ''}</small></div>
+    ${s.sample && state.audio ? `<button class="ghost sample" type="button" aria-label="${esc(s.label)} 목소리 듣기">${PLAY} 듣기</button>` : ''}
+  </div>
+  ${suggestion ? `<div class="suggest"><p><strong>${esc(s.name)}</strong>일 수 있습니다.</p>
+    <div class="acts"><button class="primary accept" type="button">맞아요</button><button class="ghost reject" type="button">아니에요</button></div></div>` : ''}
+  <form class="name-form">
+    <input type="text" name="name" placeholder="이름" maxlength="40" autocomplete="off" value="${esc(named ? s.name : '')}" aria-label="${esc(s.label)} 이름">
+    <button class="primary" type="submit">저장</button>
+    <label class="remember"><input type="checkbox" name="remember" ${short ? 'disabled' : s.remember ? 'checked' : ''}>
+      ${short ? `말한 시간이 ${state.minEnrollSeconds}초보다 짧아 이 녹음에만 붙입니다` : '다음 녹음에서도 이 목소리를 알아보기'}</label>
+  </form>
+  ${named ? '<div class="spk-foot"><button class="link clear" type="button">이 녹음에서 이름 지우기</button></div>' : ''}
+</article>`;
+  }).join('');
+}
+
+function renderVoices() {
+  $('voices').innerHTML = state.voices.length ? state.voices.map(v => `<div class="voice" data-name="${esc(v.name)}">
+  <span>${esc(v.name)} <small>녹음 ${v.count}개</small></span>
+  <button class="link danger forget" type="button">잊기</button></div>`).join('')
+    : '<p class="empty">아직 없습니다. 화자 이름을 저장할 때 "알아보기"를 켜 두면 여기 쌓입니다.</p>';
+}
+
+function renderRows() {
+  $('rows').innerHTML = state.rows.map((r, i) => `<li class="row" data-i="${i}" style="--c:${color(r.label)}">
+  <button class="ts" type="button" data-t="${r.start}" ${state.audio ? '' : 'disabled'} aria-label="${clock(r.start)}부터 듣기">${clock(r.start)}</button>
+  <div><span class="who">${esc(r.display)}</span><p>${esc(r.text)}</p></div></li>`).join('')
+    || '<li class="empty">전사된 말이 없습니다.</li>';
+}
+
+function render() {
+  $('title').textContent = state.title;
+  document.title = `화자 확인 - ${state.title}`;
+  const named = state.speakers.filter(s => s.name && s.sure).length;
+  $('meta').textContent = `화자 ${state.speakers.length}명, 이름 붙인 화자 ${named}명`;
+  renderSpeakers();
+  renderVoices();
+  renderRows();
+}
+
+$('speakers').addEventListener('click', e => {
+  const card = e.target.closest('.spk');
+  if (!card) return;
+  const s = state.speakers.find(x => x.label === card.dataset.label);
+  if (e.target.closest('.sample')) play(s.sample[0], s.sample[1]);
+  else if (e.target.closest('.accept')) act('/api/name', { label: s.label, name: s.name, remember: s.seconds >= state.minEnrollSeconds },
+    `이름을 저장했습니다: ${s.name}`);
+  else if (e.target.closest('.reject')) act('/api/clear', { label: s.label }, `추정 이름을 지웠습니다: ${s.label}`);
+  else if (e.target.closest('.clear')) act('/api/clear', { label: s.label }, `이 녹음에서 이름을 지웠습니다: ${s.label}. 기억한 목소리는 그대로 남습니다.`);
+});
+
+let composing = false;
+$('speakers').addEventListener('compositionstart', () => { composing = true; });
+$('speakers').addEventListener('compositionend', () => { composing = false; });
+$('speakers').addEventListener('keydown', e => {
+  // Enter that confirms Korean composition must not submit the form.
+  if (e.key === 'Enter' && (composing || e.isComposing || e.keyCode === 229)) e.preventDefault();
+});
+$('speakers').addEventListener('submit', e => {
+  e.preventDefault();
+  const card = e.target.closest('.spk');
+  const name = e.target.elements.name.value.trim();
+  const remember = e.target.elements.remember.checked;
+  if (!name) { say('이름을 적어 주세요.', true); return; }
+  act('/api/name', { label: card.dataset.label, name, remember },
+    remember ? `이름을 저장했습니다: ${name}. 다음 녹음에서도 이 목소리를 찾습니다.` : `이름을 저장했습니다: ${name}. 이 녹음에만 적용됩니다.`);
+});
+
+$('voices').addEventListener('click', e => {
+  const row = e.target.closest('.forget') && e.target.closest('.voice');
+  if (!row) return;
+  const v = state.voices.find(x => x.name === row.dataset.name);
+  if (confirm(`${v.name}의 목소리 샘플 ${v.count}개를 지울까요? 직접 붙인 이름은 이 녹음에 그대로 남습니다.`))
+    act('/api/forget', { name: v.name }, `목소리를 잊었습니다: ${v.name}`);
+});
+
+$('rows').addEventListener('click', e => {
+  const ts = e.target.closest('.ts');
+  if (ts) play(Number(ts.dataset.t));
+});
+
+player.addEventListener('timeupdate', () => {
+  const t = player.currentTime;
+  if (stopAt !== null && t >= stopAt) { player.pause(); stopAt = null; }
+  let current = -1;
+  state.rows.forEach((r, i) => { if (r.start <= t + 0.05) current = i; });
+  document.querySelectorAll('.row').forEach(li => li.classList.toggle('now', Number(li.dataset.i) === current && !player.paused));
+});
+player.addEventListener('pause', () => { stopAt = null; document.querySelectorAll('.row.now').forEach(li => li.classList.remove('now')); });
+player.addEventListener('error', () => {
+  $('audio-note').hidden = false;
+  $('audio-note').textContent = '이 오디오 형식은 브라우저에서 재생할 수 없습니다. 전사본과 이름 저장은 그대로 쓸 수 있습니다.';
+});
+
+$('copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(state.markdown); say('diarized.md 내용을 복사했습니다.'); }
+  catch {
+    const area = Object.assign(document.createElement('textarea'), { value: state.markdown });
+    document.body.append(area); area.select();
+    const ok = document.execCommand('copy'); area.remove();
+    say(ok ? 'diarized.md 내용을 복사했습니다.' : '복사가 막혔습니다. 결과 폴더의 diarized.md를 열어 주세요.', !ok);
+  }
+});
+
+// The server stops itself once these pings stop, i.e. after the tab closes.
+setInterval(() => api('/api/ping').then(() => { offline = false; }).catch(() => {
+  offline = true;
+  say('확인 화면 서버가 꺼졌습니다. 에이전트에게 다시 열어 달라고 하면 됩니다.', true);
+}), 120000);
+
+api('/api/state').then(data => {
+  state = data;
+  if (state.audio) player.src = `/audio?t=${encodeURIComponent(token)}`;
+  else {
+    player.hidden = true;
+    $('audio-note').hidden = false;
+    $('audio-note').textContent = '원본 오디오를 찾지 못해 재생할 수 없습니다. 전사본과 이름 저장은 그대로 쓸 수 있습니다.';
+  }
+  render();
+}).catch(err => say(err.message === 'Failed to fetch' ? '확인 화면 서버에 연결하지 못했습니다.' : err.message, true));
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 ---
 argument-hint: "[query]"
 name: voice-memos
-description: "Use for: Apple Voice Memos·에이닷 통화 녹음·Apple Notes·Tiro 회의 노트를 검색·읽고, 로컬 녹음을 추출·전사·교정·요약·병합하며 알림/Telegram 전송·워처를 진단한다. YouTube 자막, 일반 미디어 병합(ffmpeg), 붙여넣은 텍스트 회의록, Tiro 실시간 녹음·업로드, 일반 파일 검색, 비개인 오디오 제작에는 쓰지 않는다."
+description: "Use for: Apple 음성 메모, 에이닷 통화 녹음, Apple Notes, Tiro 회의 노트를 찾아 전사, 교정, 요약하고 알림과 워처를 진단한다. 일반 음성 파일 전사는 stt."
 ---
 
 # Voice Memos
@@ -42,12 +42,17 @@ python3 scripts/search.py                       # 최근 10개
 python3 scripts/search.py --recent 5
 python3 scripts/search.py --date 2025-01-15     # YYYY-MM-DD, YYYY-MM, YYYY
 python3 scripts/search.py --date today          # today, yesterday, this-week, this-month
+python3 scripts/search.py --date 목요일          # 요일(thu, 목요일): 오늘 포함 가장 최근 그 요일
 python3 scripts/search.py --keyword "프롬프트"
 python3 scripts/search.py --dates                # 녹음/메모 있는 날짜 목록
 python3 scripts/search.py --recent 5 --no-preview --count
 ```
 
-`search.py`는 **이미 전사/인덱싱된 로컬 산출물 기준**이다. "최근 N건 요약"에서 사용자가 "하나 더 있다"고 정정하거나 앱에는 보이는데 검색 결과가 부족하면, 먼저 `search.py --recent N --no-preview`와 `python3 scripts/tiro_notes.py list --limit N --no-preview`를 함께 본다. 로컬이 비면 `extract.py --all` / `verify_fda.sh`로 원본 접근·워처를 진단한다. Tiro가 비면 `references/tiro.md` 실패 표를 본다. 한쪽 산출물만 보고 "없다"고 단정하지 않는다.
+- 음성 메모는 녹음 폴더마다 `transcript.md`, 없으면 화자 분리 결과 `diarized.md`를 보여 준다.
+- 산출물이 없는 원본 녹음도 `미전사`로 앱 제목, 길이, 원본 경로와 함께 나온다. 화자 분리나 전사는 그 원본 경로로 실행한다.
+- `미전사`가 여러 건 쌓였으면 워처가 멈춘 것이므로 `references/watcher.md`로 진단한다.
+- 키워드 검색은 전사본만 읽는다. iCloud에만 있는 파일은 읽으면 멈추므로 빼고 개수를 경고한다.
+- 사용자가 "하나 더 있다"고 정정하면 `search.py --recent N --no-preview`와 `python3 scripts/tiro_notes.py list --limit N --no-preview`를 함께 본다. Tiro가 비면 `references/tiro.md` 실패 표를 본다. 한쪽 결과만 보고 "없다"고 단정하지 않는다.
 
 미리보기 출력 중 iCloud 파일이 `Resource deadlock avoided`를 내면 `--no-preview`로 목록만 확인한다. 본문이 필요하면 해당 파일을 `brctl download`로 내려받고 `/tmp`로 복사한 뒤 읽는다(자세한 절차는 `references/voice-memos.md`의 전문 읽기 절).
 
@@ -64,13 +69,16 @@ python3 scripts/search.py --recent 5 --no-preview --count
 
 ### "화자 분리해줘" / "누가 말한 건지 알고 싶어"
 
-해당 음성 메모의 transcript 디렉토리를 확인한 뒤 실행한다.
+`search.py`가 보여 준 원본 경로로 실행한다. 전사본이 없는 녹음도 된다.
 
 ```bash
-bash scripts/diarize.sh <audio.m4a> <transcript_dir> [start] [end]
+bash scripts/diarize.sh <audio.m4a> [transcript_dir|-] [start] [end]
 ```
 
-출력은 `transcript_dir/diarized.md`다. Apple 텍스트가 정본이고 화자 타임라인은 `stt` 스킬의 pyannote 경로로 만든다. 여러 화자가 한 Apple 범위에 겹치면 `mixed`로 둔다.
+- 결과 폴더를 생략하거나 `-`로 두면 파이프라인이 그 녹음에 쓰는 transcript 폴더에 둔다. 구간만 자를 때는 `-`를 넣고 `start`, `end`를 준다.
+- 결과 폴더에는 `diarized.md`와 확인 화면이 읽는 `transcript.json`, `diar.rttm`, `speakers.json`, `names.json`, `run.json`이 함께 생긴다. 다시 실행하면 이 파일들을 덮어쓴다.
+- 실행 전에 걸릴 시간을 `stt` 스킬 기준으로 알린다. 여러 녹음은 메모리 때문에 하나씩 차례로 돌린다.
+- 글과 화자는 `stt` 스킬의 화자 분리 모드(MOSS)가 함께 만들므로, `diarized.md`의 글은 Apple 전사본과 다를 수 있다. 턴 묶기, 빈 곳(`**[gap]**`), 확인 화면은 `stt` 스킬의 `references/diarization.md`를 따른다.
 
 ### "전사만 해줘"
 
@@ -117,7 +125,7 @@ python3 scripts/notify.py
 ### "전사가 안 됐어" / "알림이 안 와" / 워처 점검
 
 launchd 워처 구성·로그 판독·FDA 권한 진단·재시작 절차는 `references/watcher.md`.
-Telegram 에러 알림을 붙여주면 마지막 `[ERROR]` 단계부터 본다. 전사 단계의 `processed=0`은 새 대상 없음일 수 있으므로, 요약 단계에 오류가 있으면 먼저 model/SDK/CLI 경로를 확인한다.
+Telegram 에러 알림을 붙여주면 마지막 `[ERROR]` 단계부터 본다. 전사 단계의 `RecordingsUnreadable`은 워처의 FDA가 빠진 것이다(`references/watcher.md` A). `processed=0`은 새 대상 없음일 수 있으므로, 요약 단계에 오류가 있으면 먼저 model/SDK/CLI 경로를 확인한다.
 
 ### "음성 메모 제목 바꿔줘" / "앱 안 이름 바꿔줘"
 

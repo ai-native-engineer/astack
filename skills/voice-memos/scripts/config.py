@@ -55,6 +55,8 @@ RECORDINGS_DIR = Path(
         / "Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings",
     )
 ).expanduser()
+# Voice Memos names files by local recording start: "YYYYMMDD HHMMSS-<id>.m4a".
+RECORDING_TIMESTAMP_RE = re.compile(r"(\d{8})\s+(\d{6})")
 CALL_TRANSCRIPT_SUFFIX = ".transcript.md"
 CALL_SUMMARY_SUFFIX = ".summary.md"
 CALL_NAME_SUFFIXES = (CALL_TRANSCRIPT_SUFFIX, CALL_SUMMARY_SUFFIX, ".txt", ".m4a")
@@ -737,6 +739,18 @@ def recording_artifact_dir(date: str, time_part: str, recording_id: str) -> Path
         if not candidate.exists() or _artifact_recording_id(candidate) == recording_id:
             return candidate
     raise PipelineError("RecordingIdentityConflict")
+
+
+def transcript_dir_for_audio(audio: Path) -> Path:
+    """Return the transcript folder the pipeline uses, or would use, for this recording."""
+    match = RECORDING_TIMESTAMP_RE.search(audio.name)
+    if not match:
+        raise PipelineError("recording filename has no 'YYYYMMDD HHMMSS' timestamp")
+    date_part, time_part = match.groups()
+    legacy = TRANSCRIPTS_DIR / date_part / time_part
+    if stt_mode() == "legacy" or legacy.exists():
+        return legacy
+    return recording_artifact_dir(date_part, time_part, source_sha256(audio))
 
 
 def is_call_transcript(path: Path) -> bool:

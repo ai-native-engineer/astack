@@ -31,6 +31,7 @@ struct Options {
     var srt = false
     var json = false
     var analysisJSON = false
+    var wordJSON = false
     var listLocales = false
     var output: String?
     var save = false
@@ -61,11 +62,12 @@ func printUsage() {
           --srt                SRT 자막 형식 출력
           --json               기존 JSON 배열 출력 (start/end/text)
           --analysis-json      Apple evidence schema v1 JSON 출력 (단일 입력)
+          --word-json          구간별 단어 시간을 더한 JSON 배열 출력 (화자 분리용)
       -o, --output <파일>      결과를 지정 파일로 저장 (단일 입력)
           --save               각 입력 파일 옆에 <이름>.txt/.srt/.json 저장
           --list-locales       지원/설치된 로케일 목록
       -q, --quiet              진행 메시지 숨김
-          --vocab <단어,...>   선택된 context에 일회성 용어 추가
+          --vocab <단어,...>   일회성 용어를 공용 사전보다 먼저 context에 추가
           --vocab-file <파일>  기본 ~/.config/stt/vocab.txt를 대체
       -h, --help               이 도움말
 
@@ -98,6 +100,8 @@ func parseArgs() throws -> Options {
             options.json = true
         case "--analysis-json":
             options.analysisJSON = true
+        case "--word-json":
+            options.wordJSON = true
         case "--list-locales":
             options.listLocales = true
         case "--save":
@@ -127,6 +131,9 @@ func parseArgs() throws -> Options {
     if options.analysisJSON && options.files.count != 1 {
         throw STTError.invalidArguments("--analysis-json은 오디오 파일 한 개만 받습니다")
     }
+    if options.wordJSON && (options.timestamps || options.srt || options.json || options.analysisJSON) {
+        throw STTError.invalidArguments("--word-json은 다른 출력 형식과 함께 쓸 수 없습니다")
+    }
     return options
 }
 
@@ -155,7 +162,8 @@ func contextTerms(for options: Options) throws -> ContextTerms {
     var seen = Set<String>()
     let controls = CharacterSet.controlCharacters
 
-    for raw in base + options.oneOffVocab {
+    // One-off terms go first so a full shared vocab cannot crowd them out.
+    for raw in options.oneOffVocab + base {
         let term = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if term.isEmpty || term.hasPrefix("#") || !seen.insert(term).inserted { continue }
         let wordCount = term.split(whereSeparator: { $0.isWhitespace }).count
@@ -227,6 +235,12 @@ struct Alternative: Encodable {
     let confidence: NullableDouble
 }
 
+struct Word: Encodable, Equatable {
+    let start: Double
+    let end: Double
+    let text: String
+}
+
 struct Segment {
     let start: Double
     let end: Double
@@ -234,12 +248,20 @@ struct Segment {
     let confidenceSpans: [ConfidenceSpan]
     let reviewConfidence: Double?
     let alternatives: [Alternative]
+    var words: [Word] = []
 }
 
 struct LegacySegment: Encodable {
     let start: Double
     let end: Double
     let text: String
+}
+
+struct WordSegment: Encodable {
+    let start: Double
+    let end: Double
+    let text: String
+    let words: [Word]
 }
 
 struct EvidenceSegment: Encodable {
@@ -281,6 +303,33 @@ func attributedTimeBounds(_ attributed: AttributedString, fallback: (Double, Dou
     let starts = ranges.map { $0.start.seconds }.filter { $0.isFinite }
     let ends = ranges.map { $0.end.seconds }.filter { $0.isFinite }
     return (starts.min() ?? fallback.0, ends.max() ?? fallback.1)
+}
+
+// Untimed runs stay attached to a neighbouring timed run, so the word texts
+// concatenate back to the full result text.
+func timedWords(_ pieces: [(text: String, range: (Double, Double)?)]) -> [Word] {
+    var words: [Word] = []
+    var pending = ""
+    for piece in pieces {
+        guard let (start, end) = piece.range, start.isFinite, end.isFinite, end >= start else {
+            if let last = words.popLast() {
+                words.append(Word(start: last.start, end: last.end, text: last.text + piece.text))
+            } else {
+                pending += piece.text
+            }
+            continue
+        }
+        words.append(Word(start: start, end: end, text: pending + piece.text))
+        pending = ""
+    }
+    return words
+}
+
+func attributedWords(_ attributed: AttributedString) -> [Word] {
+    timedWords(attributed.runs.map { run in
+        let text = String(attributed.characters[run.range])
+        return (text, run.audioTimeRange.map { ($0.start.seconds, $0.end.seconds) })
+    })
 }
 
 func transcribe(url: URL, locale: Locale, context: [String], quiet: Bool) async throws -> ([Segment], Int) {
@@ -328,7 +377,8 @@ func transcribe(url: URL, locale: Locale, context: [String], quiet: Bool) async 
                 text: text,
                 confidenceSpans: confidenceSpans,
                 reviewConfidence: reviewConfidence,
-                alternatives: alternatives
+                alternatives: alternatives,
+                words: attributedWords(result.text)
             ))
         }
         return segments
@@ -474,6 +524,13 @@ func render(_ segments: [Segment], options: Options, analysis: AnalysisDocument?
                           text: $0.text.trimmingCharacters(in: .whitespacesAndNewlines))
         })
     }
+    if options.wordJSON {
+        return try encodeJSON(segments.map {
+            WordSegment(start: $0.start, end: $0.end,
+                        text: $0.text.trimmingCharacters(in: .whitespacesAndNewlines),
+                        words: $0.words)
+        })
+    }
     if options.timestamps {
         return segments.map {
             "[\(fmtClock($0.start))] \($0.text.trimmingCharacters(in: .whitespacesAndNewlines))"
@@ -485,7 +542,7 @@ func render(_ segments: [Segment], options: Options, analysis: AnalysisDocument?
 
 func outputExtension(_ options: Options) -> String {
     if options.srt { return "srt" }
-    if options.json || options.analysisJSON { return "json" }
+    if options.json || options.analysisJSON || options.wordJSON { return "json" }
     return "txt"
 }
 

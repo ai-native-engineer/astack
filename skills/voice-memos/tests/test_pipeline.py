@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import sqlite3
@@ -361,6 +362,152 @@ else:
         self.assertEqual(search.call_display_name(leading), "윤형준님")
         self.assertIsNone(search.call_to_datetime(Path("메모.txt")))
 
+    @contextmanager
+    def search_environment(self):
+        recordings = self.root / "Recordings"
+        recordings.mkdir()
+        with (
+            mock.patch.object(search, "TRANSCRIPTS_DIR", self.transcripts),
+            mock.patch.object(search, "RECORDINGS_DIR", recordings),
+            mock.patch.object(search, "CALL_RECORDINGS_DIR", self.root / "no-calls"),
+            mock.patch.object(search.vm_notes, "refresh_notes_meta"),
+            mock.patch.object(search.vm_notes, "all_note_paths", return_value=[]),
+        ):
+            yield recordings
+
+    def test_search_lists_diarized_folders_and_untranscribed_originals(self):
+        transcribed = self.transcripts / "20261029" / "012247"
+        transcribed.mkdir(parents=True)
+        (transcribed / "transcript.md").write_text("## 전사 내용\n애플", encoding="utf-8")
+        (transcribed / "diarized.md").write_text("**[A]** (00:00) 애플", encoding="utf-8")
+        diarized_only = self.transcripts / "20261101" / "022449"
+        diarized_only.mkdir(parents=True)
+        (diarized_only / "diarized.md").write_text("**[A]** (00:00) 스프린트", encoding="utf-8")
+        with self.search_environment() as recordings:
+            for name in (
+                "20261029 012247-AAAA.m4a",
+                "20261101 022449-BBBB.m4a",
+                "20261028 174322-CCCC.m4a",
+                "20261028 184955-DDDD.m4a",
+            ):
+                (recordings / name).write_bytes(b"audio")
+            with sqlite3.connect(recordings / "CloudRecordings.db") as db:
+                db.execute(
+                    "CREATE TABLE ZCLOUDRECORDING "
+                    "(ZPATH TEXT, ZENCRYPTEDTITLE TEXT, ZDURATION REAL, ZEVICTIONDATE REAL)"
+                )
+                db.executemany(
+                    "INSERT INTO ZCLOUDRECORDING VALUES (?, ?, ?, ?)",
+                    [
+                        ("20261028 174322-CCCC.m4a", "녹음 56", 3990.0, None),
+                        ("20261028 184955-DDDD.m4a", "지운 녹음", 60.0, 1.0),
+                    ],
+                )
+
+            files = search.iter_transcript_files()
+            original = recordings / "20261028 174322-CCCC.m4a"
+            self.assertEqual(
+                files,
+                [transcribed / "transcript.md", diarized_only / "diarized.md", original],
+            )
+            self.assertEqual(search.search_by_date("2026-10-28"), [original])
+            line = search.format_result(original)
+            self.assertIn("2026-10-28 17:43:22  녹음 56  66.5분  미전사", line)
+            self.assertIn("+화자 분리", search.format_result(transcribed / "transcript.md"))
+            self.assertIn("화자 분리만", search.format_result(diarized_only / "diarized.md"))
+            hits = search.search_by_keyword(["스프린트"])
+            self.assertEqual([path for path, _, _ in hits], [diarized_only / "diarized.md"])
+
+    def test_keyword_search_skips_cloud_only_files_with_warning(self):
+        folder = self.transcripts / "20260707" / "164215"
+        folder.mkdir(parents=True)
+        (folder / "transcript.md").write_text("## 전사 내용\n스프린트", encoding="utf-8")
+        stderr = io.StringIO()
+        with (
+            self.search_environment(),
+            mock.patch.object(search, "is_dataless", return_value=True),
+            mock.patch("sys.stderr", stderr),
+        ):
+            self.assertEqual(search.search_by_keyword(["스프린트"]), [])
+        self.assertIn("iCloud에만 있는 파일 1개", stderr.getvalue())
+
+    def run_diarize(self, *args: str) -> subprocess.CompletedProcess:
+        fake = self.root / "fake-stt-diarize.sh"
+        fake.write_text(
+            "#!/usr/bin/env bash\n"
+            "set -euo pipefail\n"
+            'out="$STT_OUT/run-1"\n'
+            'mkdir -p "$out"\n'
+            "for name in diarized.md transcript.json diar.rttm speakers.json names.json run.json; do\n"
+            '  printf %s "$name" > "$out/$name"\n'
+            "done\n"
+            'printf "%s\\n" "$out/diarized.md"\n',
+            encoding="utf-8",
+        )
+        caller = self.root / "caller"
+        scratch = self.root / "tmp"
+        caller.mkdir(exist_ok=True)
+        scratch.mkdir(exist_ok=True)
+        env = {
+            **os.environ,
+            "VOICE_MEMOS_DATA_DIR": str(self.root / "data"),
+            "VOICE_MEMOS_STT_DIARIZE": str(fake),
+            "VOICE_MEMOS_STT_MODE": "legacy",
+            "TMPDIR": str(scratch),
+        }
+        return subprocess.run(
+            ["bash", str(SCRIPTS_DIR / "diarize.sh"), *args],
+            cwd=caller,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_diarize_moves_every_result_file_to_the_recording_folder(self):
+        audio = self.audio("20261029 012247-C301C746.m4a", b"audio")
+        result = self.run_diarize(str(audio))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        target = self.root / "data" / "transcripts" / "20261029" / "012247"
+        self.assertEqual(result.stdout.strip(), str(target / "diarized.md"))
+        self.assertEqual(
+            sorted(path.name for path in target.iterdir()),
+            ["diar.rttm", "diarized.md", "names.json", "run.json", "speakers.json", "transcript.json"],
+        )
+        self.assertEqual(list((self.root / "caller").iterdir()), [])
+        self.assertEqual(list((self.root / "tmp").iterdir()), [])
+
+    def test_diarize_keeps_an_explicit_folder_and_rejects_unknown_names(self):
+        explicit = self.root / "explicit"
+        result = self.run_diarize(str(self.audio("20261029 012247-a.m4a", b"a")), str(explicit))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((explicit / "speakers.json").exists())
+
+        result = self.run_diarize(str(self.audio("meeting.m4a", b"b")))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("pass transcript_dir", result.stderr)
+
+    def test_strict_transcript_folder_uses_recording_identity(self):
+        audio = self.audio("20261029 012247-C301C746.m4a", b"audio")
+        with (
+            mock.patch.object(config, "TRANSCRIPTS_DIR", self.transcripts),
+            mock.patch.dict(os.environ, {"VOICE_MEMOS_STT_MODE": "review"}),
+        ):
+            strict = config.transcript_dir_for_audio(audio)
+            self.assertEqual(strict.parent, self.transcripts / "20261029")
+            self.assertTrue(strict.name.startswith("012247-"))
+            (self.transcripts / "20261029" / "012247").mkdir(parents=True)
+            self.assertEqual(
+                config.transcript_dir_for_audio(audio), self.transcripts / "20261029" / "012247"
+            )
+
+    def test_weekday_dates_resolve_to_latest_matching_day(self):
+        today = search.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        for name, weekday in (("thu", 3), ("Thursday", 3), ("목", 3), ("목요일", 3), ("일요일", 6)):
+            start, end = search.parse_date_range(name)
+            self.assertEqual(start.weekday(), weekday, name)
+            self.assertTrue(today - search.timedelta(days=6) <= start <= today, name)
+            self.assertEqual(end - start, search.timedelta(days=1), name)
+
     def test_unsupported_call_filename_is_skipped_not_failed(self):
         source = self.audio("무제.m4a", b"call")
         with mock.patch.object(config, "CALL_RECORDINGS_DIR", source.parent):
@@ -446,6 +593,30 @@ else:
             )
 
         self.assertEqual(extract._recording_files(self.root), [active])
+
+    def test_unreadable_recordings_folder_fails_instead_of_reporting_nothing(self):
+        recordings = self.root / "Recordings"
+        recordings.mkdir()
+        (recordings / "20260727 120000-one.m4a").write_bytes(b"one")
+        stderr = io.StringIO()
+        recordings.chmod(0)
+        try:
+            with (
+                mock.patch.object(extract, "RECORDINGS_DIR", recordings),
+                mock.patch.object(sys, "argv", ["extract.py", "--all"]),
+                mock.patch.object(extract, "_run") as run,
+                mock.patch("sys.stderr", stderr),
+                self.assertRaises(SystemExit) as raised,
+            ):
+                extract.main()
+        finally:
+            recordings.chmod(0o700)
+        self.assertEqual(raised.exception.code, 1)
+        self.assertIn("RecordingsUnreadable PermissionError", stderr.getvalue())
+        run.assert_not_called()
+
+    def test_missing_recordings_folder_is_empty(self):
+        self.assertEqual(extract._recording_files(self.root / "missing"), [])
 
     def test_atomic_write_keeps_previous_artifact_on_rename_failure(self):
         target = self.root / "artifact.md"
