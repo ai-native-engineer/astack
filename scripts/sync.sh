@@ -16,7 +16,7 @@ SKILLS=(
   ffmpeg
   find-skills
   goal-plan
-  html-explainer
+  html-page
   humanize-korean
   imessage
   kakaotalk

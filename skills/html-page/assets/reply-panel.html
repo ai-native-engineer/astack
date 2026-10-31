@@ -1,0 +1,1177 @@
+<!doctype html>
+<html lang="ko">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<meta name="color-scheme" content="light dark">
+		<meta name="darkreader-lock">
+		<title>자료에 답하기</title>
+		<style>
+		:root {
+			color-scheme: light dark;
+			accent-color: var(--accent);
+			--bg: #f7f7f7;
+			--paper: #fff;
+			--panel: #f1f1f1;
+			--composer: #fff;
+			--ink: #202020;
+			--muted: #696969;
+			--line: #dedede;
+			--accent: #333;
+			--accent-soft: #ebebeb;
+			--action: #275dcc;
+			--action-hover: #204eae;
+			--on-action: #fff;
+			--soft: #e8e8e8;
+			--warning: #494949;
+			--warning-soft: #e5e5e5;
+			--success: #333;
+			--success-soft: #d6d6d6;
+			--danger: #171717;
+			--danger-soft: #dedede;
+			--question-complete: #246345;
+			--question-complete-soft: #edf6f0;
+			--question-pending: #a03636;
+			--question-pending-soft: #fcf0ef;
+			--shadow: 0 0 0 1px #0000000b, 0 8px 32px #0000000d;
+		}
+		@media (prefers-color-scheme: dark) {
+			:root {
+				--bg: #181818;
+				--paper: #1f1f1f;
+				--panel: #282828;
+				--composer: #252525;
+				--ink: #eee;
+				--muted: #aaa;
+				--line: #3a3a3a;
+				--accent: #e5e5e5;
+				--accent-soft: #363636;
+				--action: #adc6ff;
+				--action-hover: #c3d5ff;
+				--on-action: #14213d;
+				--soft: #333;
+				--warning: #c7c7c7;
+				--warning-soft: #343434;
+				--success: #ededed;
+				--success-soft: #414141;
+				--danger: #f0f0f0;
+				--danger-soft: #383838;
+				--question-complete: #9ac9ac;
+				--question-complete-soft: #25352b;
+				--question-pending: #e3a2a2;
+				--question-pending-soft: #3b2929;
+				--shadow: 0 0 0 1px #ffffff15, 0 8px 32px #00000024;
+			}
+		}
+		* {
+			box-sizing: border-box;
+		}
+		body {
+			margin: 0;
+			height: 100dvh;
+			min-width: 320px;
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: auto minmax(0, 1fr);
+			background: var(--bg);
+			color: var(--ink);
+			font:
+				14px / 1.6 -apple-system,
+				BlinkMacSystemFont,
+				"Apple SD Gothic Neo",
+				sans-serif;
+			-webkit-font-smoothing: antialiased;
+		}
+		button,
+		textarea {
+			font: inherit;
+			color: inherit;
+		}
+		button {
+			min-height: 36px;
+			padding: 7px 11px;
+			border: 0;
+			border-radius: 8px;
+			background: transparent;
+			cursor: pointer;
+			transition:
+				background-color 140ms,
+				color 140ms,
+				scale 140ms;
+		}
+		button:hover:not(:disabled) {
+			background: var(--soft);
+		}
+		button:active:not(:disabled) {
+			scale: 0.96;
+		}
+		button:disabled {
+			opacity: 0.5;
+			cursor: default;
+		}
+		button:focus-visible,
+		textarea:focus-visible,
+		summary:focus-visible {
+			outline: 2px solid var(--accent);
+			outline-offset: 3px;
+		}
+		svg {
+			width: 16px;
+			height: 16px;
+			flex: none;
+			fill: none;
+			stroke: currentColor;
+			stroke-width: 1.6;
+			stroke-linecap: round;
+			stroke-linejoin: round;
+		}
+		header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 18px;
+			min-height: 62px;
+			padding: 10px 24px;
+			border-bottom: 1px solid var(--line);
+			background: var(--paper);
+		}
+		.document-title {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			min-width: 0;
+		}
+		.document-title > svg {
+			color: var(--accent);
+		}
+		h1 {
+			font-size: 14px;
+			line-height: 1.5;
+			margin: 0;
+			font-weight: 550;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.version {
+			font-size: 10px;
+			flex: none;
+			color: var(--muted);
+			padding: 2px 7px;
+			border-radius: 20px;
+			box-shadow: 0 0 0 1px var(--line);
+		}
+		.header-actions {
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			gap: 12px;
+			min-width: 0;
+		}
+		#recipient {
+			font-size: 11px;
+			color: var(--muted);
+			margin: 0;
+			max-width: 360px;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		#toggle {
+			font-size: 11px;
+			white-space: nowrap;
+			flex: none;
+		}
+		#context-open {
+			font-size: 12px;
+			white-space: nowrap;
+			box-shadow: 0 0 0 1px var(--line);
+		}
+		#context-view {
+			width: min(600px, calc(100% - 32px));
+			max-height: calc(100dvh - 40px);
+			padding: 24px;
+			border: 1px solid var(--line);
+			border-radius: 16px;
+			background: var(--paper);
+			color: var(--ink);
+			overflow: auto;
+			box-shadow: var(--shadow);
+		}
+		#context-view::backdrop {
+			background: #0005;
+		}
+		.context-top {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 16px;
+		}
+		#context-title {
+			font-size: 19px;
+			margin: 0;
+		}
+		#context-summary {
+			white-space: pre-line;
+			line-height: 1.8;
+			margin: 20px 0;
+		}
+		.context-route {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+			align-items: center;
+			gap: 12px;
+			margin: 20px 0;
+		}
+		.context-route > div {
+			padding: 14px;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+			overflow-wrap: anywhere;
+		}
+		.context-route small {
+			display: block;
+			color: var(--muted);
+		}
+		#context-source {
+			margin: 16px 0;
+			color: var(--muted);
+			font-size: 12px;
+			overflow-wrap: anywhere;
+			white-space: pre-line;
+		}
+		#session-open {
+			background: var(--action);
+			color: var(--on-action);
+		}
+		#session-open:hover:not(:disabled) {
+			background: var(--action-hover);
+		}
+		#session-jump {
+			color: var(--action);
+		}
+		#session-status {
+			color: var(--muted);
+			font-size: 12px;
+			min-height: 20px;
+		}
+		main {
+			position: relative;
+			min-height: 0;
+			overflow: hidden;
+			background: var(--paper);
+		}
+		#document {
+			display: block;
+			width: 100%;
+			height: 100%;
+			border: 0;
+			background: var(--paper);
+		}
+		#loading {
+			position: absolute;
+			top: 18px;
+			left: 24px;
+			padding: 9px 12px;
+			background: var(--panel);
+			border-radius: 8px;
+			color: var(--muted);
+			pointer-events: none;
+			font-size: 12px;
+		}
+		#reply-dock {
+			position: absolute;
+			z-index: 2;
+			bottom: max(18px, env(safe-area-inset-bottom));
+			left: 50%;
+			transform: translateX(-50%);
+			width: min(810px, calc(100% - 48px));
+			max-height: calc(100% - 132px);
+			display: flex;
+			flex-direction: column;
+			min-height: 0;
+			gap: 8px;
+			border-radius: 22px;
+			pointer-events: none;
+		}
+		.dock-top {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 14px;
+			padding: 2px 4px;
+			flex: none;
+		}
+		#summary-toggle {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			min-width: 0;
+			padding: 7px 11px;
+			font-size: 12px;
+			background: var(--accent-soft);
+			color: var(--accent);
+			border-radius: 18px;
+			pointer-events: auto;
+			box-shadow: var(--shadow);
+		}
+		#summary-toggle > span:first-of-type {
+			white-space: nowrap;
+		}
+		#answer-count {
+			font-size: 11px;
+			color: inherit;
+			white-space: nowrap;
+		}
+		.chevron {
+			width: 13px;
+			height: 13px;
+			transition: rotate 140ms;
+		}
+		#summary-toggle[aria-expanded="true"] .chevron {
+			rotate: 90deg;
+		}
+		#connection {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			min-width: 0;
+			font-size: 10px;
+			color: var(--muted);
+			text-align: right;
+			padding: 5px 9px;
+			border-radius: 12px;
+			background: var(--panel);
+			pointer-events: auto;
+		}
+		#connection::before {
+			content: "";
+			width: 5px;
+			height: 5px;
+			border-radius: 50%;
+			background: currentColor;
+			flex: none;
+		}
+		#connection[data-state="listening"] {
+			color: var(--success);
+			background: var(--success-soft);
+		}
+		#connection[data-state="queued"],
+		#connection[data-state="held"] {
+			color: var(--warning);
+			background: var(--warning-soft);
+		}
+		#connection[data-state="offline"] {
+			color: var(--danger);
+			background: var(--danger-soft);
+		}
+		#selection-summary {
+			overflow: auto;
+			min-height: 0;
+			max-height: min(38dvh, 360px);
+			padding: 14px 18px;
+			background: var(--paper);
+			box-shadow: var(--shadow);
+			border-radius: 16px;
+			pointer-events: auto;
+			overscroll-behavior: contain;
+			scrollbar-width: thin;
+		}
+		.section-heading {
+			display: flex;
+			align-items: baseline;
+			gap: 12px;
+			margin: 4px 0 8px;
+		}
+		h2,
+		h3 {
+			font-size: 12px;
+			font-weight: 550;
+			margin: 0;
+		}
+		#answers {
+			list-style: none;
+			margin: 0;
+			padding: 0;
+		}
+		.answer-row {
+			display: grid;
+			grid-template-columns: 30px minmax(0, 1fr);
+			gap: 8px;
+			padding: 10px 0;
+			border-bottom: 1px solid var(--line);
+		}
+		.answer-row:last-child {
+			border-bottom: 0;
+		}
+		.item-id {
+			font:
+				10px / 1.8 ui-monospace,
+				SFMono-Regular,
+				Menlo,
+				monospace;
+			color: var(--muted);
+			border-radius: 5px;
+			align-self: start;
+			text-align: center;
+			background: var(--soft);
+		}
+		.answer-row[data-answered="true"] .item-id {
+			color: var(--question-complete);
+			background: var(--question-complete-soft);
+		}
+		.answer-row[data-answered="false"] .item-id {
+			color: var(--question-pending);
+			background: var(--question-pending-soft);
+		}
+		.answer-label {
+			font-size: 11px;
+			color: var(--muted);
+			margin: 0 0 3px;
+			overflow-wrap: anywhere;
+		}
+		.answer-value {
+			font-size: 13px;
+			font-weight: 500;
+			margin: 0;
+			white-space: pre-wrap;
+			overflow-wrap: anywhere;
+		}
+		.item-note {
+			font-size: 12px;
+			margin: 4px 0 0;
+			white-space: pre-wrap;
+			overflow-wrap: anywhere;
+		}
+		#answer-empty {
+			font-size: 12px;
+			color: var(--muted);
+			padding: 8px 0;
+			margin: 0;
+		}
+		#unanswered-list {
+			font-size: 11px;
+			color: var(--muted);
+			margin: 6px 0 0;
+			padding-left: 18px;
+		}
+		details {
+			margin: 10px 0;
+		}
+		summary {
+			font-size: 11px;
+			color: var(--muted);
+			cursor: pointer;
+		}
+		#legacy-sheet {
+			white-space: pre-wrap;
+			font-size: 12px;
+			line-height: 1.7;
+			overflow-wrap: anywhere;
+		}
+		#citation {
+			margin: 12px 0;
+			padding: 10px 12px;
+			background: var(--panel);
+			border-radius: 10px;
+		}
+		.citation-heading {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+		}
+		#clear-quote {
+			font-size: 11px;
+			min-height: 30px;
+			padding: 3px 6px;
+			color: var(--muted);
+		}
+		blockquote {
+			margin: 4px 0 0;
+			white-space: pre-wrap;
+			overflow-wrap: anywhere;
+			max-height: 120px;
+			overflow: auto;
+			font-size: 12px;
+		}
+		.small {
+			font-size: 10px;
+			color: var(--muted);
+		}
+		#payload-text {
+			font:
+				10px / 1.8 ui-monospace,
+				SFMono-Regular,
+				Menlo,
+				monospace;
+			width: 100%;
+			min-height: 150px;
+			margin-top: 8px;
+			padding: 10px;
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			background: var(--panel);
+			white-space: pre;
+			resize: vertical;
+		}
+		#receipt {
+			font-size: 10px;
+			line-height: 1.8;
+			color: var(--muted);
+			white-space: pre-wrap;
+			overflow-wrap: anywhere;
+		}
+		.composer {
+			padding: 13px 16px 10px;
+			border-radius: 22px;
+			background: var(--composer);
+			box-shadow: var(--shadow);
+			flex: none;
+			pointer-events: auto;
+		}
+		.composer:focus-within {
+			box-shadow:
+				0 0 0 1px var(--accent),
+				0 8px 32px #00000018;
+		}
+		.memo-heading {
+			display: flex;
+			gap: 9px;
+			align-items: baseline;
+			margin: 0 0 4px;
+		}
+		label {
+			font-size: 11px;
+			font-weight: 500;
+		}
+		#message {
+			display: block;
+			width: 100%;
+			min-height: 60px;
+			max-height: min(20dvh, 180px);
+			padding: 6px 0;
+			border: 0;
+			border-radius: 4px;
+			background: transparent;
+			resize: vertical;
+			font-size: 13px;
+			line-height: 1.7;
+		}
+		#message::placeholder {
+			color: var(--muted);
+		}
+		.composer-tools {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			min-height: 38px;
+		}
+		#copy {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			color: var(--muted);
+			font-size: 10px;
+			padding: 5px 7px;
+			min-height: 32px;
+		}
+		#draft-status {
+			font-size: 10px;
+			color: var(--muted);
+			margin: 0;
+			flex: 1;
+			min-width: 0;
+		}
+		#send {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+			min-height: 36px;
+			background: var(--action);
+			color: var(--on-action);
+			font-size: 12px;
+			font-weight: 500;
+			margin-left: auto;
+			max-width: 60%;
+		}
+		#send:hover:not(:disabled) {
+			background: var(--action-hover);
+		}
+		#send svg {
+			width: 14px;
+			height: 14px;
+		}
+		#status {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 3px 7px;
+			max-height: 90px;
+			overflow: auto;
+			margin: 0 4px;
+			padding: 4px 8px;
+			align-self: flex-start;
+			background: var(--panel);
+			border-radius: 8px;
+			font-size: 11px;
+			color: var(--muted);
+			flex: none;
+			pointer-events: auto;
+		}
+		#state {
+			font-weight: 550;
+			color: var(--ink);
+		}
+		#status[data-state="held"],
+		#status[data-state="uncertain"] {
+			color: var(--warning);
+			background: var(--warning-soft);
+		}
+		#status[data-state="error"],
+		#status[data-state="missing"] {
+			color: var(--danger);
+			background: var(--danger-soft);
+		}
+		#status[data-state="queued"],
+		#status[data-state="sending"] {
+			color: var(--accent);
+			background: var(--accent-soft);
+		}
+		#status[data-state="sent"],
+		#status[data-state="received"] {
+			background: var(--success-soft);
+		}
+		#status[data-state="sent"] #state,
+		#status[data-state="received"] #state {
+			color: var(--success);
+		}
+		#actions {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 8px;
+			margin: 0 4px;
+			flex: none;
+		}
+		#actions button {
+			font-size: 11px;
+			min-height: 30px;
+			padding: 4px 7px;
+			background: var(--paper);
+			box-shadow: var(--shadow);
+			pointer-events: auto;
+		}
+		.shortcut {
+			margin-left: auto;
+			font-size: 9px;
+			color: var(--muted);
+			background: var(--paper);
+			border-radius: 5px;
+			padding: 1px 5px;
+		}
+		#outline {
+			position: absolute;
+			z-index: 3;
+			right: 12px;
+			top: 30%;
+		}
+		#outline-toggle {
+			position: relative;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 44px;
+			min-height: 44px;
+			padding: 10px;
+			border-radius: 12px;
+			background: color-mix(in srgb, var(--paper) 88%, transparent);
+			box-shadow: var(--shadow);
+			color: var(--accent);
+		}
+		#outline-rail {
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+			width: 24px;
+		}
+		#outline-rail span {
+			display: block;
+			height: 2px;
+			border-radius: 2px;
+			background: var(--muted);
+			width: 22px;
+		}
+		#outline-rail [data-level="3"] {
+			width: 13px;
+		}
+		#outline-rail .active {
+			background: var(--accent);
+			height: 3px;
+		}
+		#outline-panel {
+			position: absolute;
+			right: 44px;
+			top: -8dvh;
+			width: min(290px, calc(100vw - 76px));
+			padding: 16px;
+			background: var(--paper);
+			box-shadow: var(--shadow);
+			border-radius: 14px;
+			max-height: 66dvh;
+			overflow: auto;
+			overscroll-behavior: contain;
+		}
+		#outline-panel h2 {
+			margin: 0 8px 10px;
+			color: var(--accent);
+		}
+		#outline-list {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+		}
+		#outline-list button,
+		#outline-questions button {
+			width: 100%;
+			text-align: left;
+			font-size: 12px;
+			line-height: 1.5;
+			padding: 8px;
+			overflow-wrap: anywhere;
+			min-height: 44px;
+		}
+		.heading-state {
+			display: block;
+			font-size: 10px;
+			font-weight: 600;
+			color: var(--ink);
+		}
+		.question-label,
+		.question-state {
+			display: block;
+		}
+		.question-state {
+			font-size: 10px;
+			margin-top: 4px;
+			padding: 1px 6px;
+			border-radius: 5px;
+			width: fit-content;
+			font-weight: 600;
+		}
+		[data-question-state="answered"] .question-state,
+		.heading-state[data-question-state="answered"],
+		#review-complete,
+		#question-empty {
+			color: var(--question-complete);
+		}
+		[data-question-state="answered"] .question-state {
+			background: var(--question-complete-soft);
+		}
+		[data-question-state="unanswered"] .question-state,
+		[data-question-state="note"] .question-state,
+		.heading-state[data-question-state="unanswered"],
+		#review-pending {
+			color: var(--question-pending);
+		}
+		[data-question-state="unanswered"] .question-state,
+		[data-question-state="note"] .question-state {
+			background: var(--question-pending-soft);
+		}
+		#outline-count {
+			position: absolute;
+			top: -6px;
+			right: -4px;
+			min-width: 20px;
+			padding: 1px 5px;
+			border-radius: 10px;
+			background: var(--question-pending-soft);
+			color: var(--question-pending);
+			font-size: 10px;
+			font-weight: 700;
+		}
+		#question-review {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			padding: 0 4px;
+			flex: none;
+		}
+		#review-progress,
+		#next-question {
+			font-size: 11px;
+			padding: 6px 10px;
+			border-radius: 10px;
+			background: var(--paper);
+			color: var(--ink);
+			box-shadow: var(--shadow);
+		}
+		#next-question {
+			pointer-events: auto;
+			font-weight: 600;
+			min-height: 40px;
+			color: var(--question-pending);
+			background: var(--question-pending-soft);
+		}
+		#outline-progress,
+		#question-empty {
+			font-size: 11px;
+			margin: 8px;
+		}
+		#outline-progress {
+			color: var(--muted);
+		}
+		#outline-filter {
+			margin: 2px 8px 8px;
+			font-size: 11px;
+			box-shadow: 0 0 0 1px var(--line);
+		}
+		#outline-filter[aria-pressed="true"] {
+			background: var(--ink);
+			color: var(--paper);
+		}
+		#outline-questions {
+			list-style: none;
+			padding: 0 0 10px;
+			margin: 0 0 10px;
+			border-bottom: 1px solid var(--line);
+		}
+		#outline-questions [data-question-state="answered"] {
+			color: var(--muted);
+		}
+		#outline-questions [data-question-state="unanswered"],
+		#outline-questions [data-question-state="note"] {
+			font-weight: 600;
+		}
+		#unanswered-list button {
+			text-align: left;
+			font-size: 12px;
+			text-decoration: underline;
+			text-underline-offset: 3px;
+		}
+		#outline-list [data-level="3"] {
+			padding-left: 22px;
+			color: var(--muted);
+		}
+		#outline-list [aria-current="location"] {
+			color: var(--accent);
+			background: var(--accent-soft);
+			font-weight: 600;
+		}
+		#reply-dock[hidden],
+		#question-review[hidden],
+		#next-question[hidden],
+		#outline-count[hidden],
+		#outline[hidden],
+		#outline-panel[hidden],
+		#selection-summary[hidden],
+		#loading[hidden],
+		#citation[hidden],
+		#legacy-sheet[hidden],
+		#unanswered[hidden],
+		#answer-empty[hidden],
+		#retry[hidden],
+		#cancel[hidden] {
+			display: none;
+		}
+		@media (max-width: 640px) {
+			header {
+				min-height: 56px;
+				padding: 9px 14px;
+				gap: 8px;
+			}
+			.document-title {
+				gap: 7px;
+			}
+			h1 {
+				max-width: 42vw;
+				font-size: 12px;
+			}
+			.document-title > svg {
+				display: none;
+			}
+			.version {
+				font-size: 9px;
+				display: none;
+			}
+			.header-actions {
+				gap: 4px;
+			}
+			#recipient {
+				display: none;
+			}
+			#context-open {
+				font-size: 10px;
+				padding: 5px 7px;
+			}
+			#context-view {
+				padding: 18px;
+			}
+			#toggle {
+				font-size: 10px;
+				padding: 5px 7px;
+				min-height: 36px;
+			}
+			#reply-dock {
+				bottom: max(10px, env(safe-area-inset-bottom));
+				width: calc(100% - 20px);
+				border-radius: 18px;
+			}
+			.dock-top {
+				gap: 8px;
+				padding-bottom: 6px;
+			}
+			#summary-toggle {
+				font-size: 11px;
+				padding: 5px 3px;
+				gap: 5px;
+			}
+			#summary-toggle > svg:first-child {
+				display: none;
+			}
+			#connection {
+				font-size: 9px;
+				max-width: 46%;
+			}
+			#selection-summary {
+				max-height: 30dvh;
+				padding: 12px;
+			}
+			#message {
+				min-height: 52px;
+				font-size: 14px;
+			}
+			#draft-status {
+				display: none;
+			}
+			#send {
+				font-size: 11px;
+				max-width: 70%;
+			}
+			.shortcut {
+				font-size: 9px;
+			}
+			#status {
+				font-size: 10px;
+			}
+		}
+		@media (max-height: 600px) {
+			#reply-dock {
+				overflow: auto;
+			}
+			#selection-summary {
+				flex-shrink: 0;
+			}
+		}
+		@media (prefers-reduced-motion: reduce) {
+			button,
+			.chevron {
+				transition: none;
+			}
+		}
+		</style>
+	</head>
+	<body>
+		<header>
+			<div class="document-title">
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M6 3h8l4 4v14H6zM14 3v5h4M9 12h6M9 16h5" />
+				</svg>
+				<h1 id="title">자료에 답하기</h1>
+				<span id="version" class="version"></span>
+			</div>
+			<div class="header-actions">
+				<p id="recipient"></p>
+				<button
+					id="context-open"
+					type="button"
+					aria-haspopup="dialog"
+					aria-controls="context-view"
+				>
+					맥락
+				</button>
+				<button
+					id="session-jump"
+					type="button"
+					aria-label="원래 세션으로 이동"
+					title="원래 세션으로 이동"
+				>
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M9 10 4 5m0 0h6M4 5v6M14 5h6v15H5v-6" />
+					</svg>
+				</button>
+				<button
+					id="toggle"
+					type="button"
+					aria-controls="reply-dock"
+					aria-expanded="true"
+				>
+					응답 접기
+				</button>
+			</div>
+		</header>
+		<dialog id="context-view" aria-labelledby="context-title">
+			<div class="context-top">
+				<h2 id="context-title">이 자료의 맥락</h2>
+				<button id="context-close" type="button" aria-label="맥락 닫기">
+					닫기
+				</button>
+			</div>
+			<p id="context-summary"></p>
+			<div class="context-route">
+				<div>
+					<small>지금 보는 자료</small><strong id="context-artifact"></strong>
+				</div>
+				<span aria-hidden="true">↔</span>
+				<div>
+					<small>만든 대화 / 회신 목적지</small
+					><strong id="context-conversation"></strong>
+				</div>
+			</div>
+			<details>
+				<summary>세션 / 자료 식별자</summary>
+				<p id="context-source"></p>
+			</details>
+			<button id="session-open" type="button">원래 세션으로 이동</button>
+			<p id="session-status" role="status">
+				세션 이동은 화면만 선택합니다. 응답을 전송하거나 새 대화를 만들지
+				않습니다.
+			</p>
+		</dialog>
+		<main id="reader">
+			<iframe
+				id="document"
+				title="검토할 원본 자료"
+				sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+			></iframe>
+			<p id="loading" role="status">원본 HTML을 불러오고 있습니다.</p>
+			<nav id="outline" aria-label="문서 목차" hidden>
+				<button
+					id="outline-toggle"
+					type="button"
+					aria-label="목차 열기"
+					aria-controls="outline-panel"
+					aria-expanded="false"
+				>
+					<span id="outline-rail" aria-hidden="true"></span>
+					<span id="outline-count" hidden></span>
+				</button>
+				<div id="outline-panel" hidden>
+					<h2>이 문서의 목차</h2>
+					<div id="outline-question-review" hidden>
+						<p id="outline-progress"></p>
+						<button id="outline-filter" type="button" aria-pressed="false">
+							미응답만
+						</button>
+						<ul id="outline-questions" aria-label="답변할 질문"></ul>
+						<p id="question-empty" hidden>모든 질문에 응답했습니다.</p>
+					</div>
+					<ol id="outline-list"></ol>
+				</div>
+			</nav>
+			<aside id="reply-dock" aria-label="원래 대화로 회신">
+				<div class="dock-top">
+					<button
+						id="summary-toggle"
+						type="button"
+						aria-controls="selection-summary"
+						aria-expanded="false"
+					>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M6 3h8l4 4v14H6zM14 3v5h4M9 12h6M9 16h5" />
+						</svg><span>선택한 내용</span><span id="answer-count">0개</span
+						><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true">
+							<path d="m9 5 7 7-7 7" />
+						</svg>
+					</button>
+					<div id="connection" role="status">연결 확인 중</div>
+				</div>
+				<div id="question-review" hidden>
+					<span id="review-progress" role="status" aria-live="polite"
+						><span id="review-complete"></span>
+						· <span id="review-pending"></span></span
+					>
+					<button id="next-question" type="button">미응답 보기</button>
+				</div>
+				<div id="selection-summary" hidden>
+					<div class="section-heading">
+						<h2 id="answer-scope">자료에서 고른 내용</h2>
+					</div>
+					<p id="answer-empty">자료에서 선택하면 여기에 자동으로 담깁니다.</p>
+					<ul id="answers"></ul>
+					<div id="legacy-sheet" hidden></div>
+					<details id="unanswered" hidden>
+						<summary id="unanswered-summary"></summary>
+						<ul id="unanswered-list"></ul>
+					</details>
+					<div id="citation" hidden>
+						<div class="citation-heading">
+							<span class="small">함께 보낼 인용</span
+							><button id="clear-quote" type="button">지우기</button>
+						</div>
+						<blockquote id="quote"></blockquote>
+					</div>
+					<details id="payload-preview">
+						<summary>
+							전송 내용 <span id="preview-scope">지금 보낼 초안</span>
+							<span class="small"
+								>Markdown/XML / <span id="payload-size">0</span>자</span
+							>
+						</summary>
+						<textarea
+							id="payload-text"
+							aria-label="전송할 Markdown과 XML"
+							readonly
+							wrap="off"
+						></textarea>
+					</details>
+					<details>
+						<summary>받는 대화와 자료 버전</summary>
+						<p id="receipt"></p>
+					</details>
+				</div>
+				<div class="composer">
+					<div class="memo-heading">
+						<label for="message">추가 메모</label
+						><span class="small">선택 사항</span>
+					</div>
+					<textarea
+						id="message"
+						rows="2"
+						placeholder="선택한 이유나 바꾸고 싶은 점을 덧붙여 주세요."
+					></textarea>
+					<div class="composer-tools">
+						<button id="copy" type="button">
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<rect x="8" y="8" width="12" height="13" rx="2" />
+								<path d="M15 8V3H3v13h5" />
+							</svg
+							>내용 복사
+						</button>
+						<p id="draft-status" role="status"></p>
+						<button id="send" type="button" disabled>
+							<span id="send-label">원래 대화로 보내기</span
+							><svg viewBox="0 0 24 24" aria-hidden="true">
+								<path d="M12 19V5m-6 6 6-6 6 6" />
+							</svg>
+						</button>
+					</div>
+				</div>
+				<div id="status" role="status" aria-live="polite">
+					<span id="state">작성 중</span
+					><span id="detail">선택한 내용과 메모를 원래 대화로 보냅니다.</span>
+				</div>
+				<div id="actions">
+					<button id="retry" type="button" hidden>연결 다시 확인</button
+					><button id="cancel" type="button" hidden>대기 취소</button
+					><span class="shortcut">Ctrl/⌘ + Enter</span>
+				</div>
+			</aside>
+		</main>
+		<script id="reply-meta" type="application/json">
+		__REPLY_META__
+		</script>
+		<script src="/assets/reply-panel.js"></script>
+	</body>
+</html>

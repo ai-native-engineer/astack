@@ -1,0 +1,2256 @@
+<!doctype html>
+<html lang="ko">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="darkreader-lock">
+		<meta name="color-scheme" content="light dark">
+		<meta
+			name="html-reply-context"
+			content="비교 설명을 읽고 확인한 항목과 문장별 의견을 회신합니다."
+		>
+		<title>비교하고 의견 남기기</title>
+		<!--
+Authoring contract
+- Copy this file as a standalone, offline document. No dependencies or transport are required.
+- Replace the sample content, keeping unique data-item IDs and explicitly labelled answers.
+- Completion uses owned, available checkbox/radio/text/number/select/textarea[data-reply-answer] answers only.
+  A note is never an answer. Preserve the collector's hidden/disabled/readonly boundaries.
+- Give each selectable explanation a unique id and data-comment-anchor. Do not nest anchors.
+  Optional data-comment-title and data-comment-context are plain-text snapshots, not live state.
+- Keep each data-reply-notes textarea writable inside an inert, visually clipped container.
+  Do not hide, disable, mark readonly, or apply aria-hidden to that carrier or its ancestors.
+- ANNOTATION_STATE is reserved for hidden source-form draft restoration. It is not a question.
+  Its recovery JSON preserves exact drafts, including rejected text. Only validated notes enter
+  ordinary memo carriers; both their serialized JSON and combined memo text stay within 12000 chars.
+- Connected mode relies exclusively on the existing panel's source-form input/restore events.
+  Do not add a second sender, global memo, preview, navigation, or storage implementation there.
+-->
+		<style>
+		body.html-review-page {
+			margin: 0;
+			background: #fff;
+		}
+		#review-document {
+			--bg: #fff;
+			--paper: #fff;
+			--ink: #202124;
+			--muted: #5c626b;
+			--line: #d7dbe1;
+			--surface: #f4f5f7;
+			--action: #275dcc;
+			--action-hover: #204eae;
+			--on-action: #ffffff;
+			--action-soft: #eef3ff;
+			--blue: var(--action);
+			--blue-soft: var(--action-soft);
+			--teal: #276c68;
+			--teal-soft: #edf7f5;
+			--amber: #825b17;
+			--amber-soft: #fff6e6;
+			--complete: #246345;
+			--complete-soft: #edf6f0;
+			--pending: #a03636;
+			--pending-soft: #fcf0ef;
+			box-sizing: border-box;
+			max-width: 1040px;
+			min-width: 0;
+			min-height: 100vh;
+			margin: auto;
+			padding: 42px 36px 60px;
+			background: var(--bg);
+			color: var(--ink);
+			font:
+				16px / 1.7 -apple-system,
+				BlinkMacSystemFont,
+				"Apple SD Gothic Neo",
+				"Noto Sans KR",
+				sans-serif;
+			color-scheme: light dark;
+		}
+		#review-document *,
+		#review-document *::before,
+		#review-document *::after {
+			box-sizing: border-box;
+		}
+		#review-document [hidden] {
+			display: none;
+		}
+		#review-document :where(h1, h2, h3, p, figure, ol, blockquote) {
+			margin: 0;
+		}
+		#review-document :where(h1, h2, h3, p, li, summary, label, blockquote) {
+			overflow-wrap: anywhere;
+		}
+		#review-document :where(h1, h2, h3) {
+			line-height: 1.4;
+			letter-spacing: -0.03em;
+		}
+		#review-document h1 {
+			font-size: clamp(26px, 4vw, 36px);
+			margin: 10px 0 18px;
+		}
+		#review-document h2 {
+			font-size: 23px;
+			margin-bottom: 15px;
+		}
+		#review-document h3 {
+			font-size: 18px;
+			margin: 6px 0 10px;
+		}
+		#review-document :where(button, input, textarea, select) {
+			font: inherit;
+		}
+		#review-document :where(button, summary, label, input) {
+			touch-action: manipulation;
+		}
+		#review-document
+			:where(
+				button,
+				summary,
+				input,
+				textarea,
+				select,
+				[tabindex]
+			):focus-visible {
+			outline: 2px solid var(--blue);
+			outline-offset: 4px;
+		}
+		#review-document button {
+			cursor: pointer;
+		}
+		#review-document button:disabled {
+			cursor: not-allowed;
+			opacity: 0.6;
+		}
+		#review-document .preview-label {
+			font-size: 12px;
+			font-weight: 650;
+			color: var(--muted);
+		}
+		#review-document .reading-guide {
+			max-width: 780px;
+			font-size: 14px;
+		}
+		#review-document .hint {
+			margin-top: 7px;
+			font-size: 12px;
+			color: var(--muted);
+		}
+		#review-document .notice {
+			margin-top: 10px;
+			font-size: 13px;
+			color: var(--pending);
+		}
+		#review-document .notice:empty {
+			display: none;
+		}
+		#review-document .section {
+			margin-top: 40px;
+			min-width: 0;
+			scroll-margin-top: 24px;
+		}
+		#review-document [data-comment-anchor] {
+			scroll-margin-top: 24px;
+		}
+		#review-document .section-no {
+			margin-right: 10px;
+			font-size: 13px;
+			font-weight: 450;
+			color: var(--muted);
+		}
+		#review-document .review-row {
+			--review-color: var(--pending);
+			--review-soft: var(--pending-soft);
+			min-inline-size: 0;
+			margin: 0 0 18px;
+			padding: 0;
+			border: 0;
+		}
+		#review-document .review-row[data-review-state="answered"] {
+			--review-color: var(--complete);
+			--review-soft: var(--complete-soft);
+		}
+		#review-document .review-row legend {
+			padding: 0;
+			color: var(--muted);
+			font-size: 12px;
+		}
+		#review-document .review-line {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			min-width: 0;
+		}
+		#review-document .review-check {
+			display: flex;
+			align-items: flex-start;
+			gap: 10px;
+			flex: 1;
+			min-width: 0;
+			min-height: 44px;
+			padding: 8px 0;
+			font-size: 14px;
+			line-height: 1.6;
+			cursor: pointer;
+		}
+		#review-document .review-check input {
+			width: 18px;
+			height: 18px;
+			flex: none;
+			margin: 2px 0 0;
+			accent-color: var(--complete);
+		}
+		#review-document .review-state {
+			flex: none;
+			padding: 3px 9px;
+			border-radius: 5px;
+			color: var(--review-color);
+			background: var(--review-soft);
+			font-size: 12px;
+			font-weight: 650;
+			white-space: nowrap;
+		}
+		#review-document .comparison {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 16px;
+		}
+		#review-document .example-card {
+			min-width: 0;
+			padding: 21px;
+			border: 1px solid var(--line);
+			border-radius: 10px;
+		}
+		#review-document .example-card p {
+			color: var(--muted);
+			font-size: 14px;
+		}
+		#review-document .example-tag {
+			font-size: 12px;
+			font-weight: 650;
+			color: var(--blue);
+		}
+		#review-document .mini-bars {
+			display: grid;
+			gap: 8px;
+			margin-top: 18px;
+		}
+		#review-document .mini-bars span {
+			display: block;
+			width: 100%;
+			height: 8px;
+			border-radius: 3px;
+			background: var(--blue-soft);
+		}
+		#review-document .mini-bars span:nth-child(2) {
+			width: 72%;
+			background: var(--teal-soft);
+		}
+		#review-document .mini-bars span:nth-child(3) {
+			width: 86%;
+		}
+		#review-document .mini-columns {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 9px;
+			margin-top: 18px;
+		}
+		#review-document .mini-columns span {
+			padding: 10px;
+			border-radius: 5px;
+			background: var(--teal-soft);
+			color: var(--teal);
+			text-align: center;
+			font-size: 12px;
+		}
+		#review-document .flow {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 24px;
+			padding: 0;
+			list-style: none;
+		}
+		#review-document .flow li {
+			position: relative;
+			min-width: 0;
+			padding: 19px 16px;
+			border-radius: 8px;
+			background: var(--blue-soft);
+		}
+		#review-document .flow li:nth-child(2) {
+			background: var(--amber-soft);
+		}
+		#review-document .flow li:nth-child(3) {
+			background: var(--teal-soft);
+		}
+		#review-document .flow li + li::before {
+			content: "→";
+			position: absolute;
+			left: -20px;
+			top: 50%;
+			transform: translateY(-50%);
+			color: var(--muted);
+		}
+		#review-document .flow strong {
+			display: block;
+			font-size: 15px;
+		}
+		#review-document .flow small {
+			display: block;
+			margin-top: 5px;
+			font-size: 13px;
+			color: var(--muted);
+		}
+		#review-document .example-caption {
+			margin-top: 12px;
+			font-size: 13px;
+			color: var(--muted);
+		}
+		#review-document .meaning {
+			display: grid;
+			grid-template-columns: 100px minmax(0, 1fr);
+			gap: 12px;
+			padding: 15px 0;
+			border-top: 1px solid var(--line);
+			font-size: 14px;
+		}
+		#review-document .meaning strong {
+			color: var(--teal);
+		}
+		#review-document .meaning:last-child strong {
+			color: var(--blue);
+		}
+		#review-document .section-notes {
+			margin-top: 17px;
+			padding-top: 11px;
+			border-top: 1px solid var(--line);
+		}
+		#review-document .section-notes > summary {
+			color: var(--muted);
+			font-size: 13px;
+			cursor: pointer;
+		}
+		#review-document .selected-note {
+			padding: 12px 0;
+			border-top: 1px solid var(--line);
+			font-size: 13px;
+		}
+		#review-document .selected-note:first-child {
+			border-top: 0;
+		}
+		#review-document .selected-note-quote {
+			display: -webkit-box;
+			-webkit-line-clamp: 2;
+			-webkit-box-orient: vertical;
+			overflow: hidden;
+			margin-bottom: 6px;
+			color: var(--muted);
+			font-size: 12px;
+			white-space: pre-wrap;
+		}
+		#review-document .selected-note-message {
+			white-space: pre-wrap;
+			overflow-wrap: anywhere;
+		}
+		#review-document .selected-note-context {
+			margin: 4px 0;
+			font-size: 12px;
+			color: var(--muted);
+		}
+		#review-document .selected-note-status {
+			margin-top: 5px;
+			font-size: 12px;
+			color: var(--muted);
+		}
+		#review-document .selected-note-status[data-invalid="true"] {
+			color: var(--pending);
+		}
+		#review-document .selected-note-actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 14px;
+			margin-top: 5px;
+		}
+		#review-document .selected-note-actions button {
+			min-height: 32px;
+			padding: 3px 0;
+			border: 0;
+			background: none;
+			color: var(--blue);
+			font-size: 12px;
+		}
+		#review-document .annotation-wire,
+		#review-document .annotation-wire textarea,
+		#review-document .selection-sr-only {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			padding: 0;
+			margin: -1px;
+			border: 0;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+		#review-document #selection-action {
+			position: fixed;
+			z-index: 30;
+			width: 34px;
+			height: 34px;
+		}
+		#review-document #selection-comment {
+			display: grid;
+			place-items: center;
+			width: 34px;
+			height: 34px;
+			padding: 7px;
+			border: 1px solid var(--line);
+			border-radius: 9px;
+			background: var(--paper);
+			color: var(--blue);
+			box-shadow: 0 3px 12px #00000018;
+		}
+		#review-document #selection-comment:hover {
+			background: var(--blue-soft);
+		}
+		#review-document #selection-comment svg {
+			width: 19px;
+			height: 19px;
+			fill: none;
+			stroke: currentColor;
+			stroke-width: 1.6;
+			stroke-linecap: round;
+			stroke-linejoin: round;
+		}
+		#review-document #selection-tip {
+			position: absolute;
+			bottom: calc(100% + 6px);
+			right: 0;
+			padding: 4px 8px;
+			border-radius: 5px;
+			background: var(--ink);
+			color: var(--bg);
+			font-size: 11px;
+			white-space: nowrap;
+			opacity: 0;
+			pointer-events: none;
+		}
+		#review-document #selection-comment:hover + #selection-tip,
+		#review-document #selection-comment:focus-visible + #selection-tip {
+			opacity: 1;
+		}
+		#review-document #selection-editor {
+			position: fixed;
+			z-index: 31;
+			width: min(330px, calc(100vw - 20px));
+			max-height: calc(100dvh - 16px);
+			overflow: auto;
+			overscroll-behavior: contain;
+			padding: 14px;
+			border: 1px solid var(--line);
+			border-radius: 12px;
+			background: var(--paper);
+			color: var(--ink);
+			box-shadow: 0 8px 28px #0000001c;
+			font-size: 13px;
+		}
+		#review-document .selection-editor-heading {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+		}
+		#review-document #selection-title {
+			font-size: 13px;
+		}
+		#review-document #selection-close {
+			display: grid;
+			place-items: center;
+			flex: none;
+			width: 30px;
+			height: 30px;
+			padding: 5px;
+			border: 0;
+			border-radius: 5px;
+			background: transparent;
+			color: var(--muted);
+		}
+		#review-document #selection-close svg {
+			width: 16px;
+			height: 16px;
+			fill: none;
+			stroke: currentColor;
+			stroke-width: 1.6;
+		}
+		#review-document #selection-quote {
+			max-height: 66px;
+			overflow: auto;
+			margin: 8px 0;
+			font-size: 12px;
+			color: var(--muted);
+			white-space: pre-wrap;
+		}
+		#review-document #selection-context {
+			margin-bottom: 8px;
+			font-size: 11px;
+			color: var(--muted);
+		}
+		#review-document #selection-message {
+			display: block;
+			width: 100%;
+			min-height: 70px;
+			max-height: 25vh;
+			margin: 0;
+			padding: 9px 10px;
+			resize: vertical;
+			border: 1px solid var(--line);
+			border-radius: 7px;
+			background: var(--bg);
+			color: var(--ink);
+			font-size: 13px;
+			line-height: 1.65;
+		}
+		#review-document #selection-message[aria-invalid="true"] {
+			border-color: var(--pending);
+		}
+		#review-document #selection-note-status {
+			margin-top: 8px;
+			font-size: 11px;
+			line-height: 1.5;
+			color: var(--muted);
+		}
+		#review-document #selection-note-status[data-invalid="true"] {
+			color: var(--pending);
+		}
+		#review-document .selection-anchor-flash {
+			outline: 2px solid var(--blue);
+			outline-offset: 5px;
+		}
+		#review-document #standalone-review {
+			margin-top: 42px;
+			padding-top: 23px;
+			border-top: 1px solid var(--line);
+		}
+		#review-document #standalone-review label {
+			display: block;
+			margin: 16px 0 6px;
+			font-size: 14px;
+			font-weight: 600;
+		}
+		#review-document #standalone-review textarea {
+			display: block;
+			width: 100%;
+			min-width: 0;
+			padding: 12px;
+			border: 1px solid var(--line);
+			border-radius: 7px;
+			background: var(--paper);
+			color: var(--ink);
+			font-size: 13px;
+			line-height: 1.7;
+			resize: vertical;
+		}
+		#review-document #review-copy {
+			min-height: 40px;
+			margin-top: 12px;
+			padding: 7px 14px;
+			border: 1px solid var(--line);
+			border-radius: 7px;
+			background: var(--blue-soft);
+			color: var(--blue);
+			font-size: 13px;
+		}
+		#review-document .source-text {
+			margin: 12px 0;
+			white-space: pre-wrap;
+			overflow-wrap: anywhere;
+			font-size: 14px;
+		}
+		#review-document .source-copy {
+			min-height: 40px;
+			padding: 7px 14px;
+			border: 1px solid var(--line);
+			border-radius: 7px;
+			background: var(--blue-soft);
+			color: var(--blue);
+			font-size: 13px;
+		}
+		#review-document .source-media {
+			display: block;
+			max-width: 100%;
+			max-height: 70vh;
+		}
+		@media (prefers-color-scheme: dark) {
+			body.html-review-page {
+				background: #141414;
+			}
+			#review-document {
+				--bg: #141414;
+				--paper: #1e1e1e;
+				--ink: #f2f2f2;
+				--muted: #bdbdbd;
+				--line: #474747;
+				--surface: #2c2c2c;
+				--action: #adc6ff;
+				--action-hover: #c3d5ff;
+				--on-action: #14213d;
+				--action-soft: #26354e;
+				--blue: var(--action);
+				--blue-soft: var(--action-soft);
+				--teal: #9cd7ce;
+				--teal-soft: #233c38;
+				--amber: #eaca91;
+				--amber-soft: #3c3324;
+				--complete: #9ac9ac;
+				--complete-soft: #25382e;
+				--pending: #efaaaa;
+				--pending-soft: #402a2c;
+			}
+		}
+		@media (max-width: 620px) {
+			#review-document {
+				padding: 26px 18px 42px;
+			}
+			#review-document h2 {
+				font-size: 21px;
+			}
+			#review-document .section {
+				margin-top: 32px;
+			}
+			#review-document .comparison {
+				grid-template-columns: 1fr;
+				gap: 12px;
+			}
+			#review-document .example-card {
+				padding: 18px;
+			}
+			#review-document .flow {
+				grid-template-columns: 1fr;
+				gap: 24px;
+			}
+			#review-document .flow li + li::before {
+				content: "↓";
+				top: -25px;
+				left: 20px;
+				transform: none;
+			}
+			#review-document .meaning {
+				grid-template-columns: 75px minmax(0, 1fr);
+			}
+			#review-document .review-line {
+				gap: 8px;
+			}
+			#review-document .review-state {
+				padding-inline: 7px;
+			}
+			#review-document #selection-editor {
+				padding: 12px;
+			}
+		}
+		@media (max-height: 400px) {
+			#review-document #selection-quote {
+				max-height: 36px;
+			}
+			#review-document #selection-message {
+				min-height: 52px;
+			}
+		}
+		</style>
+	</head>
+	<body class="html-review-page">
+		<main id="review-document">
+			<header>
+				<p class="preview-label">간단한 검토 / 드래그 주석</p>
+				<h1>나란히 보고,<br>필요한 곳에 의견 남기기</h1>
+				<p class="reading-guide">
+					차이를 읽고 확인한 항목만 체크하세요. 문장을 선택하면 오른쪽 위에 주석
+					아이콘이 나타납니다. 선택 후 <kbd>Alt</kbd>+<kbd>Enter</kbd>로도 열 수
+					있습니다.
+				</p>
+				<p class="hint" id="checklist-hint">
+					체크하면 초록, 미확인은 빨강입니다. 주석만 남겨도 체크되지는 않습니다.
+				</p>
+				<p class="hint" id="review-storage-status" role="status"></p>
+				<p class="notice" id="review-validation" role="status"></p>
+				<p class="notice" id="review-selection-status" role="status"></p>
+			</header>
+			<noscript
+				><p class="notice">
+					설명은 읽을 수 있습니다. 체크 상태 표시, 주석, 초안 보관과 회신
+					복사에는 자바스크립트가 필요합니다.
+				</p></noscript
+			>
+
+			<section
+				class="section"
+				id="compare"
+				data-item="C1"
+				aria-labelledby="compare-title"
+			>
+				<h2
+					id="compare-title"
+					data-comment-anchor="compare-title"
+					data-comment-title="두 안의 비교 기준"
+				>
+					<span class="section-no">01</span>두 안을 같은 기준으로 비교하기
+				</h2>
+				<fieldset
+					class="review-row"
+					data-review-state="unanswered"
+					aria-describedby="checklist-hint"
+				>
+					<legend>C1 검토</legend>
+					<div class="review-line">
+						<label class="review-check" for="check-C1"
+							><input
+								type="checkbox"
+								id="check-C1"
+								name="C1"
+								value="두 안의 차이와 선택 기준을 확인했습니다"
+								aria-describedby="review-state-C1"
+							><span>두 안의 차이와 선택 기준을 확인했습니다</span></label
+						>
+						<span
+							class="review-state"
+							id="review-state-C1"
+							data-reply-state="unanswered"
+							aria-live="polite"
+							>미확인</span
+						>
+					</div>
+				</fieldset>
+				<div class="comparison">
+					<article
+						class="example-card"
+						id="linear-example"
+						data-comment-anchor="linear-example"
+						data-comment-title="차례로 읽는 설명"
+					>
+						<span class="example-tag">가안 · 순서가 중요할 때</span>
+						<h3>차례로 읽는 설명</h3>
+						<p>
+							배경부터 결론까지 하나의 흐름으로 읽습니다. 처음 접하는 내용을
+							풀어 설명하기 좋습니다.
+						</p>
+						<div class="mini-bars" aria-hidden="true">
+							<span></span><span></span><span></span>
+						</div>
+					</article>
+					<article
+						class="example-card"
+						id="parallel-example"
+						data-comment-anchor="parallel-example"
+						data-comment-title="차이를 나란히 보는 설명"
+					>
+						<span class="example-tag">나안 · 차이가 중요할 때</span>
+						<h3>차이를 나란히 보는 설명</h3>
+						<p>
+							같은 기준을 두 안에 적용합니다. 장단점을 오가며 비교하고 선택
+							이유를 남기기 좋습니다.
+						</p>
+						<div class="mini-columns" aria-hidden="true">
+							<span>같은 기준</span><span>다른 선택</span>
+						</div>
+					</article>
+				</div>
+				<p
+					class="example-caption"
+					id="comparison-caption"
+					data-comment-anchor="comparison-caption"
+					data-comment-title="비교 예시의 범위"
+				>
+					어느 안이 항상 더 좋은 것은 아닙니다. 독자가 설명을 처음 읽는지, 이미
+					아는 안을 비교하는지가 기준입니다.
+				</p>
+				<details class="section-notes" id="notes-C1" hidden>
+					<summary id="notes-count-C1">주석 0</summary>
+					<div class="notes-list" id="notes-list-C1"></div>
+				</details>
+				<div class="annotation-wire" inert>
+					<textarea
+						id="memo-C1"
+						data-reply-notes
+						tabindex="-1"
+						aria-label="C1에 연결된 주석"
+					></textarea>
+				</div>
+			</section>
+
+			<section
+				class="section"
+				id="flow"
+				data-item="C2"
+				aria-labelledby="flow-title"
+			>
+				<h2
+					id="flow-title"
+					data-comment-anchor="flow-title"
+					data-comment-title="검토 흐름"
+				>
+					<span class="section-no">02</span>변경을 세 단계로 나누기
+				</h2>
+				<fieldset
+					class="review-row"
+					data-review-state="unanswered"
+					aria-describedby="checklist-hint"
+				>
+					<legend>C2 검토</legend>
+					<div class="review-line">
+						<label class="review-check" for="check-C2"
+							><input
+								type="checkbox"
+								id="check-C2"
+								name="C2"
+								value="검토 흐름과 담당자의 역할을 확인했습니다"
+								aria-describedby="review-state-C2"
+							><span>검토 흐름과 담당자의 역할을 확인했습니다</span></label
+						>
+						<span
+							class="review-state"
+							id="review-state-C2"
+							data-reply-state="unanswered"
+							aria-live="polite"
+							>미확인</span
+						>
+					</div>
+				</fieldset>
+				<p
+					class="example-caption"
+					id="flow-intro"
+					data-comment-anchor="flow-intro"
+					data-comment-title="검토 흐름의 범위"
+					data-comment-context="작은 문구 수정을 담당자가 직접 확인하는 설명 예시"
+				>
+					초안 작성, 검토, 반영은 서로 다른 역할입니다. 의견을 남긴 것과 실제
+					수정이 끝난 것을 구분합니다.
+				</p>
+				<figure
+					id="revision-flow"
+					data-comment-anchor="revision-flow"
+					data-comment-title="초안에서 반영까지"
+					data-comment-context="작은 문구 수정을 담당자가 직접 확인하는 설명 예시"
+				>
+					<ol class="flow">
+						<li>
+							<strong>1. 초안 만들기</strong
+							><small>작성자가 바뀐 내용과 이유를 정리합니다.</small>
+						</li>
+						<li>
+							<strong>2. 검토하기</strong
+							><small
+								>검토자가 읽은 항목을 체크하고 문장에 의견을 남깁니다.</small
+							>
+						</li>
+						<li>
+							<strong>3. 반영하기</strong
+							><small>담당자가 의견을 확인한 뒤 수정 여부를 결정합니다.</small>
+						</li>
+					</ol>
+					<figcaption class="example-caption">
+						이 도식은 역할을 설명합니다. 체크하거나 주석을 입력해도 실제 작업이
+						실행되지는 않습니다.
+					</figcaption>
+				</figure>
+				<details class="section-notes" id="notes-C2" hidden>
+					<summary id="notes-count-C2">주석 0</summary>
+					<div class="notes-list" id="notes-list-C2"></div>
+				</details>
+				<div class="annotation-wire" inert>
+					<textarea
+						id="memo-C2"
+						data-reply-notes
+						tabindex="-1"
+						aria-label="C2에 연결된 주석"
+					></textarea>
+				</div>
+			</section>
+
+			<section
+				class="section"
+				id="meaning"
+				data-item="C3"
+				aria-labelledby="meaning-title"
+			>
+				<h2
+					id="meaning-title"
+					data-comment-anchor="meaning-title"
+					data-comment-title="확인 표시와 의견의 차이"
+				>
+					<span class="section-no">03</span>확인 표시와 의견을 구분하기
+				</h2>
+				<fieldset
+					class="review-row"
+					data-review-state="unanswered"
+					aria-describedby="checklist-hint"
+				>
+					<legend>C3 검토</legend>
+					<div class="review-line">
+						<label class="review-check" for="check-C3"
+							><input
+								type="checkbox"
+								id="check-C3"
+								name="C3"
+								value="확인 표시와 변경 의견의 구분을 확인했습니다"
+								aria-describedby="review-state-C3"
+							><span>확인 표시와 변경 의견의 구분을 확인했습니다</span></label
+						>
+						<span
+							class="review-state"
+							id="review-state-C3"
+							data-reply-state="unanswered"
+							aria-live="polite"
+							>미확인</span
+						>
+					</div>
+				</fieldset>
+				<div
+					id="meaning-example"
+					data-comment-anchor="meaning-example"
+					data-comment-title="체크와 주석의 의미"
+				>
+					<div class="meaning">
+						<strong>체크</strong>
+						<p>
+							표시된 질문에 답했다는 뜻입니다. 체크하지 않은 항목은 미확인으로
+							남습니다. 전체 승인으로 해석하지 않습니다.
+						</p>
+					</div>
+					<div class="meaning">
+						<strong>주석</strong>
+						<p>
+							선택한 문장에 대한 의견입니다. 입력하면 회신 초안에 자동으로
+							담깁니다. 별도의 추가·저장 버튼은 없습니다.
+						</p>
+					</div>
+				</div>
+				<details class="section-notes" id="notes-C3" hidden>
+					<summary id="notes-count-C3">주석 0</summary>
+					<div class="notes-list" id="notes-list-C3"></div>
+				</details>
+				<div class="annotation-wire" inert>
+					<textarea
+						id="memo-C3"
+						data-reply-notes
+						tabindex="-1"
+						aria-label="C3에 연결된 주석"
+					></textarea>
+				</div>
+			</section>
+
+			<details class="section-notes" id="review-orphans" hidden>
+				<summary>연결을 확인할 주석</summary>
+				<div class="notes-list"></div>
+			</details>
+
+			<section id="standalone-review" aria-labelledby="standalone-title" hidden>
+				<h2 id="standalone-title">회신 초안</h2>
+				<p class="hint">
+					이 파일은 내용을 전송하지 않습니다. 질문 전체와 현재 응답을 복사해
+					원하는 대화에 직접 붙여 넣으세요. 제외된 주석은 아래 회신에 들어가지
+					않습니다.
+				</p>
+				<label for="review-overall-memo">전체 의견</label>
+				<textarea
+					id="review-overall-memo"
+					rows="3"
+					placeholder="여러 항목에 걸친 의견을 적어 주세요."
+				></textarea>
+				<label for="review-reply">질문과 응답 전체</label>
+				<textarea
+					id="review-reply"
+					data-reply-output
+					readonly
+					rows="12"
+				></textarea>
+				<button id="review-copy" type="button">회신 복사</button>
+				<p class="hint" id="review-copy-status" role="status">
+					자동 복사가 안 되면 위 회신을 직접 선택해 복사하세요.
+				</p>
+			</section>
+
+			<div id="selection-action" hidden>
+				<button
+					id="selection-comment"
+					type="button"
+					aria-label="선택한 문장에 주석"
+					aria-describedby="selection-tip"
+					aria-haspopup="dialog"
+					aria-controls="selection-editor"
+					aria-keyshortcuts="Alt+Enter"
+				>
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path
+							d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3V6a2 2 0 0 1 1-2Z"
+						/>
+						<path d="M8 9h8M8 13h5" />
+					</svg>
+				</button><span id="selection-tip" role="tooltip">주석 남기기</span>
+			</div>
+			<section
+				id="selection-editor"
+				role="dialog"
+				aria-labelledby="selection-title"
+				hidden
+			>
+				<div class="selection-editor-heading">
+					<strong id="selection-title">선택한 부분에 주석</strong
+					><button id="selection-close" type="button" aria-label="주석 창 닫기">
+						<svg viewBox="0 0 20 20" aria-hidden="true">
+							<path d="m5 5 10 10M15 5 5 15" />
+						</svg>
+					</button>
+				</div>
+				<blockquote id="selection-quote"></blockquote>
+				<p id="selection-context" hidden></p>
+				<label class="selection-sr-only" for="selection-message"
+					>선택한 부분의 주석</label
+				>
+				<textarea
+					id="selection-message"
+					rows="3"
+					aria-describedby="selection-note-status"
+					placeholder="이 부분에 대한 의견을 적어 주세요."
+				></textarea>
+				<p id="selection-note-status" role="status">
+					입력하면 회신 초안에 함께 담깁니다.
+				</p>
+				<p class="hint">
+					주석 20개 · 원문 1,200자 · 주석당 1,000자 · 전체 12,000자 이내
+				</p>
+			</section>
+			<section
+				id="selection-storage"
+				data-item="ANNOTATION_STATE"
+				hidden
+				aria-hidden="true"
+			>
+				<label for="selection-state">주석 초안 복구 상태</label
+				><textarea
+					id="selection-state"
+				>{"version":1,"notes":[],"activeId":null,"recovery":[]}</textarea>
+			</section>
+		</main>
+		<script>
+		(() => {
+			"use strict";
+			const byId = (id) => document.getElementById(id);
+			const root = byId("review-document");
+			const action = byId("selection-action"),
+				editor = byId("selection-editor");
+			const message = byId("selection-message"),
+				stateField = byId("selection-state");
+			const standalone = parent === window;
+			const sourceRevision = root.dataset.sourceRevision || "";
+			const storageKey = sourceRevision
+				? `html-review-draft:v1:${location.pathname}:${root.dataset.sourceId}:${sourceRevision}`
+				: `html-review-draft:v1:${location.pathname}`;
+			const MAX_NOTES = 20,
+				MAX_QUOTE = 1200,
+				MAX_MESSAGE = 1000,
+				MAX_SERIALIZED = 12000;
+			const FIELD_SELECTOR =
+				'input[type="radio"],input[type="checkbox"],input[type="text"],input[type="number"],textarea,select';
+			const OUTPUT_SELECTOR =
+				"textarea[data-reply-output],textarea#out[readonly],textarea#reply-text[readonly]";
+			const EXCLUDED =
+				'script,style,noscript,button,input,textarea,select,option,label,summary,a,[role="button"],[contenteditable]:not([contenteditable="false"]),[hidden],[aria-hidden="true"],.review-row,.section-notes,.annotation-wire,#selection-action,#selection-editor,#selection-storage,#standalone-review';
+			let notes = [],
+				recovery = [],
+				activeId = null,
+				revision = 0,
+				idCounter = 0;
+			let pending = null,
+				activeRange = null,
+				activeRect = null,
+				returnFocus = null;
+			let writingState = false,
+				writingCarriers = false,
+				restoringLocal = false,
+				composing = false;
+			let refreshFrame = 0,
+				selectionFrame = 0,
+				dockBottom = 0;
+			const renderKeys = new WeakMap();
+			const text = (node, value) => {
+				if (node.textContent !== value) node.textContent = value;
+			};
+			const elementFor = (node) =>
+				node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+
+			// Match reply-content.js ownership and availability. Inert/clipped carriers are intentional.
+			function available(node) {
+				for (
+					let current = node;
+					current && current !== document.body;
+					current = current.parentElement
+				) {
+					if (
+						current.hidden ||
+						current.getAttribute("aria-hidden") === "true" ||
+						getComputedStyle(current).display === "none" ||
+						getComputedStyle(current).visibility === "hidden"
+					)
+						return false;
+				}
+				return true;
+			}
+			function ownedFields(section) {
+				return [...section.querySelectorAll(FIELD_SELECTOR)].filter(
+					(field) =>
+						field.closest("[data-item]") === section &&
+						!field.matches(OUTPUT_SELECTOR),
+				);
+			}
+			function fields(section) {
+				return ownedFields(section).filter(
+					(field) =>
+						!field.matches(":disabled") && !field.readOnly && available(field),
+				);
+			}
+			function questions() {
+				return [...root.querySelectorAll("[data-item]")].filter(
+					(section) =>
+						section.dataset.item &&
+						section.dataset.item !== "ANNOTATION_STATE" &&
+						ownedFields(section).length,
+				);
+			}
+			function questionFor(id) {
+				const matches = questions().filter(
+					(section) => section.dataset.item === id,
+				);
+				return matches.length === 1 ? matches[0] : null;
+			}
+			function owned(section, selector) {
+				return [...section.querySelectorAll(selector)].filter(
+					(node) => node.closest("[data-item]") === section,
+				);
+			}
+			function questionTitle(section) {
+				return (
+					owned(section, "h2,h3,h4,legend,label")[0]?.textContent.trim() ||
+					section.dataset.item
+				);
+			}
+			function answerFields(section) {
+				return fields(section).filter(
+					(field) =>
+						!field.hasAttribute("data-reply-notes") &&
+						field.matches(
+							'input[type="checkbox"],input[type="radio"],input[type="text"],input[type="number"],select,textarea[data-reply-answer]',
+						),
+				);
+			}
+			function answerValues(section) {
+				const values = [];
+				for (const field of answerFields(section)) {
+					if (["checkbox", "radio"].includes(field.type)) {
+						if (field.checked) values.push(field.value);
+					} else if (field.tagName === "SELECT") {
+						for (const option of field.selectedOptions)
+							if (option.value) values.push(option.value);
+					} else if (field.value.trim()) values.push(field.value.trim());
+				}
+				return values;
+			}
+			function carrierFor(section) {
+				return owned(section, "textarea[data-reply-notes]")[0] || null;
+			}
+			function notesUI(section) {
+				const id = section.dataset.item;
+				let details = owned(section, ".section-notes")[0];
+				if (!details) {
+					details = document.createElement("details");
+					details.className = "section-notes";
+					details.id = `notes-${id}`;
+					details.hidden = true;
+					const summary = document.createElement("summary");
+					summary.id = `notes-count-${id}`;
+					const list = document.createElement("div");
+					list.className = "notes-list";
+					list.id = `notes-list-${id}`;
+					details.append(summary, list);
+					section.append(details);
+				}
+				if (!carrierFor(section)) {
+					const wire = document.createElement("div");
+					wire.className = "annotation-wire";
+					wire.setAttribute("inert", "");
+					const field = document.createElement("textarea");
+					field.id = `memo-${id}`;
+					field.setAttribute("data-reply-notes", "");
+					field.tabIndex = -1;
+					field.setAttribute(
+						"aria-label",
+						`${questionTitle(section)}에 연결된 주석`,
+					);
+					wire.append(field);
+					section.append(wire);
+				}
+				return {
+					details,
+					summary: details.querySelector("summary"),
+					list: details.querySelector(".notes-list"),
+				};
+			}
+			function syncCompletion() {
+				for (const section of questions()) {
+					const state = answerValues(section).length
+						? "answered"
+						: "unanswered";
+					for (const row of owned(section, ".review-row[data-review-state]"))
+						if (row.dataset.reviewState !== state)
+							row.dataset.reviewState = state;
+					for (const badge of owned(section, "[data-reply-state]")) {
+						if (badge.dataset.replyState !== state)
+							badge.dataset.replyState = state;
+						text(badge, state === "answered" ? "확인함" : "미확인");
+					}
+				}
+			}
+			function anchorFor(note) {
+				const anchor = byId(note.anchor),
+					section = questionFor(note.question);
+				return anchor &&
+					root.contains(anchor) &&
+					anchor.hasAttribute("data-comment-anchor") &&
+					anchor.closest("[data-item]") === section &&
+					section
+					? anchor
+					: null;
+			}
+			function noteText(note) {
+				return [
+					`#${note.anchor} / ${note.title}`,
+					`선택한 원문: ${note.quote}`,
+					...(note.context ? [`설명 조건: ${note.context}`] : []),
+					`주석: ${note.message}`,
+				].join("\n");
+			}
+			function validateNotes() {
+				const included = new Set(),
+					errors = new Map();
+				const candidates = notes
+					.map((note, index) => ({ note, index }))
+					.sort(
+						(a, b) => a.note.revision - b.note.revision || a.index - b.index,
+					);
+				// Most recently edited drafts are considered last: an over-limit edit excludes that
+				// draft, never substitutes its old value or silently ejects another accepted note.
+				for (const { note, index } of candidates) {
+					let error = "";
+					const section = questionFor(note.question),
+						carrier = section && carrierFor(section);
+					if (index >= MAX_NOTES)
+						error = "주석은 20개까지입니다. 불필요한 주석을 지워 주세요.";
+					else if (!anchorFor(note))
+						error =
+							"연결된 질문이나 원문 위치를 찾을 수 없습니다. 원문을 확인해 주세요.";
+					else if (!note.quote.trim() || note.quote.length > MAX_QUOTE)
+						error =
+							"선택한 원문은 1,200자 이내여야 합니다. 더 짧은 범위를 다시 선택해 주세요.";
+					else if (!carrier || !fields(section).includes(carrier))
+						error = "이 항목은 숨겨져 있거나 메모를 받지 않는 상태입니다.";
+					else if (note.message.length > MAX_MESSAGE)
+						error =
+							"전송에서 제외됨, 내용을 줄여 주세요. 주석당 1,000자까지입니다.";
+					else if (note.message.trim()) {
+						const proposed = notes.filter(
+							(candidate) => included.has(candidate.id) || candidate === note,
+						);
+						if (
+							JSON.stringify(proposed).length > MAX_SERIALIZED ||
+							proposed.map(noteText).join("\n\n").length > MAX_SERIALIZED
+						)
+							error =
+								"전송에서 제외됨, 내용을 줄여 주세요. 전체 주석은 12,000자까지입니다.";
+						else included.add(note.id);
+					}
+					if (error) errors.set(note.id, error);
+				}
+				return { included, errors };
+			}
+			function writeCarriers(report) {
+				writingCarriers = true;
+				try {
+					for (const section of questions()) {
+						const field = carrierFor(section);
+						if (!field || !fields(section).includes(field)) continue;
+						const value = notes
+							.filter(
+								(note) =>
+									note.question === section.dataset.item &&
+									report.included.has(note.id),
+							)
+							.map(noteText)
+							.join("\n\n");
+						if (field.value !== value) {
+							field.value = value;
+							field.dispatchEvent(new Event("input", { bubbles: true }));
+						}
+					}
+				} finally {
+					writingCarriers = false;
+				}
+			}
+
+			function textModel(anchor) {
+				const pieces = [],
+					section = anchor.closest("[data-item]");
+				let value = "";
+				const walker = document.createTreeWalker(anchor, NodeFilter.SHOW_TEXT, {
+					acceptNode(node) {
+						const parent = node.parentElement;
+						return parent &&
+							!parent.closest(EXCLUDED) &&
+							parent.closest("[data-comment-anchor]") === anchor &&
+							parent.closest("[data-item]") === section &&
+							available(parent)
+							? NodeFilter.FILTER_ACCEPT
+							: NodeFilter.FILTER_REJECT;
+					},
+				});
+				for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+					pieces.push({
+						node,
+						start: value.length,
+						end: value.length + node.textContent.length,
+					});
+					value += node.textContent;
+				}
+				return { pieces, value };
+			}
+			function rangeAt(model, start, end) {
+				const first = model.pieces.find((piece) => piece.end > start),
+					last = model.pieces.find((piece) => piece.end >= end);
+				if (!first || !last || end <= start) return null;
+				const range = document.createRange();
+				range.setStart(first.node, start - first.start);
+				range.setEnd(last.node, end - last.start);
+				return range;
+			}
+			function rangeFor(note) {
+				const anchor = anchorFor(note);
+				if (!anchor) return null;
+				const model = textModel(anchor);
+				if (model.value.slice(note.start, note.end) === note.quote)
+					return rangeAt(model, note.start, note.end);
+				const start = model.value.indexOf(note.quote);
+				// Never guess among repeated phrases after the source changes.
+				if (start < 0 || model.value.lastIndexOf(note.quote) !== start)
+					return null;
+				return rangeAt(model, start, start + note.quote.length);
+			}
+			function usableRect(rect) {
+				return (
+					rect &&
+					[
+						rect.left,
+						rect.top,
+						rect.right,
+						rect.bottom,
+						rect.width,
+						rect.height,
+					].every(Number.isFinite) &&
+					rect.width > 0 &&
+					rect.height > 0
+				);
+			}
+			function rangeRect(range, note) {
+				if (
+					!range ||
+					range.collapsed ||
+					!range.startContainer.isConnected ||
+					!range.endContainer.isConnected
+				)
+					return null;
+				const anchor = anchorFor(note);
+				if (
+					!anchor?.contains(range.startContainer) ||
+					!anchor.contains(range.endContainer) ||
+					range.toString() !== note.quote
+				)
+					return null;
+				const rect = range.getBoundingClientRect();
+				if (usableRect(rect)) return rect;
+				return [...range.getClientRects()].find(usableRect) || null;
+			}
+			function snapshotRect(rect) {
+				return usableRect(rect)
+					? {
+							left: rect.left + scrollX,
+							right: rect.right + scrollX,
+							top: rect.top + scrollY,
+							bottom: rect.bottom + scrollY,
+							width: rect.width,
+							height: rect.height,
+						}
+					: null;
+			}
+			function viewportRect(snapshot) {
+				return snapshot
+					? {
+							...snapshot,
+							left: snapshot.left - scrollX,
+							right: snapshot.right - scrollX,
+							top: snapshot.top - scrollY,
+							bottom: snapshot.bottom - scrollY,
+						}
+					: null;
+			}
+			function viewport() {
+				return {
+					width: document.documentElement.clientWidth || innerWidth,
+					bottom: Math.max(0, innerHeight - dockBottom),
+				};
+			}
+			function placeEditor() {
+				if (editor.hidden) return;
+				const note = notes.find((candidate) => candidate.id === activeId);
+				if (!note) return;
+				const anchor = anchorFor(note),
+					live = rangeRect(activeRange, note),
+					saved = viewportRect(activeRect),
+					anchorBox = anchor?.getBoundingClientRect();
+				const rect =
+					live ||
+					(usableRect(saved) ? saved : null) ||
+					(usableRect(anchorBox) ? anchorBox : null);
+				const view = viewport(),
+					margin = 8;
+				editor.style.maxHeight = `${Math.max(0, view.bottom - margin * 2)}px`;
+				const width = editor.offsetWidth,
+					height = editor.offsetHeight;
+				const left = Math.max(
+					margin,
+					Math.min(
+						view.width - width - margin,
+						rect ? rect.right - width + 28 : margin,
+					),
+				);
+				let top = rect ? rect.bottom + 9 : margin;
+				if (rect && top + height > view.bottom - margin)
+					top = rect.top - height - 9;
+				top = Math.max(margin, Math.min(view.bottom - height - margin, top));
+				editor.style.left = `${left}px`;
+				editor.style.top = `${top}px`;
+			}
+			function hideAction() {
+				action.hidden = true;
+				pending = null;
+			}
+			function placeAction() {
+				if (!pending || !editor.hidden) return;
+				const rect = rangeRect(pending.range, pending),
+					view = viewport();
+				if (
+					!rect ||
+					rect.bottom <= 0 ||
+					rect.top >= view.bottom ||
+					view.bottom < 50
+				) {
+					action.hidden = true;
+					return;
+				}
+				action.style.left = `${Math.max(7, Math.min(view.width - 41, rect.right + 5))}px`;
+				action.style.top = `${Math.max(7, Math.min(view.bottom - 41, rect.top - 38))}px`;
+				action.hidden = false;
+			}
+			function rejectSelection(reason = "") {
+				hideAction();
+				text(byId("review-selection-status"), reason);
+			}
+			function inspectSelection() {
+				selectionFrame = 0;
+				if (!editor.hidden) return;
+				const selection = getSelection();
+				if (!selection || selection.isCollapsed || selection.rangeCount !== 1) {
+					rejectSelection();
+					return;
+				}
+				// Keep our own Range, never the Selection's live owned Range.
+				const range = selection.getRangeAt(0).cloneRange();
+				const start = elementFor(range.startContainer),
+					end = elementFor(range.endContainer);
+				if (
+					!start ||
+					!end ||
+					!root.contains(start) ||
+					!root.contains(end) ||
+					start.closest(EXCLUDED) ||
+					end.closest(EXCLUDED)
+				) {
+					rejectSelection();
+					return;
+				}
+				const section = start.closest("[data-item]");
+				if (
+					!section ||
+					section !== end.closest("[data-item]") ||
+					questionFor(section.dataset.item) !== section
+				) {
+					rejectSelection("한 항목 안의 문장을 선택해 주세요.");
+					return;
+				}
+				const anchor = start.closest("[data-comment-anchor]");
+				if (
+					!anchor?.id ||
+					anchor !== end.closest("[data-comment-anchor]") ||
+					anchor.closest("[data-item]") !== section ||
+					!available(anchor)
+				) {
+					rejectSelection("한 설명 영역 안의 문장을 선택해 주세요.");
+					return;
+				}
+				for (const node of anchor.querySelectorAll(
+					`${EXCLUDED},[data-item],[data-comment-anchor]`,
+				)) {
+					if (range.intersectsNode(node)) {
+						rejectSelection(
+							"버튼이나 입력란을 제외한 한 설명 영역의 문장만 선택해 주세요.",
+						);
+						return;
+					}
+				}
+				const raw = range.toString(),
+					quote = raw.trim();
+				if (!quote) {
+					rejectSelection();
+					return;
+				}
+				if (quote.length > MAX_QUOTE) {
+					rejectSelection(
+						"선택한 원문은 1,200자까지입니다. 범위를 줄여 주세요.",
+					);
+					return;
+				}
+				const model = textModel(anchor),
+					picked = [];
+				for (const piece of model.pieces) {
+					if (!range.intersectsNode(piece.node)) continue;
+					const from =
+						piece.node === range.startContainer ? range.startOffset : 0;
+					const to =
+						piece.node === range.endContainer
+							? range.endOffset
+							: piece.node.textContent.length;
+					if (to > from)
+						picked.push({
+							piece,
+							from,
+							value: piece.node.textContent.slice(from, to),
+						});
+				}
+				if (
+					!picked.length ||
+					picked.map((part) => part.value).join("") !== raw
+				) {
+					rejectSelection("보이는 설명 문장만 선택해 주세요.");
+					return;
+				}
+				const from =
+					picked[0].piece.start +
+					picked[0].from +
+					raw.length -
+					raw.trimStart().length;
+				const cleanRange = rangeAt(model, from, from + quote.length);
+				pending = {
+					question: section.dataset.item,
+					anchor: anchor.id,
+					title: anchor.dataset.commentTitle || questionTitle(section),
+					context: anchor.dataset.commentContext || "",
+					quote,
+					start: from,
+					end: from + quote.length,
+					range: cleanRange.cloneRange(),
+				};
+				text(byId("review-selection-status"), "");
+				placeAction();
+			}
+			function scheduleSelection() {
+				if (!selectionFrame)
+					selectionFrame = requestAnimationFrame(inspectSelection);
+			}
+			function reveal(node) {
+				for (
+					let current = node;
+					current && current !== root;
+					current = current.parentElement
+				)
+					if (current.tagName === "DETAILS") current.open = true;
+			}
+			function openEditor(note, range = null, focus = true, opener = null) {
+				activeId = note.id;
+				// Clone again before focusing a textarea; the browser can collapse its own selection.
+				activeRange = range?.cloneRange() || null;
+				activeRect = snapshotRect(rangeRect(activeRange, note));
+				returnFocus = opener;
+				hideAction();
+				editor.hidden = false;
+				text(byId("selection-title"), `${note.question} · 선택한 부분에 주석`);
+				text(byId("selection-quote"), note.quote);
+				text(
+					byId("selection-context"),
+					note.context ? `설명 조건: ${note.context}` : "",
+				);
+				byId("selection-context").hidden = !note.context;
+				message.value = note.message;
+				refresh();
+				placeEditor();
+				if (focus) message.focus({ preventScroll: true });
+			}
+			function closeEditor(restoreFocus = false) {
+				if (editor.hidden) return;
+				const note = notes.find((candidate) => candidate.id === activeId),
+					section = note && questionFor(note.question);
+				const fallback = section && notesUI(section).summary;
+				editor.hidden = true;
+				if (note && !note.message.trim())
+					notes = notes.filter((candidate) => candidate.id !== note.id);
+				activeId = null;
+				activeRange = null;
+				activeRect = null;
+				hideAction();
+				commit();
+				if (restoreFocus) {
+					const target =
+						returnFocus?.isConnected && available(returnFocus)
+							? returnFocus
+							: fallback;
+					target?.focus({ preventScroll: true });
+				}
+				returnFocus = null;
+			}
+			function startNote() {
+				if (!pending) return;
+				if (notes.length >= MAX_NOTES) {
+					text(
+						byId("review-selection-status"),
+						"주석은 20개까지입니다. 기존 주석을 지운 뒤 다시 선택해 주세요.",
+					);
+					return;
+				}
+				const { range, ...snapshot } = pending;
+				if (!rangeRect(range, snapshot)) {
+					rejectSelection(
+						"선택 위치가 바뀌었습니다. 문장을 다시 선택해 주세요.",
+					);
+					return;
+				}
+				let id;
+				do {
+					id = `note-${Date.now().toString(36)}-${++idCounter}`;
+				} while (notes.some((note) => note.id === id));
+				const note = { ...snapshot, id, message: "", revision: ++revision };
+				notes.push(note);
+				openEditor(note, range.cloneRange(), true, byId("selection-comment"));
+				commit();
+			}
+			function locate(note) {
+				const anchor = anchorFor(note);
+				if (!anchor) return;
+				reveal(anchor);
+				anchor.scrollIntoView({ block: "center", behavior: "instant" });
+				const range = rangeFor(note);
+				if (range) {
+					// This explicit location-view action is the only operation that edits page selection.
+					const selection = getSelection();
+					selection.removeAllRanges();
+					selection.addRange(range.cloneRange());
+				} else {
+					anchor.classList.add("selection-anchor-flash");
+					setTimeout(
+						() => anchor.classList.remove("selection-anchor-flash"),
+						1500,
+					);
+					text(
+						byId("review-selection-status"),
+						"원문이 바뀌어 정확한 문장 대신 연결된 설명 영역을 표시했습니다.",
+					);
+				}
+			}
+			function renderList(list, group, report) {
+				if (!list) return;
+				const key = JSON.stringify(
+					group.map((note) => [
+						note,
+						report.errors.get(note.id) || "",
+						report.included.has(note.id),
+					]),
+				);
+				if (renderKeys.get(list) === key) return;
+				renderKeys.set(list, key);
+				const focused = list.contains(document.activeElement)
+					? {
+							id: document.activeElement.dataset.noteId,
+							action: document.activeElement.dataset.noteAction,
+						}
+					: null;
+				const rows = group.map((note, index) => {
+					const row = document.createElement("div");
+					row.className = "selected-note";
+					const quote = document.createElement("blockquote");
+					quote.className = "selected-note-quote";
+					quote.textContent = note.quote;
+					const body = document.createElement("p");
+					body.className = "selected-note-message";
+					body.textContent = note.message || "아직 입력하지 않은 주석입니다.";
+					const context = document.createElement("p");
+					context.className = "selected-note-context";
+					context.textContent = note.context
+						? `설명 조건: ${note.context}`
+						: "";
+					const status = document.createElement("p");
+					status.className = "selected-note-status";
+					status.dataset.invalid = String(report.errors.has(note.id));
+					status.textContent = report.errors.get(note.id)
+						? `회신에서 제외됨 · ${report.errors.get(note.id)}`
+						: report.included.has(note.id)
+							? "회신 초안에 포함됨"
+							: "내용을 입력하면 회신 초안에 포함됩니다.";
+					const actions = document.createElement("div");
+					actions.className = "selected-note-actions";
+					for (const [kind, label] of [
+						["locate", "위치"],
+						["edit", "수정"],
+						["delete", "지우기"],
+					]) {
+						const button = document.createElement("button");
+						button.type = "button";
+						button.textContent = label;
+						button.dataset.noteId = note.id;
+						button.dataset.noteAction = kind;
+						button.setAttribute(
+							"aria-label",
+							`${note.question} 주석 ${index + 1} ${label}`,
+						);
+						if (kind === "locate") button.disabled = !anchorFor(note);
+						button.addEventListener("click", () => {
+							if (kind === "locate") locate(note);
+							else if (kind === "edit") {
+								const anchor = anchorFor(note);
+								if (anchor) {
+									reveal(anchor);
+									anchor.scrollIntoView({
+										block: "center",
+										behavior: "instant",
+									});
+								}
+								openEditor(note, rangeFor(note), true, button);
+								commit();
+							} else {
+								const details = list.closest("details");
+								notes = notes.filter((candidate) => candidate.id !== note.id);
+								if (activeId === note.id) {
+									editor.hidden = true;
+									activeId = null;
+									activeRange = null;
+									activeRect = null;
+								}
+								commit();
+								if (details && !details.hidden)
+									details
+										.querySelector("summary")
+										?.focus({ preventScroll: true });
+							}
+						});
+						actions.append(button);
+					}
+					row.append(quote, body);
+					if (note.context) row.append(context);
+					row.append(status, actions);
+					return row;
+				});
+				list.replaceChildren(...rows);
+				if (focused)
+					[...list.querySelectorAll("button")]
+						.find(
+							(button) =>
+								button.dataset.noteId === focused.id &&
+								button.dataset.noteAction === focused.action,
+						)
+						?.focus({ preventScroll: true });
+			}
+			function renderNotes(report) {
+				for (const section of questions()) {
+					const ui = notesUI(section),
+						group = notes.filter(
+							(note) => note.question === section.dataset.item,
+						);
+					if (ui.details.hidden !== !group.length)
+						ui.details.hidden = !group.length;
+					if (ui.summary) text(ui.summary, `주석 ${group.length}`);
+					renderList(ui.list, group, report);
+				}
+				const orphans = notes.filter((note) => !questionFor(note.question));
+				byId("review-orphans").hidden = !orphans.length;
+				renderList(
+					byId("review-orphans").querySelector(".notes-list"),
+					orphans,
+					report,
+				);
+				text(
+					byId("review-validation"),
+					report.errors.size
+						? `${report.errors.size}개 주석이 전송에서 제외됨, 내용을 줄여 주세요. 연결 위치나 입력 조건의 문제는 주석 목록에서 확인하세요. 원문과 입력 내용은 초안에 그대로 보관됩니다.`
+						: "",
+				);
+				const current = notes.find((note) => note.id === activeId);
+				if (current && !editor.hidden) {
+					const error = report.errors.get(current.id);
+					message.setAttribute("aria-invalid", String(!!error));
+					byId("selection-note-status").dataset.invalid = String(!!error);
+					text(
+						byId("selection-note-status"),
+						`${current.message.length.toLocaleString("ko-KR")} / 1,000자 · ${error || (report.included.has(current.id) ? "회신 초안에 포함됨. 아직 전송하지 않았습니다." : "입력하면 회신 초안에 함께 담깁니다.")}`,
+					);
+				}
+			}
+			function replyText() {
+				const lines = [root.querySelector("h1").textContent.trim(), ""];
+				if (sourceRevision) {
+					const summary = root.querySelector("[data-source-summary]");
+					if (summary) lines.push(summary.textContent, "");
+				}
+				for (const section of questions().filter(
+					(node) => available(node) && fields(node).length,
+				)) {
+					lines.push(`${section.dataset.item}. ${questionTitle(section)}`);
+					const prompts = [
+						...new Set(
+							answerFields(section)
+								.map(
+									(field) =>
+										[...(field.labels || [])]
+											.map((label) => label.textContent.trim())
+											.join(" / ") ||
+										field.getAttribute("aria-label") ||
+										"",
+								)
+								.filter(Boolean),
+						),
+					];
+					if (prompts.length) lines.push(`질문: ${prompts.join(" / ")}`);
+					const values = answerValues(section);
+					lines.push(`응답: ${values.length ? values.join(" / ") : "미확인"}`);
+					const memo = fields(section)
+						.filter((field) =>
+							field.matches("textarea:not([data-reply-answer])"),
+						)
+						.map((field) => field.value.trim())
+						.filter(Boolean)
+						.join("\n");
+					if (memo) lines.push(`메모:\n${memo}`);
+					lines.push("");
+				}
+				if (byId("review-overall-memo").value.trim())
+					lines.push(`전체 의견:\n${byId("review-overall-memo").value.trim()}`);
+				return lines.join("\n").trim();
+			}
+			function refresh() {
+				refreshFrame = 0;
+				for (const section of questions()) notesUI(section);
+				syncCompletion();
+				const report = validateNotes();
+				writeCarriers(report);
+				renderNotes(report);
+				if (standalone) {
+					const reply = replyText();
+					if (byId("review-reply").value !== reply)
+						byId("review-reply").value = reply;
+				}
+				placeEditor();
+			}
+			function scheduleRefresh() {
+				if (!refreshFrame) refreshFrame = requestAnimationFrame(refresh);
+			}
+			function persistAnnotations() {
+				writingState = true;
+				try {
+					stateField.value = JSON.stringify({
+						version: 1,
+						notes,
+						activeId,
+						recovery,
+					});
+					stateField.dispatchEvent(new Event("input", { bubbles: true }));
+				} finally {
+					writingState = false;
+				}
+			}
+			function commit() {
+				persistAnnotations();
+				refresh();
+				saveStandalone();
+			}
+			function validRecord(note) {
+				return (
+					note &&
+					typeof note === "object" &&
+					[
+						"id",
+						"question",
+						"anchor",
+						"title",
+						"quote",
+						"context",
+						"message",
+					].every((key) => typeof note[key] === "string") &&
+					!!note.id &&
+					Number.isSafeInteger(note.start) &&
+					note.start >= 0 &&
+					Number.isSafeInteger(note.end) &&
+					note.end > note.start &&
+					Number.isSafeInteger(note.revision) &&
+					note.revision >= 0
+				);
+			}
+			function restoreAnnotations(value) {
+				let parsed;
+				try {
+					parsed = JSON.parse(value);
+					if (
+						parsed?.version !== 1 ||
+						!Array.isArray(parsed.notes) ||
+						!parsed.notes.every(validRecord) ||
+						new Set(parsed.notes.map((note) => note.id)).size !==
+							parsed.notes.length ||
+						!Array.isArray(parsed.recovery) ||
+						!parsed.recovery.every((entry) => typeof entry === "string")
+					)
+						throw new Error("invalid draft");
+				} catch {
+					if (value && !recovery.includes(value)) recovery.push(value);
+					text(
+						byId("review-selection-status"),
+						"초안 형식을 읽지 못했습니다. 원본은 복구용 초안 상태에 그대로 보관했습니다.",
+					);
+					scheduleRefresh();
+					return;
+				}
+				notes = parsed.notes;
+				recovery = parsed.recovery;
+				revision = notes.reduce(
+					(highest, note) => Math.max(highest, note.revision),
+					0,
+				);
+				activeId =
+					typeof parsed.activeId === "string" &&
+					notes.some((note) => note.id === parsed.activeId)
+						? parsed.activeId
+						: null;
+				const current = notes.find((note) => note.id === activeId);
+				if (current) openEditor(current, rangeFor(current), false);
+				else {
+					editor.hidden = true;
+					activeRange = null;
+					activeRect = null;
+				}
+				scheduleRefresh();
+			}
+			const fieldKey = (field, index) =>
+				field.id ||
+				(["radio", "checkbox"].includes(field.type)
+					? `${field.name}:${field.value}`
+					: field.name || String(index));
+			function formSnapshot() {
+				return [...root.querySelectorAll("[data-item]")]
+					.filter((section) => ownedFields(section).length)
+					.map((section) => ({
+						id: section.dataset.item,
+						fields: ownedFields(section).map((field, index) => ({
+							key: fieldKey(field, index),
+							value: field.value,
+							checked: field.checked,
+							...(field.tagName === "SELECT" && field.multiple
+								? {
+										selected: [...field.selectedOptions].map(
+											(option) => option.value,
+										),
+									}
+								: {}),
+						})),
+					}));
+			}
+			function saveStandalone() {
+				if (!standalone || restoringLocal) return;
+				try {
+					localStorage.setItem(
+						storageKey,
+						JSON.stringify({
+							version: 1,
+							forms: formSnapshot(),
+							overallMemo: byId("review-overall-memo").value,
+						}),
+					);
+					text(
+						byId("review-storage-status"),
+						sourceRevision
+							? "체크·주석·전체 의견을 현재 파일 경로와 원문 식별자·리비전별로 보관합니다. 변경된 원문에는 이전 답을 적용하지 않습니다."
+							: "체크·주석·전체 의견을 이 브라우저의 현재 파일 경로에 자동 보관합니다. 직접 지우기 전까지 남습니다.",
+					);
+				} catch {
+					text(
+						byId("review-storage-status"),
+						"이 브라우저에서 초안을 보관할 수 없습니다. 닫기 전에 회신과 제외된 주석을 각각 직접 복사해 보관하세요.",
+					);
+				}
+			}
+			function restoreStandalone() {
+				if (!standalone) return;
+				restoringLocal = true;
+				try {
+					const raw = localStorage.getItem(storageKey);
+					if (!raw) return;
+					const saved = JSON.parse(raw);
+					if (saved?.version !== 1 || !Array.isArray(saved.forms))
+						throw new Error("invalid saved forms");
+					for (const form of saved.forms) {
+						const section = [...root.querySelectorAll("[data-item]")].find(
+							(node) => node.dataset.item === form.id,
+						);
+						if (!section || !Array.isArray(form.fields)) continue;
+						ownedFields(section).forEach((field, index) => {
+							const record = form.fields.find(
+								(candidate) => candidate.key === fieldKey(field, index),
+							);
+							if (!record) return;
+							if (["radio", "checkbox"].includes(field.type))
+								field.checked = !!record.checked;
+							else if (field.tagName === "SELECT") {
+								const desired =
+									field.multiple && Array.isArray(record.selected)
+										? record.selected
+										: record.value
+											? [record.value]
+											: [];
+								if (
+									desired.some(
+										(value) =>
+											![...field.options].some(
+												(option) => option.value === value,
+											),
+									)
+								)
+									return;
+								for (const option of field.options)
+									option.selected = desired.includes(option.value);
+							} else if (typeof record.value === "string")
+								field.value = record.value;
+						});
+					}
+					if (typeof saved.overallMemo === "string")
+						byId("review-overall-memo").value = saved.overallMemo;
+				} catch {
+					text(
+						byId("review-storage-status"),
+						"보관된 초안을 읽을 수 없습니다. 브라우저 저장소를 확인하고 현재 내용을 별도로 복사해 보관하세요.",
+					);
+				} finally {
+					restoringLocal = false;
+				}
+			}
+
+			byId("standalone-review").hidden = !standalone;
+			text(
+				byId("review-storage-status"),
+				standalone
+					? sourceRevision
+						? "이 브라우저의 현재 파일 경로와 원문 식별자·리비전별로 초안을 보관합니다."
+						: "이 브라우저의 현재 파일 경로에 초안을 보관합니다."
+					: "체크와 주석은 연결된 검토 패널의 회신 초안에 반영됩니다. 전체 의견과 보내기는 원래 패널을 사용하세요.",
+			);
+			byId("selection-comment").addEventListener("pointerdown", (event) =>
+				event.preventDefault(),
+			);
+			byId("selection-comment").addEventListener("click", startNote);
+			byId("selection-close").addEventListener("click", () =>
+				closeEditor(true),
+			);
+			message.addEventListener("compositionstart", () => {
+				composing = true;
+			});
+			message.addEventListener("compositionend", () => {
+				composing = false;
+			});
+			message.addEventListener("input", () => {
+				const note = notes.find((candidate) => candidate.id === activeId);
+				if (!note) return;
+				// No maxlength, slicing, rollback, or debounce: preserve exactly what is visible,
+				// including IME input and rejected drafts; validation only controls outgoing carriers.
+				note.message = message.value;
+				note.revision = ++revision;
+				commit();
+			});
+			stateField.addEventListener("input", () => {
+				if (!writingState) restoreAnnotations(stateField.value);
+			});
+			function handleFormInput(event) {
+				if (
+					writingState ||
+					writingCarriers ||
+					restoringLocal ||
+					event.target === stateField ||
+					event.target === message
+				)
+					return;
+				scheduleRefresh();
+				saveStandalone();
+			}
+			root.addEventListener("input", handleFormInput);
+			root.addEventListener("change", handleFormInput);
+			document.addEventListener("selectionchange", scheduleSelection);
+			document.addEventListener("pointerup", (event) => {
+				if (
+					!elementFor(event.target)?.closest(
+						"#selection-action,#selection-editor",
+					)
+				)
+					scheduleSelection();
+			});
+			document.addEventListener("keyup", (event) => {
+				if (!elementFor(event.target)?.closest("input,textarea,select"))
+					scheduleSelection();
+			});
+			document.addEventListener("pointerdown", (event) => {
+				if (
+					!editor.hidden &&
+					!editor.contains(event.target) &&
+					!action.contains(event.target)
+				)
+					closeEditor(false);
+			});
+			document.addEventListener("keydown", (event) => {
+				if (composing || event.isComposing || event.keyCode === 229) return;
+				if (
+					event.altKey &&
+					event.key === "Enter" &&
+					editor.hidden &&
+					!elementFor(event.target)?.closest("input,textarea,select,button")
+				) {
+					inspectSelection();
+					if (pending) {
+						event.preventDefault();
+						startNote();
+					}
+				} else if (event.key === "Escape") {
+					if (!editor.hidden) {
+						event.preventDefault();
+						closeEditor(true);
+					} else hideAction();
+				}
+			});
+			document.addEventListener(
+				"scroll",
+				() => {
+					if (!editor.hidden) placeEditor();
+					else placeAction();
+				},
+				{ capture: true, passive: true },
+			);
+			addEventListener("resize", () => {
+				placeAction();
+				placeEditor();
+			});
+			addEventListener("pageshow", () => {
+				refresh();
+			});
+			// Consume only the existing panel's layout notice. This document sends no messages.
+			addEventListener("message", (event) => {
+				if (
+					standalone ||
+					event.source !== parent ||
+					event.data?.type !== "html-reply-layout" ||
+					!Number.isFinite(event.data.bottom)
+				)
+					return;
+				dockBottom = Math.max(0, Math.min(2000, event.data.bottom));
+				placeAction();
+				placeEditor();
+			});
+			for (const button of root.querySelectorAll("button[data-source-copy]")) {
+				button.addEventListener("click", async () => {
+					const section = button.closest("[data-item]"),
+						target = byId(button.dataset.sourceCopy),
+						status = section?.querySelector("[data-source-copy-status]");
+					if (
+						!target?.hasAttribute("data-source-text") ||
+						target.closest("[data-item]") !== section ||
+						!status
+					)
+						return;
+					// Capture plain text only; never derive a source copy from answers or notes.
+					const content = target.textContent;
+					try {
+						if (!navigator.clipboard?.writeText)
+							throw new Error("clipboard unavailable");
+						await navigator.clipboard.writeText(content);
+						text(
+							status,
+							"원문 본문을 복사했습니다. 확인·승인·게시·회신 전송은 하지 않았습니다.",
+						);
+					} catch {
+						// Leave the selectable source, current selection and annotation drafts intact.
+						text(
+							status,
+							"자동 복사를 사용할 수 없습니다. 바로 위 원문 전체를 직접 선택해 복사하세요. 주석과 체크 상태는 그대로입니다.",
+						);
+					}
+				});
+			}
+			byId("review-copy").addEventListener("click", async () => {
+				refresh();
+				try {
+					if (!navigator.clipboard?.writeText)
+						throw new Error("clipboard unavailable");
+					await navigator.clipboard.writeText(byId("review-reply").value);
+					text(
+						byId("review-copy-status"),
+						"회신을 복사했습니다. 원하는 대화에 직접 붙여 넣으세요. 아직 전송하지 않았습니다.",
+					);
+				} catch {
+					// Manual fallback never clears or replaces the reader's page selection.
+					text(
+						byId("review-copy-status"),
+						"자동 복사를 사용할 수 없습니다. 위 회신 입력란의 내용을 직접 선택해 복사하세요.",
+					);
+				}
+			});
+			new MutationObserver((records) => {
+				if (
+					records.some(
+						(record) =>
+							!elementFor(record.target)?.closest(
+								"#selection-action,#selection-editor,.section-notes,.annotation-wire,#standalone-review,#review-validation,#review-storage-status,#review-selection-status",
+							),
+					)
+				)
+					scheduleRefresh();
+			}).observe(root, {
+				childList: true,
+				subtree: true,
+				attributes: true,
+				attributeFilter: [
+					"hidden",
+					"aria-hidden",
+					"class",
+					"style",
+					"disabled",
+					"readonly",
+					"open",
+					"data-item",
+					"data-reply-answer",
+					"data-reply-notes",
+					"data-comment-anchor",
+					"data-comment-context",
+				],
+			});
+			for (const section of questions()) notesUI(section);
+			restoreStandalone();
+			restoreAnnotations(stateField.value);
+			refresh();
+		})();
+		</script>
+	</body>
+</html>

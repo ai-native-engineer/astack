@@ -5,10 +5,10 @@
 ## CDN 로드 (템플릿에 포함됨)
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/iconify-icon@3/dist/iconify-icon.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@6/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/iconify-icon@3.0.0/dist/iconify-icon.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
 <script type="module">
-import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.esm.min.mjs';
 // ELK는 동적 import + 실패 시 dagre 폴백 (템플릿의 renderDiagram 참조)
 </script>
 ```
@@ -32,7 +32,7 @@ import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.mi
    - 엣지 라벨(`.edgeLabels .edgeLabel`)은 측정용 복제가 섞여 총개수가 엣지 수의 배수 — 배수를 계산해 묶음으로 dim.
 3. **값 변화** — ECharts는 `setOption` 시 내장 전환 애니메이션이 자동.
 
-위로 부족한 연출(스크롤 연동 등)이 꼭 필요할 때만 Motion: `https://cdn.jsdelivr.net/npm/motion@12/dist/motion.js` 로드 후 `const { animate, inView } = Motion`. ⚠️ AI 학습 데이터는 framer-motion(React `<motion.div>`) 위주 — vanilla 전역 `Motion`에서 구조분해하는 형태만 쓰고, `prefers-reduced-motion`을 존중한다.
+위로 부족한 연출(스크롤 연동 등)이 꼭 필요할 때만 Motion: `https://cdn.jsdelivr.net/npm/motion@12.23.0/dist/motion.js` 로드 후 `const { animate, inView } = Motion`. ⚠️ AI 학습 데이터는 framer-motion(React `<motion.div>`) 위주 — vanilla 전역 `Motion`에서 구조분해하는 형태만 쓰고, `prefers-reduced-motion`을 존중한다.
 
 ## Mermaid (다이어그램)
 
@@ -40,14 +40,14 @@ import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.mi
 - 레이아웃: ELK 등록 성공 시 `initialize({ layout: 'elk' })`. 복잡한 그래프에서 기본 dagre보다 엣지 교차가 훨씬 적다.
 - 노드 안 텍스트는 `<br/>`로 줄 분리. 한 줄 ~20자 이내 권장 (CJK 클리핑 이슈 mermaid#7354).
 - **라벨 강조 (제목·핵심 문구)**: `securityLevel: 'loose'`면 라벨에 HTML 허용 — 첫 줄 제목은 `<b style='font-size:14px'>이름</b>`, 역할 태그·핵심 문구는 `<span style='color:var(--변수)'>`. htmlLabels는 foreignObject로 렌더되므로 **페이지 CSS 변수가 그대로 해석돼 다크/라이트 자동 추종** (실측 검증). style 속성은 작은따옴표로 — 라벨의 큰따옴표와 충돌한다. 서브그래프 제목·엣지 라벨에도 동일하게 적용 가능. 모든 줄이 같은 굵기면 제목과 설명이 안 갈리므로, 노드마다 제목 볼드 + 역할 태그 색상은 기본으로 넣는다.
-- 색 구분은 `classDef` + `class`로. **fill을 칠하지 말고 stroke 색만** 지정하면 다크/라이트 양쪽에서 테마 기본 fill과 자연스럽게 어울린다. 점선 구분: `stroke-dasharray:6 4`.
-- 테마는 initialize의 `theme: 'dark' | 'default'`로만 — 라이브 전환은 재렌더 필요(템플릿에 배선됨). `fontFamily`는 initialize에서 지정해야 라벨 폭 측정과 실제 렌더 폰트가 일치한다.
+- 그룹은 `classDef` + `class`의 선 굵기와 점선(`stroke-dasharray:6 4`), 라벨로 구분한다. 주요 경로와 비교 대상에는 의미 있는 강조색을 더하고 나머지 fill은 중립적으로 유지한다.
+- 템플릿은 `theme: 'base'`와 CSS 변수 기반 `themeVariables`로 무채색 다크/라이트를 구성한다. 라이브 전환은 재렌더하며 `fontFamily`를 initialize에서 지정해 라벨 폭 측정과 실제 렌더 폰트를 맞춘다.
 - 손그림 스타일이 필요하면 `look: 'handDrawn'` (rough.js 내장) — Excalidraw 임베드 불필요.
 - 다이어그램 소스는 `<script type="text/plain" id="...">`에 두고 `mermaid.render()`로 수동 렌더 — startOnLoad 자동 처리보다 에러 표시·재렌더 제어가 쉽다. render id는 호출마다 유니크하게.
 
 ## ECharts (차트·관계도)
 
-- 다크 모드: `echarts.init(el, isDark() ? 'dark' : null)` + 테마 전환 시 dispose 후 재init (템플릿 패턴). option에 `backgroundColor: 'transparent'`를 넣어 카드 배경과 융합.
+- 템플릿은 `echarts.init(el)` 후 CSS 변수에서 계열/텍스트/축/분리선 색을 읽는다. 계열은 비교 목적에 맞게 강조색을 지정하고 축/분리선은 중립적으로 둔다. 테마 전환 시 dispose 후 재init하며 `backgroundColor: 'transparent'`로 카드 배경과 융합한다. 라이브러리 기본 팔레트 대신 문서의 의미별 토큰을 사용한다.
 - **로그 축 range bar는 stacked bar로 만들지 말 것** (로그축+스택 부정확) — `type: 'custom'`의 renderItem에서 `api.coord([값, 카테고리])`로 rect를 그린다 (공식 Profile/Gantt 패턴, rect shape의 `r`로 라운드 코너).
 - 간단한 네트워크는 `series: { type: 'graph', layout: 'force' }`, sankey/tree/treemap/chord도 풀 번들에 포함 — 별도 라이브러리 불필요.
 - 컨테이너에 명시적 height 필수 + `window.resize`에서 `chart.resize()`.

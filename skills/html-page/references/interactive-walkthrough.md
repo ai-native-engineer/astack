@@ -1,8 +1,8 @@
 # 인터랙티브형 워크스루
 
-단계를 클릭하며 학습자가 스스로 결론에 도달하는 단계형 설명. 시각형(`stack-guide.md`)과 달리 **읽는 게 아니라 조작한다** — 한 스텝에서 직접 눌러/밀어/골라야 다음이 보인다.
+Choose a process explorer, a stateful lab, or a sequential lesson according to the user's task. Reuse the selected reference's navigation. A process explorer can expose every step directly; a lab can keep inputs and results visible together.
 
-## 멘탈 모델
+## Sequential lessons
 
 - **한 스텝 = 한 개념.** 한 화면에 한 가지만. 다음으로 넘어가야 다음 개념.
 - **능동 이해.** 각 스텝은 학습자가 *무엇을 해볼지*(버튼/슬라이더/선택)를 준다. 수동으로 읽기만 하는 스텝이 이어지면 슬라이드 PDF와 다를 게 없다.
@@ -11,9 +11,9 @@
 
 ## 스택과 골격
 
-- React 18 + ReactDOM + Babel standalone, 전부 CDN, **빌드 없는 단일 HTML**.
-- 새 파일은 `assets/interactive-template.html`을 복사해 시작한다 — 진행바·dots·키보드 네비·다크/라이트·스텝 애니메이션이 이미 배선돼 있다. 이 엔진(`App`)을 재작성하지 않는다.
-- 채우는 곳은 두 군데뿐: `STEP_NAMES` 배열(스텝 이름 = 진행바·dots·카운터의 단일 소스)과 `Steps()`의 `case` 본문.
+- The sequential starter uses React 18, ReactDOM, and Babel from pinned CDNs. Explorers and labs can use Vanilla JS or an existing offline runtime; preserve the selected example's stack.
+- For a sequential lesson, `assets/interactive-template.html` provides progress, keyboard navigation, and themes. A process explorer or lab may reuse the relevant retained example instead.
+- When using the step starter, edit `STEP_NAMES` and `Steps()` together. For an explorer, preserve selection and detail state rather than forcing a step engine.
 
 ## 스텝 작성
 
@@ -25,10 +25,10 @@
 ## 인터랙티브 특화 함정
 
 - **in-browser Babel 경고는 정상이다.** 사용자가 CDP 검수를 요청해 `verify.sh`를 돌렸을 때 콘솔에 "precompile your scripts for production"이 `[warn]`으로 뜨는 건 에러가 아니다 — 무시한다.
-- **`verify.sh`의 render-check JSON은 `mermaid/echarts/iconify`가 전부 false/0으로 나온다** — 이 타입은 그 스택을 안 쓰니 정상이다. CDP 검수를 요청받은 경우의 통과 판정은 **콘솔 에러 0 + 스크린샷 육안**이다(겹침·잘림·첫 스텝 렌더). 기본 확인은 사용자 브라우저 `open`이다.
+- **`verify.sh`의 render-check JSON은 `mermaid/echarts/iconify`가 전부 false/0으로 나온다** — 이 타입은 그 스택을 안 쓰니 정상이다. CDP 검수를 요청받은 경우의 통과 판정은 **콘솔 에러 0 + 스크린샷 육안**이다(겹침·잘림·첫 스텝 렌더). 기본 확인은 `reply-bridge.py publish`로 연 페이지를 사용자 브라우저에서 보는 것이다.
 - **키보드 핸들러는 `INPUT`/`TEXTAREA`를 건너뛴다.** 안 그러면 입력 중 스페이스/화살표가 스텝을 넘긴다(템플릿에 `입력 보호` 배선됨). Enter 전송은 IME-safe로 처리한다: `compositionstart/end` 상태와 `nativeEvent.isComposing`(fallback `keyCode === 229`)을 확인해 조합 확정용 Enter를 전송으로 받지 않는다 - 놓치면 한글 마지막 글자 잔류/중복 전송. 계약 정본과 검증 절차는 dev-frontend 스킬의 `IME-safe Enter submit` 절.
-- **스텝 전환 애니메이션은 `key={step}`으로 본문을 remount**해서 낸다(템플릿 배선). 이게 빠지면 fadeUp이 안 돈다.
-- 팔레트(`:root` CSS 변수)는 토픽에 맞게 바꾼다. 기본은 따뜻한 에디토리얼 톤이라 대시보드·핀테크엔 어울리지 않는다 — 그럴 땐 변수만 교체한다.
+- Preserve accumulated input across navigation. Remount only when resetting state is intentional; an entrance animation is optional.
+- 팔레트(`:root` CSS 변수)는 `SKILL.md`의 중립 표면과 의미 있는 강조색 원칙을 따른다. 주요 동작과 비교 대상에 필요한 색을 쓰되 라벨/아이콘/굵기/명도 대비를 함께 유지한다. 사용자 지정 디자인이 있으면 그 색 체계를 우선한다.
 
 ## 공통 철칙
 
@@ -40,4 +40,4 @@
 - [chat-context-composition-lab.html](../examples/chat-context-composition-lab.html) — 사용자가 채팅을 이어가며 시스템·사용자·AI 메시지가 다음 요청의 컨텍스트로 누적되는 구성을 직접 확인하는 실험실.
 - [claude-directory-explorer.html](../examples/claude-directory-explorer.html) — `.claude` 디렉터리의 파일 트리를 탐색하며 파일별 설명·팁을 보는 2패널 탐색기. 스텝형이 아닌 탐색기형 패턴(트리 + 상세 패널 + URL 해시 딥링크)과 런타임 인라인 오프라인 단일 파일의 예시. 공식 문서 컴포넌트를 포팅한 것이라 CDN 대신 React UMD를 인라인했다.
 
-기존 결과물을 보관한 예시다. 새 파일은 복사하지 말고 `assets/interactive-template.html`에서 시작한다.
+These retained examples are reusable when their interaction fits the task. Check preference evidence and adapt the relevant example using the selection workflow in `SKILL.md`.
