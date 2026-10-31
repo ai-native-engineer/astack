@@ -30,7 +30,7 @@ Use this when the user asks for an HTML explainer but explicitly wants it to fee
 
 ## Design guidance
 
-- Do not force the default html-explainer visual/interactive templates when the user asked for a wiki. A custom single-file HTML is acceptable if verified.
+- Do not force the default html-page visual/interactive templates when the user asked for a wiki. A custom single-file HTML is acceptable if verified.
 - A wiki should prioritize scan speed, stable navigation, and dense but readable pages over big hero sections.
 - Good visual direction for technical glossary wikis: editorial reference book, restrained dark docs, warm paper encyclopedia, or compact command-center docs.
 - Avoid fake metrics, generic feature cards, and slide-deck rhythm.

@@ -2,7 +2,7 @@
 
 이 폴더의 번호형 HTML 20개는 [Anthropic html-effectiveness](https://github.com/anthropics/html-effectiveness)의 단일 파일 예시다. 각 파일은 빌드 없이 브라우저에서 열리며, 결과물의 용도와 정보 구조를 고를 때 참고한다.
 
-실제 산출물을 만들 때는 상위 `SKILL.md`의 타입 선택, 다크/라이트, 자동 레이아웃, 한국어 라벨 철칙을 적용한다. 검수는 사용자가 명시 요청할 때만 CDP로 한다. 번호형 파일은 그 규칙을 대체하지 않는다.
+Use the parent skill's reference-selection workflow before choosing an asset. User-selected examples and demonstrated preferences take precedence over these upstream examples. Preserve useful structure without forcing every output into a starter. CDP automation remains opt-in.
 
 ## 기본 템플릿
 
@@ -10,6 +10,7 @@
 |---|---|
 | `template.html` | Mermaid/ELK 다이어그램과 ECharts를 쓰는 정적 시각형 설명 자료 |
 | `interactive-template.html` | React 상태와 단계 이동을 쓰는 인터랙티브 워크스루 |
+| `review-template.html` | 실제 체크 항목, 완료/미응답 색상, 드래그 선택 주석과 초안 복원을 갖춘 오프라인 검토 자료 |
 
 ## Exploration & Planning
 

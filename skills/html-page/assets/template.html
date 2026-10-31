@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="ko">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<!-- 다크/라이트를 페이지가 직접 그린다. Dark Reader 같은 확장이 라이트 화면만 어둡게 바꾸면 캔버스 차트 글자가 배경에 묻힌다 -->
+		<meta name="color-scheme" content="light dark">
+		<meta name="darkreader-lock">
+		<!-- SLOT: title -->
+		<title>제목</title>
+		<style>
+		/* html-page design tokens v1
+		   정본. 템플릿은 이 블록을 그대로 인라인하고, check-design.py가 아래 토큰 이름이
+		   :root 또는 문서 루트에 정의됐는지 검사한다. 값 변경은 여기서 하고 템플릿에 복사한다.
+		   큰 면은 무채색, 주 동작은 --action, 완료/미응답은 --complete/--pending.
+		   비교에 쓰는 범주색은 --teal, --amber 둘로 제한한다. 네온, 남색 배경, 보라 그라데이션은 쓰지 않는다. */
+		:root {
+			color-scheme: light dark;
+			accent-color: var(--action);
+			--bg: #f7f7f7;
+			--paper: #ffffff;
+			--surface: #f1f1f1;
+			--ink: #202020;
+			--muted: #5c626b;
+			--line: #d7dbe1;
+			--accent: #333333;
+			--action: #275dcc;
+			--action-hover: #204eae;
+			--on-action: #ffffff;
+			--action-soft: #eef3ff;
+			--complete: #246345;
+			--complete-soft: #edf6f0;
+			--pending: #a03636;
+			--pending-soft: #fcf0ef;
+			--teal: #276c68;
+			--teal-soft: #edf7f5;
+			--amber: #825b17;
+			--amber-soft: #fff6e6;
+			--code-bg: #ededed;
+			--shadow: 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.06), 0 2px 4px 0 oklch(0 0 0 / 0.04);
+			--img-outline: oklch(0 0 0 / 0.1);
+		}
+		@media (prefers-color-scheme: dark) {
+			:root {
+				--bg: #181818;
+				--paper: #1f1f1f;
+				--surface: #2c2c2c;
+				--ink: #eeeeee;
+				--muted: #bdbdbd;
+				--line: #3a3a3a;
+				--accent: #e5e5e5;
+				--action: #adc6ff;
+				--action-hover: #c3d5ff;
+				--on-action: #14213d;
+				--action-soft: #26354e;
+				--complete: #9ac9ac;
+				--complete-soft: #25382e;
+				--pending: #efaaaa;
+				--pending-soft: #402a2c;
+				--teal: #9cd7ce;
+				--teal-soft: #233c38;
+				--amber: #eaca91;
+				--amber-soft: #3c3324;
+				--code-bg: #2c2c2c;
+				--shadow: 0 0 0 1px oklch(1 0 0 / 0.08);
+				--img-outline: oklch(1 0 0 / 0.1);
+			}
+		}
+		/* 템플릿 별칭: 아래 이름은 정본 토큰을 가리킨다. 새 스타일은 정본 이름을 쓴다. */
+		:root {
+			--card: var(--paper);
+			--text: var(--ink);
+			--border: var(--line);
+			--green: var(--complete);
+			--red: var(--pending);
+			--gray-soft: var(--surface);
+			--c-green: var(--complete);
+			--c-amber: var(--amber);
+			--c-red: var(--pending);
+			--shadow-border: var(--shadow);
+		}
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+		body {
+			font-family:
+				-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI",
+				sans-serif;
+			background: var(--bg);
+			color: var(--text);
+			line-height: 1.6;
+			padding: 40px 20px 80px;
+		}
+		.wrap {
+			max-width: 1020px;
+			margin: 0 auto;
+		}
+		h1 {
+			font-size: 26px;
+			margin-bottom: 6px;
+		}
+		.sub {
+			color: var(--muted);
+			font-size: 14px;
+			margin-bottom: 24px;
+		}
+		h2 {
+			font-size: 19px;
+			margin: 52px 0 6px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+		h2 iconify-icon {
+			font-size: 1.05em;
+			color: var(--accent);
+			flex: none;
+		}
+		.h2sub {
+			color: var(--muted);
+			font-size: 13.5px;
+			margin-bottom: 16px;
+		}
+		code {
+			background: var(--code-bg);
+			padding: 1px 6px;
+			border-radius: 5px;
+			font-size: 12.5px;
+			font-family: "SF Mono", Menlo, monospace;
+		}
+
+		/* 이미지 — 아웃라인은 순수 흑/백만(팔레트 near-black은 가장자리에 때처럼 보인다) */
+		img {
+			max-width: 100%;
+			height: auto;
+			border-radius: 10px;
+			outline: 1px solid var(--img-outline);
+			outline-offset: -1px;
+		}
+
+		/* 범례 */
+		.legend {
+			display: flex;
+			gap: 16px;
+			flex-wrap: wrap;
+			margin: 0 0 14px;
+			font-size: 12.5px;
+		}
+		.legend span {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			color: var(--muted);
+		}
+		.dot {
+			width: 11px;
+			height: 11px;
+			border-radius: 3px;
+			display: inline-block;
+		}
+		.dot.dashed {
+			background: none;
+			border: 2px dashed currentColor;
+		}
+
+		/* Mermaid 다이어그램 컨테이너 */
+		.diagram {
+			background: var(--card);
+			box-shadow: var(--shadow-border);
+			border-radius: 14px;
+			padding: 18px;
+			overflow-x: auto;
+		}
+		.diagram svg {
+			max-width: 100%;
+			height: auto;
+		}
+		.diagram .err {
+			color: var(--red);
+			font-size: 13px;
+			font-family: "SF Mono", Menlo, monospace;
+			white-space: pre-wrap;
+		}
+
+		/* 강조 박스: 명도와 아이콘/라벨로 구분 */
+		.side {
+			border-left: 3px solid var(--border);
+			background: var(--card);
+			border-radius: 0 10px 10px 0;
+			padding: 12px 16px;
+			margin: 10px 0;
+			font-size: 13px;
+			color: var(--muted);
+			display: flex;
+			gap: 10px;
+			align-items: flex-start;
+		}
+		.side iconify-icon {
+			font-size: 1.15em;
+			flex: none;
+			margin-top: 3px;
+		}
+		.side.warn {
+			border-left-color: var(--red);
+		}
+		.side.warn iconify-icon {
+			color: var(--red);
+		}
+		.side.note {
+			border-left-color: var(--accent);
+		}
+		.side.note iconify-icon {
+			color: var(--accent);
+		}
+		.side b {
+			color: var(--text);
+		}
+
+		/* ECharts 컨테이너 — 명시적 height 필수 */
+		.chart {
+			background: var(--card);
+			box-shadow: var(--shadow-border);
+			border-radius: 14px;
+			padding: 10px;
+			height: 320px;
+		}
+
+		/* 파일 트리 / 코드 블록 */
+		.tree {
+			background: var(--card);
+			box-shadow: var(--shadow-border);
+			border-radius: 14px;
+			padding: 20px 24px;
+			font-family: "SF Mono", Menlo, monospace;
+			font-size: 12.5px;
+			line-height: 1.9;
+			overflow-x: auto;
+			white-space: pre;
+		}
+		.tree .c {
+			color: var(--muted);
+		}
+		.tree .new {
+			color: var(--accent);
+			font-weight: 700;
+		}
+		.tree .keep {
+			color: var(--green);
+			font-weight: 700;
+		}
+		.tree .opt {
+			color: var(--red);
+		}
+
+		/* 비교 표 */
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-top: 14px;
+			font-size: 13.5px;
+			background: var(--card);
+			box-shadow: var(--shadow-border);
+			border-radius: 12px;
+			overflow: hidden;
+		}
+		th,
+		td {
+			text-align: left;
+			padding: 10px 14px;
+			border-bottom: 1px solid var(--border);
+			vertical-align: top;
+		}
+		th {
+			background: var(--gray-soft);
+			font-size: 12.5px;
+		}
+		tr:last-child td {
+			border-bottom: none;
+		}
+		.ok {
+			color: var(--green);
+			font-weight: 600;
+		}
+		.no {
+			color: var(--red);
+			font-weight: 600;
+		}
+		.mid {
+			color: var(--amber);
+			font-weight: 600;
+		}
+		</style>
+		<script
+			src="https://cdn.jsdelivr.net/npm/iconify-icon@3.0.0/dist/iconify-icon.min.js"
+		></script>
+	</head>
+	<body>
+		<div class="wrap">
+			<!-- SLOT: 본문 — h1/sub, h2(iconify-icon 포함), .legend, .diagram, .side, .chart, .tree, table 조합으로 구성 -->
+			<h1>제목</h1>
+			<div class="sub">부제 — 맥락 한 줄</div>
+
+			<h2>
+				<iconify-icon icon="lucide:network"></iconify-icon>다이어그램 섹션
+			</h2>
+			<div class="h2sub">설명 한 줄</div>
+			<div class="diagram"><div id="arch">다이어그램 렌더링 중…</div></div>
+
+			<!-- SLOT: Mermaid 소스 (flowchart + subgraph, architecture-beta 금지, 긴 한국어 라벨은 <br/> 분리) -->
+			<script type="text/plain" id="arch-src">
+flowchart LR
+  a["노드 A"] -->|"라벨"| b["노드 B"]
+  classDef src stroke-width:2.5px
+  class a src
+</script>
+
+			<h2><iconify-icon icon="lucide:bar-chart-3"></iconify-icon>차트 섹션</h2>
+			<div class="chart">
+				<div id="chart1" style="width:100%;height:100%"></div>
+			</div>
+		</div>
+
+		<script
+			src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"
+		></script>
+		<script type="module">
+		import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.0/dist/mermaid.esm.min.mjs";
+
+		const isDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+		const FONT =
+			'-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif';
+		const cssVar = (n) =>
+			getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+		/* ===== Mermaid: ELK 자동 레이아웃 + dagre 폴백 + 테마 재렌더 ===== */
+		let useElk = true;
+		try {
+			const elkLayouts = (
+				await import(
+					"https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.9/dist/mermaid-layout-elk.esm.min.mjs"
+				)
+			).default;
+			mermaid.registerLayoutLoaders(elkLayouts);
+		} catch (e) {
+			useElk = false;
+		}
+
+		let renderCount = 0;
+		async function renderDiagram(srcId, targetId) {
+			const el = document.getElementById(targetId);
+			mermaid.initialize({
+				startOnLoad: false,
+				theme: "base",
+				themeVariables: {
+					darkMode: isDark(),
+					background: cssVar("--bg"),
+					primaryColor: cssVar("--card"),
+					primaryTextColor: cssVar("--text"),
+					primaryBorderColor: cssVar("--border"),
+					secondaryColor: cssVar("--gray-soft"),
+					secondaryTextColor: cssVar("--text"),
+					secondaryBorderColor: cssVar("--border"),
+					tertiaryColor: cssVar("--card"),
+					tertiaryTextColor: cssVar("--text"),
+					tertiaryBorderColor: cssVar("--border"),
+					mainBkg: cssVar("--card"),
+					nodeBorder: cssVar("--border"),
+					lineColor: cssVar("--muted"),
+					textColor: cssVar("--text"),
+					clusterBkg: cssVar("--gray-soft"),
+					clusterBorder: cssVar("--border"),
+					edgeLabelBackground: cssVar("--card"),
+				},
+				fontFamily: FONT,
+				securityLevel: "loose",
+				...(useElk ? { layout: "elk" } : {}),
+			});
+			try {
+				const src = document.getElementById(srcId).textContent.trim();
+				const { svg } = await mermaid.render(`m${++renderCount}`, src);
+				el.innerHTML = svg;
+			} catch (e) {
+				const error = document.createElement("div");
+				error.className = "err";
+				error.textContent = `다이어그램 렌더 실패:\n${e.message || e}`;
+				el.replaceChildren(error);
+			}
+		}
+
+		/* ===== ECharts: 다크 테마 + 재렌더 (차트마다 함수 하나) ===== */
+		const charts = [];
+		function makeChart(elId, optionFn) {
+			const render = () => {
+				const el = document.getElementById(elId);
+				if (el._chart) el._chart.dispose();
+				el._chart = echarts.init(el);
+				el._chart.setOption({
+					backgroundColor: "transparent",
+					color: [cssVar("--accent"), cssVar("--muted"), cssVar("--c-red")],
+					textStyle: { fontFamily: FONT, color: cssVar("--text") },
+					...optionFn(),
+				});
+			};
+			charts.push(render);
+			render();
+		}
+
+		/* SLOT: 차트 정의 — optionFn 안에서 cssVar로 색을 읽으면 테마 전환 시 자동 갱신 */
+		makeChart("chart1", () => ({
+			xAxis: {
+				type: "category",
+				data: ["A", "B", "C"],
+				axisLabel: { color: cssVar("--muted") },
+				axisLine: { lineStyle: { color: cssVar("--border") } },
+			},
+			yAxis: {
+				type: "value",
+				axisLabel: { color: cssVar("--muted") },
+				splitLine: { lineStyle: { color: cssVar("--border") } },
+			},
+			series: [
+				{
+					type: "bar",
+					data: [3, 7, 5],
+					itemStyle: { color: cssVar("--accent") },
+				},
+			],
+			grid: { left: 50, right: 20, top: 20, bottom: 30 },
+		}));
+
+		/* ===== 렌더 + 테마 전환·리사이즈 배선 ===== */
+		const renderAll = () => {
+			renderDiagram("arch-src", "arch");
+			charts.forEach((r) => {
+				r();
+			});
+		};
+		renderDiagram("arch-src", "arch");
+		matchMedia("(prefers-color-scheme: dark)").addEventListener(
+			"change",
+			renderAll,
+		);
+		window.addEventListener("resize", () =>
+			document.querySelectorAll(".chart > div").forEach((el) => {
+				el._chart?.resize();
+			}),
+		);
+
+		/* 애니메이션은 이해 보조 목적만 — 엣지 흐름·상태 토글 패턴은 references/stack-guide.md "애니메이션" 섹션 참조 */
+		</script>
+	</body>
+</html>

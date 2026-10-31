@@ -1,5 +1,5 @@
 #!/bin/bash
-# html-explainer 생성물 헤드리스 렌더 검증
+# html-page 생성물 헤드리스 렌더 검증
 # usage: verify.sh <file.html> | verify.sh --syntax <file.html>
 # 확인: 콘솔 에러, Mermaid SVG 렌더, ECharts 캔버스, Iconify 아이콘, 전체 스크린샷
 set -euo pipefail

@@ -1,0 +1,57 @@
+/* html-page design tokens v1
+   정본. 템플릿은 이 블록을 그대로 인라인하고, check-design.py가 아래 토큰 이름이
+   :root 또는 문서 루트에 정의됐는지 검사한다. 값 변경은 여기서 하고 템플릿에 복사한다.
+   큰 면은 무채색, 주 동작은 --action, 완료/미응답은 --complete/--pending.
+   비교에 쓰는 범주색은 --teal, --amber 둘로 제한한다. 네온, 남색 배경, 보라 그라데이션은 쓰지 않는다. */
+:root {
+	color-scheme: light dark;
+	accent-color: var(--action);
+	--bg: #f7f7f7;
+	--paper: #ffffff;
+	--surface: #f1f1f1;
+	--ink: #202020;
+	--muted: #5c626b;
+	--line: #d7dbe1;
+	--accent: #333333;
+	--action: #275dcc;
+	--action-hover: #204eae;
+	--on-action: #ffffff;
+	--action-soft: #eef3ff;
+	--complete: #246345;
+	--complete-soft: #edf6f0;
+	--pending: #a03636;
+	--pending-soft: #fcf0ef;
+	--teal: #276c68;
+	--teal-soft: #edf7f5;
+	--amber: #825b17;
+	--amber-soft: #fff6e6;
+	--code-bg: #ededed;
+	--shadow: 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.06), 0 2px 4px 0 oklch(0 0 0 / 0.04);
+	--img-outline: oklch(0 0 0 / 0.1);
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #181818;
+		--paper: #1f1f1f;
+		--surface: #2c2c2c;
+		--ink: #eeeeee;
+		--muted: #bdbdbd;
+		--line: #3a3a3a;
+		--accent: #e5e5e5;
+		--action: #adc6ff;
+		--action-hover: #c3d5ff;
+		--on-action: #14213d;
+		--action-soft: #26354e;
+		--complete: #9ac9ac;
+		--complete-soft: #25382e;
+		--pending: #efaaaa;
+		--pending-soft: #402a2c;
+		--teal: #9cd7ce;
+		--teal-soft: #233c38;
+		--amber: #eaca91;
+		--amber-soft: #3c3324;
+		--code-bg: #2c2c2c;
+		--shadow: 0 0 0 1px oklch(1 0 0 / 0.08);
+		--img-outline: oklch(1 0 0 / 0.1);
+	}
+}

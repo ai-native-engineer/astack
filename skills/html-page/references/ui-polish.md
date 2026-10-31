@@ -10,6 +10,7 @@
 
 - 그림자로: 카드, 다이어그램·차트 컨테이너, 코드/트리 블록, 표, 보더형 버튼.
 - 보더로 남길 것: 표 셀 구분선, 섹션 구분선(`border-top`), 강조 박스의 색 좌측 보더, 상태를 나타내는 보더.
+- Do not decorate rounded cards with a colored top-edge strip. Apply emphasis to meaningful labels, states, or actions instead.
 - 토큰 값(양 템플릿의 `--shadow-border`):
     - 라이트는 3겹 - `0 0 0 1px oklch(0 0 0 / .06), 0 1px 2px -1px oklch(0 0 0 / .06), 0 2px 4px 0 oklch(0 0 0 / .04)`
     - 다크는 흰 링 1겹 - `0 0 0 1px oklch(1 0 0 / .08)`. 어두운 배경에서는 층진 그림자가 안 보인다.
