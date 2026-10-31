@@ -52,6 +52,20 @@ Capability와 legacy 출력 shape는 통과했다. 같은 570,217 ms 입력을 �
 phrase annotation이 없어 CER, named-term recall, omission을 계산할 수 없다. 따라서
 context value gate는 `insufficient_data`이고 Gate 1 전체는 아직 통과하지 않았다.
 
+2026-10-20에 3분 다화자 녹음 한 건으로 다시 확인했다. 녹음에서 틀리게 나온
+제품명 4개(`NotebookLM`, `Claude Code` 등)만 넣은 context와 빈 context의 평문
+출력이 바이트 단위로 같았다. 목표 용어도 바로잡히지 않았다. 따라서 Whisper의 초기
+프롬프트처럼 녹음별 용어로 인식을 바꾸는 효과는 이 경로에서 기대하지 않는다.
+
+같은 녹음으로 `DictationTranscriber`(`timeIndexedLongDictation`)도 확인했다.
+
+- 용어 context, 맞춤 언어 모델(`SFCustomLanguageModelData`, `.customizedLanguage`)
+  모두 출력이 바이트 단위로 같았다. 원본, 16kHz 변환본, 음량 보정본에서 같았다.
+- 대화 녹음의 대부분을 버렸다. `SpeechTranscriber`가 528자를 낼 때 37자, 음량 보정
+  뒤에도 101자였다. preset, `frequentFinalization`, `.farField`를 바꿔도 같았다.
+- 그래서 받아쓰기 엔진을 바꿔 용어 힌트를 얻는 길도 없다. `SFSpeechRecognizer`
+  경로는 음성 인식 권한 창이 필요해 확인하지 않았다.
+
 결론: capped common vocab과 evidence contract까지만 검증됐다. 녹음별 context memory,
 Claude suggestion, review-mode watcher 설치는 활성화하지 않는다. 6 calibration + 6
 evaluation 녹음과 계획의 최소 annotation denominator가 준비된 뒤 같은 benchmark

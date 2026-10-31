@@ -7,26 +7,57 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import sqlite3
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import vm_notes
-from config import CALL_RECORDINGS_DIR, TRANSCRIPTS_DIR, parse_call_name
+from config import (
+    CALL_RECORDINGS_DIR,
+    RECORDING_TIMESTAMP_RE,
+    RECORDINGS_DIR,
+    TRANSCRIPTS_DIR,
+    is_dataless,
+    parse_call_name,
+)
 
 # 에이닷 통화 녹음 폴더의 원본 .txt와 파생 .transcript.md를 검색 대상으로 본다.
 # 파일명 형식과 날짜 파싱은 config.parse_call_name이 정본이다.
 CALL_TEXT_SUFFIX = ".txt"
 CALL_TRANSCRIPT_SUFFIX = ".transcript.md"
+RECORDING_SUFFIXES = (".m4a", ".qta")
+DIARIZED_NAME = "diarized.md"
+
+WEEKDAYS = {
+    **{name: i for i, name in enumerate(("mon", "tue", "wed", "thu", "fri", "sat", "sun"))},
+    **{
+        name: i
+        for i, name in enumerate(
+            ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+        )
+    },
+    **{name: i for i, name in enumerate("월화수목금토일")},
+}
+
+# 전사본이 없는 원본 녹음의 앱 제목과 길이. untranscribed_recordings가 채운다.
+_original_meta: dict[Path, dict] = {}
 
 
 def parse_date_range(date_str: str) -> tuple[datetime, datetime]:
     """날짜 문자열을 파싱하여 시작/끝 datetime을 반환합니다.
 
-    지원 형식: 2026-03-10, 2026-03, 2026, today, yesterday, this-week, this-month
+    지원 형식: 2026-03-10, 2026-03, 2026, today, yesterday, this-week, this-month,
+    요일(thu, thursday, 목, 목요일 - 오늘 포함 가장 최근 그 요일)
     """
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    weekday = WEEKDAYS.get(date_str.lower().removesuffix("요일"))
+    if weekday is not None:
+        day = today - timedelta(days=(today.weekday() - weekday) % 7)
+        return day, day + timedelta(days=1)
 
     if date_str == "today":
         return today, today + timedelta(days=1)
@@ -103,29 +134,117 @@ def call_display_name(path: Path) -> str:
     return parsed.contact if parsed else path.stem
 
 
+def is_original_recording(path: Path) -> bool:
+    """전사본이 없는 Voice Memos 원본 녹음 경로인지 확인합니다."""
+    return path.parent == RECORDINGS_DIR and path.name.endswith(RECORDING_SUFFIXES)
+
+
+def original_to_datetime(path: Path) -> datetime | None:
+    """원본 녹음 파일명(`YYYYMMDD HHMMSS-<id>`)에서 녹음 시작 시각을 파싱합니다."""
+    match = RECORDING_TIMESTAMP_RE.search(path.name)
+    if not match:
+        return None
+    try:
+        return datetime.strptime(" ".join(match.groups()), "%Y%m%d %H%M%S")
+    except ValueError:
+        return None
+
+
 def file_to_datetime(path: Path) -> datetime | None:
-    """파일 종류(Voice Memo / 통화 녹음 / Apple Notes)에 맞춰 datetime을 추출합니다."""
+    """파일 종류(Voice Memo / 원본 녹음 / 통화 녹음 / Apple Notes)에 맞춰 datetime을 추출합니다."""
     if vm_notes.is_note(path):
         return vm_notes.note_meta(path).get("mtime")
+    if is_original_recording(path):
+        return original_to_datetime(path)
     if is_call_recording(path):
         return call_to_datetime(path)
     return dir_to_datetime(path)
 
 
-def iter_transcript_files() -> list[Path]:
+def voice_memo_files() -> list[Path]:
+    """녹음 폴더마다 `transcript.md`, 없으면 화자 분리 결과 `diarized.md`를 하나 고릅니다."""
+    directories = {
+        path.parent
+        for name in ("transcript.md", DIARIZED_NAME)
+        for path in TRANSCRIPTS_DIR.rglob(name)
+    }
+    files = []
+    for directory in sorted(directories):
+        transcript = directory / "transcript.md"
+        files.append(transcript if transcript.exists() else directory / DIARIZED_NAME)
+    return files
+
+
+def _recording_db_meta() -> dict[str, dict]:
+    """CloudRecordings.db에서 원본 파일명별 앱 제목, 길이, 최근 삭제 여부를 읽습니다."""
+    database = RECORDINGS_DIR / "CloudRecordings.db"
+    if not database.exists():
+        return {}
+    try:
+        with sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=1) as db:
+            rows = db.execute(
+                "SELECT ZPATH, ZENCRYPTEDTITLE, ZDURATION, ZEVICTIONDATE FROM ZCLOUDRECORDING"
+            ).fetchall()
+    except sqlite3.Error:
+        return {}
+    return {
+        path: {"title": title or "", "duration": duration or 0.0, "deleted": evicted is not None}
+        for path, title, duration, evicted in rows
+        if path
+    }
+
+
+def untranscribed_recordings(covered: set[tuple[str, str]]) -> list[Path]:
+    """전사본도 화자 분리 결과도 없는 원본 녹음을 반환합니다.
+
+    covered는 산출물 폴더가 있는 (YYYYMMDD, HHMMSS) 묶음이다. 워처가 멈추면
+    새 녹음이 산출물 없이 쌓이므로, 원본 폴더를 직접 봐야 "없다"고 잘못 답하지 않는다.
+    """
+    try:
+        names = os.listdir(RECORDINGS_DIR)
+    except FileNotFoundError:
+        return []
+    except OSError as error:
+        print(
+            f"[WARN] 원본 녹음 폴더를 읽지 못해 미전사 녹음은 뺐습니다: {type(error).__name__}",
+            file=sys.stderr,
+        )
+        return []
+    meta = _recording_db_meta()
+    results = []
+    for name in sorted(names):
+        if not name.endswith(RECORDING_SUFFIXES):
+            continue
+        info = meta.get(name, {})
+        match = RECORDING_TIMESTAMP_RE.search(name)
+        if info.get("deleted") or not match or match.groups() in covered:
+            continue
+        path = RECORDINGS_DIR / name
+        _original_meta[path] = info
+        results.append(path)
+    return results
+
+
+def iter_transcript_files(include_originals: bool = True) -> list[Path]:
     """전사/메모 파일 목록을 반환합니다.
 
-    - Voice Memos transcript: `DATA_DIR/transcripts/**/transcript.md`
+    - Voice Memos: `DATA_DIR/transcripts/**/transcript.md`, 없으면 같은 폴더의 `diarized.md`
+    - Voice Memos 미전사 원본: Recordings 폴더의 `.m4a`/`.qta` (include_originals일 때)
     - iCloud 통화 녹음: `~/Library/Mobile Documents/com~apple~CloudDocs/녹음/*.txt`
       + `*.transcript.md`
     - Apple Notes: `~/Library/.../NoteStore.sqlite` (mode=ro 직접 쿼리)
     """
-    files = list(TRANSCRIPTS_DIR.rglob("transcript.md"))
+    files = voice_memo_files()
+    covered = {
+        (path.parent.parent.name, path.parent.name.split("-", 1)[0]) for path in files
+    }
     if CALL_RECORDINGS_DIR.exists():
         files.extend(CALL_RECORDINGS_DIR.glob("*.txt"))
         files.extend(CALL_RECORDINGS_DIR.glob(f"*{CALL_TRANSCRIPT_SUFFIX}"))
     vm_notes.refresh_notes_meta()
     files.extend(vm_notes.all_note_paths())
+    if include_originals:
+        files.extend(untranscribed_recordings(covered))
     return files
 
 
@@ -190,9 +309,14 @@ def search_by_keyword(
     """
     needles = [k.lower() for k in keywords if k]
     results: list[tuple[Path, int, list[str]]] = []
-    for f in sorted(iter_transcript_files(), key=str):
+    cloud_only = 0
+    for f in sorted(iter_transcript_files(include_originals=False), key=str):
         if vm_notes.is_note(f):
             haystack = vm_notes.note_haystack(f)
+        elif is_dataless(f):
+            # 내려오지 않은 iCloud 파일은 읽는 순간 다운로드를 기다리며 멈춘다.
+            cloud_only += 1
+            continue
         else:
             try:
                 haystack = f.read_text(encoding="utf-8")
@@ -205,6 +329,12 @@ def search_by_keyword(
             continue
         total, snippets = _extract_snippets(haystack, keywords)
         results.append((f, total, snippets))
+    if cloud_only:
+        print(
+            f"[WARN] iCloud에만 있는 파일 {cloud_only}개는 본문 검색에서 뺐습니다. "
+            "필요하면 `brctl download <파일>`로 내려받은 뒤 다시 검색하세요.",
+            file=sys.stderr,
+        )
     results.sort(key=lambda t: t[1], reverse=True)
     return results
 
@@ -238,7 +368,7 @@ def format_result(
     """검색 결과를 포맷팅합니다.
 
     라벨은 데이터 소스 출처만 표시한다:
-    - [음성 메모]  Apple Voice Memos
+    - [음성 메모]  Apple Voice Memos (전사본이 없으면 앱 제목, 길이와 `미전사`)
     - [에이닷]    에이닷 통화 녹음
     - [메모]      Apple Notes
 
@@ -246,6 +376,12 @@ def format_result(
     미리보기를 파일 도입부 대신 매칭 위치 주변 스니펫으로 대체한다.
     """
     dt = file_to_datetime(filepath)
+    if is_original_recording(filepath):
+        info = _original_meta.get(filepath, {})
+        when = dt.strftime("%Y-%m-%d %H:%M:%S") if dt else filepath.name
+        title = info.get("title") or "(제목 없음)"
+        minutes = info.get("duration", 0.0) / 60
+        return f"  [음성 메모] {when}  {title}  {minutes:.1f}분  미전사  원본: {filepath}"
     call_name = parse_call_name(filepath.name) if is_call_recording(filepath) else None
     date_str = (
         dt.strftime("%Y-%m-%d")
@@ -293,6 +429,10 @@ def format_result(
             f"  [음성 메모] {date_str}  "
             f"{filepath.parent.parent.name}/{filepath.parent.name}"
         )
+        if filepath.name == DIARIZED_NAME:
+            line += "  화자 분리만"
+        elif (filepath.parent / DIARIZED_NAME).exists():
+            line += "  +화자 분리"
 
     if match_count is not None:
         line += f"  ({match_count}회)"
@@ -332,6 +472,10 @@ def format_result(
                     )
                     if preview:
                         line += f"\n         {preview}..."
+        elif filepath.name == DIARIZED_NAME:
+            preview = " ".join(content.replace("**", "").split())[:80]
+            if preview:
+                line += f"\n         {preview}..."
         else:
             idx = content.find("## 전사 내용")
             if idx != -1:
@@ -362,7 +506,7 @@ def _extract_call_summary(content: str) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="음성 메모 전사본 검색")
-    parser.add_argument("--date", type=str, help="날짜로 검색 (2026-03-10, 2026-03, today, yesterday, this-week, this-month)")
+    parser.add_argument("--date", type=str, help="날짜로 검색 (2026-03-10, 2026-03, today, yesterday, this-week, this-month, thu, 목요일)")
     parser.add_argument("--keyword", type=str, help="키워드로 내용 검색")
     parser.add_argument("--any", dest="any_kw", type=str, help="쉼표로 구분한 키워드 중 하나라도 매칭 (OR)")
     parser.add_argument("--all", dest="all_kw", type=str, help="쉼표로 구분한 키워드 모두 매칭 (AND)")

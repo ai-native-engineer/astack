@@ -50,7 +50,7 @@ Telegram 에러 알림을 받은 경우는 전달된 로그의 **마지막 실�
 
 ### A. 워처는 도는데 전사가 안 됨 — FDA 부재
 
-전사 단계가 `[WARN] Voice Memos state unavailable: unable to open database file` 또는 `processed=0`을 반복한다. WatchPaths 트리거는 정상이나 run.sh의 python3가 TCC 보호 폴더(Recordings)를 못 연다.
+전사 단계가 `[WARN] Voice Memos state unavailable: unable to open database file` 뒤 `[ERROR] RecordingsUnreadable PermissionError`로 실패한다. WatchPaths 트리거는 정상이나 run.sh의 python3가 TCC 보호 폴더(Recordings)를 못 연다.
 
 TCC는 실행 파일의 **실경로** 단위로 권한을 기록한다. 그래서 다음 두 경우에 재발한다.
 
