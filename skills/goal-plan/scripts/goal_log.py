@@ -3,17 +3,20 @@
 
 Every change goes through this tool: it auto-fills id/checkpoint, escapes
 tabs/newlines, and validates the status/decision enums. Run `<cmd> --help`
-for flags, or `selftest` to verify the tool itself.
+for flags, `condition` for the /goal line, or `selftest` to verify the tool itself.
 """
 from __future__ import annotations
 
 import argparse
 import io
+import re
 import subprocess
 import sys
 import tempfile
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+
+CONDITION_LIMIT = 4000  # Claude Code caps a /goal condition at 4,000 characters
 
 COLUMNS = ["id", "status", "decision", "task", "done_when",
            "checkpoint", "artifact", "next", "notes"]
@@ -124,8 +127,16 @@ def cmd_add(args):
     path = Path(args.file)
     header, rows = read_rows(path)
     rid = next_id(rows)
+    task = _clean(args.task)
+    issue = getattr(args, "issue", None)
+    if issue:
+        number = str(issue).strip().lstrip("#")
+        if not number.isdigit():
+            print(f"error: --issue must be an issue number, got {issue!r}", file=sys.stderr)
+            return 2
+        task = f"#{number} {task}"
     rows.append({"id": rid, "status": "todo", "decision": "n/a",
-                 "task": _clean(args.task), "done_when": _clean(args.done_when),
+                 "task": task, "done_when": _clean(args.done_when),
                  "checkpoint": "-", "artifact": "-",
                  "next": _clean(args.next), "notes": _clean(args.notes)})
     write_rows(path, header, rows)
@@ -201,6 +212,83 @@ def cmd_show(args):
     return 0
 
 
+def _section(text: str, name: str) -> str:
+    match = re.search(rf"^## {re.escape(name)}\s*\n(.*?)(?=^## |\Z)", text, re.S | re.M)
+    return match.group(1).strip() if match else ""
+
+
+def readiness_problems(text: str) -> list[str]:
+    """What still blocks the unattended loop from starting on this GOAL.md.
+
+    Only emptiness is checked, never content: a `TBD` left anywhere, a Decisions
+    section with no recorded answer, or an acceptance criterion without its own
+    Proof. "none", "n/a", and "Covered by Proof." are complete answers.
+    """
+    problems: list[str] = []
+    section = "(top)"
+    for number, line in enumerate(text.splitlines(), 1):
+        if line.startswith("## "):
+            section = line[3:].strip()
+        if re.search(r"\bTBD\b", line):
+            problems.append(f"line {number} in ## {section} still says TBD")
+    decisions = [ln for ln in _section(text, "Decisions").splitlines() if ln.startswith("- ")]
+    if not decisions or all(ln.startswith("- <") for ln in decisions):
+        problems.append("## Decisions has no recorded interview answer")
+    criteria = _section(text, "Acceptance Criteria")
+    items = [ln for ln in criteria.splitlines() if re.match(r"- AC-\d+", ln)]
+    if not items and "Covered by Proof" not in criteria:
+        problems.append("## Acceptance Criteria needs AC-n items or the words 'Covered by Proof.'")
+    for ln in items:
+        if "Proof:" not in ln:
+            problems.append(f"{ln.split(':', 1)[0]} has no 'Proof:'")
+    return problems
+
+
+def cmd_condition(args):
+    """Print the /goal line for a filled GOAL.md.
+
+    /goal registers its argument verbatim and does not expand an @file, so the
+    condition itself must name the goal and the proof for the evaluator. The
+    line is refused while the contract is incomplete, because the evaluator can
+    only judge what the contract names.
+    """
+    path = Path(args.goal_file)
+    if not path.is_file():
+        print(f"error: no goal file at {path}", file=sys.stderr)
+        return 2
+    text = path.read_text(encoding="utf-8")
+    goal = " ".join(_section(text, "Goal").split())
+    proof = _section(text, "Proof")
+    if not goal or goal.startswith("TBD") or not proof or proof.startswith("TBD"):
+        print("error: fill ## Goal and ## Proof before asking for the condition", file=sys.stderr)
+        return 2
+    problems = readiness_problems(text)
+    if problems:
+        print(f"error: {path.name} is not ready for an unattended loop:", file=sys.stderr)
+        for problem in problems:
+            print(f"  - {problem}", file=sys.stderr)
+        print("finish the interview, replace every TBD with an answer (\"none\" counts), then retry",
+              file=sys.stderr)
+        return 2
+    commands = [ln.strip() for ln in proof.splitlines() if ln.startswith("    ") and ln.strip()]
+    if commands:
+        proof_part = "Proof: run `" + " && ".join(commands) + "` and show its output."
+    else:
+        proof_part = f"Proof: the check in {path.name} Proof, with its output shown in the reply."
+    bounds = " ".join(_section(text, "Bounds").split())
+    no_bound = not bounds or bounds.startswith("TBD") or bounds.lower().rstrip(".") in {"none", "n/a", "-"}
+    bounds_part = "" if no_bound else f" Bounds: {bounds}"
+    condition = (f"{goal.rstrip('.')}. {proof_part} Follow {path.name} end to end "
+                 f"(Loop Protocol, Environment, Verification Layers, GitHub Flow) and finish with "
+                 f"the result PR URL.{bounds_part}")
+    if len(condition) > CONDITION_LIMIT:
+        print(f"error: condition is {len(condition)} characters; shorten ## Goal or ## Bounds "
+              f"below {CONDITION_LIMIT}", file=sys.stderr)
+        return 2
+    print(f"/goal {condition}")
+    return 0
+
+
 def cmd_selftest(args):
     from argparse import Namespace
 
@@ -215,10 +303,13 @@ def cmd_selftest(args):
         f = str(Path(d) / "progress.tsv")
         expect(0, cmd_add, Namespace(file=f, task="first\twith tab",
                                      done_when="x", next="n", notes=""))
-        expect(0, cmd_add, Namespace(file=f, task="second",
+        expect(0, cmd_add, Namespace(file=f, task="second", issue="#7",
+                                     done_when="", next="", notes=""))
+        expect(2, cmd_add, Namespace(file=f, task="third", issue="soon",
                                      done_when="", next="", notes=""))
         _, rows = read_rows(Path(f))
         assert [r["id"] for r in rows] == ["1", "2"], rows
+        assert rows[1]["task"] == "#7 second", rows[1]
         assert "\t" not in rows[0]["task"] and "with tab" in rows[0]["task"]
         expect(0, cmd_start, Namespace(file=f, id="1"))
         _, rows = read_rows(Path(f))
@@ -268,6 +359,8 @@ def main(argv=None):
 
     a = sub.add_parser("add", parents=[parent], help="append a new todo row")
     a.add_argument("--task", required=True)
+    a.add_argument("--issue", default=None, metavar="N",
+                   help="existing GitHub issue this row resolves; prefixes the task with #N")
     a.add_argument("--done-when", dest="done_when", default="")
     a.add_argument("--next", default="")
     a.add_argument("--notes", default="")
@@ -305,6 +398,10 @@ def main(argv=None):
     sh.add_argument("--status", default=None)
     sh.add_argument("--full", action="store_true")
     sh.set_defaults(func=cmd_show)
+
+    cd = sub.add_parser("condition", help="print the /goal line from GOAL.md")
+    cd.add_argument("--goal-file", default="GOAL.md", help="goal file path")
+    cd.set_defaults(func=cmd_condition)
 
     sub.add_parser("selftest", parents=[parent],
                    help="run internal checks").set_defaults(func=cmd_selftest)
