@@ -1,7 +1,7 @@
 # Goal Plan Instructions
 
 Long-running agent work that continues until a verifiable condition holds.
-Start the loop with `/goal @GOAL.md`.
+Start the loop with the `/goal` line that `python3 {{GOAL_LOG}} condition` prints from this file.
 
 ## Goal
 
@@ -13,7 +13,17 @@ Start the loop with `/goal @GOAL.md`.
 
 ## Acceptance Criteria
 
-TBD: 2-5 checkable items when the goal spans multiple systems, vague improvements, or several deliverables. If the goal has one narrow proof condition, say "Covered by Proof." For recommendation, audit, research, or synthesis goals, include one semantic review item that checks relevance, rationale, exclusions/gaps, and non-generic evidence.
+TBD: 2-5 checkable items when the goal spans multiple systems, vague improvements, or several deliverables. If the goal has one narrow proof condition, say "Covered by Proof." For recommendation, audit, research, or synthesis goals, include one semantic review item that checks relevance, rationale, exclusions/gaps, and non-generic evidence. Write each item so a command can decide it, one behavior per item, with an id that rows and the Proof cite:
+
+- AC-1: WHEN <trigger or input> THE SYSTEM SHALL <observable result>. Proof: `<command>` exits 0 and prints `<expected>`.
+- AC-2: WHEN the reviewer reads <artifact> THE REPORT SHALL name <required content>. Proof: the review checklist at `<path>` has every box checked, with the quote that satisfies each, pasted in the reply.
+
+## Decisions
+
+TBD: one line per interview answer, newest last. Quote the user's words inside the quotes and paraphrase only outside them, so a later session can tell a user decision from an agent guess. Defaults the user accepted without comment are recorded as `accepted default`. When a decision changes, add a line and keep the old one.
+
+- <axis> (<date>): "<user's words>". <what it means for this goal>
+- <axis> (<date>): accepted default. <the default>
 
 ## Context
 
@@ -26,6 +36,50 @@ TBD: what this goal includes.
 ## Out of Scope
 
 TBD: what is explicitly excluded or deferred.
+
+## Environment
+
+TBD: exact commands that bring a fresh checkout to a working state, confirmed in the setup interview. The Proof calls them in this order and fails if any part fails; the Stop gate runs the same command.
+
+- install: dependencies and pinned tool versions (package manager, runtime)
+- start: services the Proof needs
+- ready when: a check with a timeout (health URL, port, log line), not a sleep
+- clean up: leaves no process, container, or temp directory behind, so two Proof runs in one session do not collide
+- needs: tool names (`command -v`) and where each is installed from; secret names only, read through the project's secret tool, never values
+- cannot start here: TBD (missing credentials, hardware, a human login); the acceptance criteria that depend on it stay `blocked` until the user provides it
+
+## Verification Layers
+
+TBD: one row per layer that exists or must be built, confirmed in the setup interview. `status` is `exists`, `build in row N`, or `none`. `gate` says when the loop runs it.
+
+| layer | command | status | gate |
+|---|---|---|---|
+| lint/format | TBD | TBD | every row |
+| type or contract check | TBD | TBD | every row |
+| unit tests | TBD | TBD | every row |
+| integration or e2e (entry point: CLI, HTTP, web UI, native GUI, media) | TBD | TBD | final Proof |
+| fixtures and determinism (committed fixtures, same result twice) | TBD | TBD | final Proof |
+| agent hooks: PreToolUse blocks (.env, lock files, --no-verify), PostToolUse format/lint/related tests | TBD | TBD | every edit |
+| agent hooks: SessionStart status, PreCompact checkpoint, Stop Proof gate | TBD | TBD | automatic |
+| git hooks: pre-commit, commit-msg (#N), pre-push | TBD | TBD | every commit / push |
+| CI and branch protection (required checks) | TBD | TBD | result PR |
+| scripts/tools (fixture builders, probes, screenshot compare) | TBD | TBD | as needed |
+
+- A layer marked `build in row N` gets its progress row before any feature row that depends on it.
+- Which hook fires when, and which layer belongs to each repo signal, is in `references/harness-layers.md`. Agent hooks are installed with `scripts/goal_hooks.py` and proven with `goal_hooks.py fire`.
+- A layer that is slow, flaky, costly, or needs a human stays in the final Proof, not in a Stop hook.
+- Do not skip, delete, or loosen a layer to make a row pass; record the failure in the row instead. A row that must change a hook, test, timeout, snapshot, or lint rule says why in `notes` and in the commit message.
+- Gaps that nothing in this goal depends on go to Out of Scope, one line each, so a later goal can pick them up.
+
+## GitHub Flow
+
+- tracking issue: {{ISSUE}}. Blockers and milestone summaries go there as comments; the ledger stays in `{{PROGRESS_FILE}}`.
+- row issues: TBD (default: a sub-issue of the tracking issue per working row, opened with `goal_issue.py open` when the row is added and closed with its artifact or drop reason; an existing backlog issue is attached with `--existing`; "none" when the repo has no remote).
+- linking: every commit subject carries the row's sub-issue number, else the tracking issue number; the result branch name ends in the tracking number; the PR body lists `Closes #N` for the tracking issue and open sub-issues and lists closed steps by number.
+- result PR: base branch TBD (default: the repository default branch). One PR for the goal unless Scope names separate deliverables.
+- loop: every row ends in a commit on the goal branch; no PR per row.
+- finish: `goal_pr.py` builds the result branch from the goal branch without the goal scaffold files, pushes it, and opens the PR with the Proof output in the body. The final reply ends with the PR URL.
+- merge: the user merges. The loop does not merge, close the tracking issue, or delete branches.
 
 ## Constraints
 
@@ -46,7 +100,7 @@ TBD: turn or time limit for unattended running (e.g. "stop after 30 turns", "8 h
 ## How Progress Is Tracked
 
 - `{{PROGRESS_FILE}}` is the plan and progress table; the task breakdown lives in its rows. Edit it ONLY through the helper so rows never break on tab matching:
-  `python3 {{GOAL_LOG}} <add|start|done|block|drop|set|show> ...` (flags: `<cmd> --help`).
+  `python3 {{GOAL_LOG}} <add|start|done|block|drop|set|show|condition> ...` (flags: `<cmd> --help`).
 - This plan lives in this goal workspace; in worktree mode the workspace is on its own goal branch, and in dedicated-repo mode the repo itself is the ledger. Each loop step ends in a commit, so the commit history is the durable record. `goal_log.py done` stamps the current `HEAD` as the row checkpoint; the commit you make immediately after records the row update. The checkpoint plus git history is your resume point: on resume, recover state with `pwd`, `goal_log.py show`, `git log`, then re-run the Proof.
 - Long runs can lose conversational context. What lets the loop survive is externalized state: `{{PROGRESS_FILE}}` and git hold the plan and checkpoints, and the Proof output stays in the transcript, so you resume cleanly with `goal_log.py show` + `git log`.
 
@@ -54,16 +108,17 @@ TBD: turn or time limit for unattended running (e.g. "stop after 30 turns", "8 h
 
 Run as an autonomous loop until the Goal holds.
 
-1. `goal_log.py show` to see where you are.
-2. Take the next row (or `goal_log.py add --task ...`), then `goal_log.py start <id>`. Pick the row most likely to advance the Goal or unblock the rest, not just the next in line.
-3. For behavior changes, first add or reproduce a failing test/check. Do the minimum work within Scope and Constraints, run the Proof, read its result, and fix the root cause until it passes or a real blocker is recorded.
+1. Read this file end to end, then `goal_log.py show` to see where you are. On the first turn and after any resume, bring up the Environment and run the fast Verification Layers once before touching a row, so a broken environment is found before it is blamed on a change.
+2. Take the next row (or `goal_log.py add --task ...`), then `goal_log.py start <id>`. Pick the row most likely to advance the Goal or unblock the rest, not just the next in line. Rows that build a missing Verification Layer come first.
+3. For behavior changes, first add or reproduce a failing test/check. Do the minimum work within Scope and Constraints, run the layers gated `every row` and the Proof, read the result, and fix the root cause until it passes or a real blocker is recorded.
 4. `goal_log.py done <id> --decision keep|discard|crash --artifact "<proof>"` (keep if it advanced the goal; discard if it did not but did no harm; crash if it caused a regression). Be skeptical of your own success -- if the Proof passed quietly, rerun it before marking done. Every done row needs artifact or notes evidence; for discard/crash, put WHY it failed and what to try instead in notes so a later session does not repeat the dead end. Use `goal_log.py drop <id> --notes "<reason>"` only for rows that are no longer needed.
-5. Commit the changed files plus `{{PROGRESS_FILE}}`: `git add <files> {{PROGRESS_FILE}} && git commit -m "<keep|discard>: <what you did>"`. If target code changes live outside this repo, also commit the target repo or commit patch/snapshot artifacts here, according to Target Change Tracking.
+5. Commit the changed files plus `{{PROGRESS_FILE}}`: `git add <files> {{PROGRESS_FILE}} && git commit -m "<type>(<scope>): <what you did> (#<issue>, row <id> keep|discard)"`. If target code changes live outside this repo, also commit the target repo or commit patch/snapshot artifacts here, according to Target Change Tracking.
 6. Surface the Proof in your reply as evidence, not a claim: paste the actual command output (pass/fail, line numbers, exact errors), then name the checkpoint, what you verified this step, what remains, and whether you are blocked. The Proof must verify every Acceptance Criteria item. The `/goal` evaluator reads the conversation, not the files.
 7. To undo a change that made things worse, revert with git, sparingly. Do not `git reset` away failed attempts you have already committed -- the commit log is the full record, including discards.
+8. When the Goal holds, open the result PR as GitHub Flow describes and put the PR URL in the reply. Merge is the user's choice.
 
 Do not ask "should I continue?" once the loop starts. Stop only when the Goal holds, when you hit a Bound, or when blocked by missing access, destructive risk, or an explicit user choice -- when blocked, report what specific input or access would unblock you. Budget or turn exhaustion is not completion.
 
 ## Completion
 
-Complete only when the Goal holds and is shown with the Proof output in the conversation or logs, and required rows in `{{PROGRESS_FILE}}` are `done` or intentionally `dropped`.
+Complete only when the Goal holds and is shown with the Proof output in the conversation or logs, required rows in `{{PROGRESS_FILE}}` are `done` or intentionally `dropped`, and the result PR is open with its URL in the reply.

@@ -35,7 +35,7 @@ class GoalHookTests(unittest.TestCase):
 
             self.assertNotIn(proof, agents)
             self.assertIn(proof, goal)
-            self.assertIn("run: /goal @GOAL.md", result.stdout)
+            self.assertIn("condition", result.stdout)
             self.assertIn("wrote Stop hook", result.stdout)
             for config in (claude, codex):
                 command = config["hooks"]["Stop"][0]["hooks"][0]["command"]
@@ -137,7 +137,95 @@ class GoalHookTests(unittest.TestCase):
             self.assertIn("ship it", (target / "GOAL.md").read_text(encoding="utf-8"))
             self.assertEqual((target / "CLAUDE.md").read_text(encoding="utf-8"), "@AGENTS.md\n")
             self.assertIn("kept existing", result.stdout)
-            self.assertIn("run: /goal @GOAL.md", result.stdout)
+            self.assertIn("condition", result.stdout)
+
+    def test_scaffold_preserves_claude_symlink_to_sibling_agents(self) -> None:
+        for absolute in (False, True):
+            with self.subTest(absolute=absolute), tempfile.TemporaryDirectory() as tmp:
+                target = Path(tmp) / "goal"
+                target.mkdir()
+                agents_path = target / "AGENTS.md"
+                content = "# Repository Rules\n\nKeep this rule.\n"
+                agents_path.write_text(content, encoding="utf-8")
+                claude_path = target / "CLAUDE.md"
+                link_target = agents_path if absolute else Path("AGENTS.md")
+                claude_path.symlink_to(link_target)
+
+                result = subprocess.run(
+                    [sys.executable, str(INIT), str(target), "--goal", "ship it"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+
+                self.assertTrue(claude_path.is_symlink())
+                self.assertEqual(claude_path.readlink(), link_target)
+                self.assertEqual(agents_path.read_text(encoding="utf-8"), content)
+                self.assertFalse((target / "CLAUDE.md.bak").exists())
+                self.assertFalse((target / "AGENTS.md.bak").exists())
+                self.assertIn("ship it", (target / "GOAL.md").read_text(encoding="utf-8"))
+                self.assertTrue((target / "progress.tsv").is_file())
+                self.assertIn(f"kept existing {target.resolve() / 'CLAUDE.md'}", result.stdout)
+
+    def test_invalid_claude_symlink_fails_before_scaffold_writes(self) -> None:
+        cases = (
+            ("../foreign.md", []),
+            ("../missing.md", []),
+            ("AGENTS.md", ["--proof-command", "true"]),
+            ("CLAUDE.md", ["--proof-command", "true"]),
+        )
+        for link_target, options in cases:
+            with self.subTest(link_target=link_target), tempfile.TemporaryDirectory() as tmp:
+                target = Path(tmp) / "goal"
+                target.mkdir()
+                content = "# Repository Rules\n\nKeep this rule.\n"
+                agents_path = target / "AGENTS.md"
+                if link_target != "AGENTS.md":
+                    agents_path.write_text(content, encoding="utf-8")
+                foreign_path = Path(tmp) / "foreign.md"
+                foreign_path.write_text("Foreign instructions.\n", encoding="utf-8")
+                claude_path = target / "CLAUDE.md"
+                claude_path.symlink_to(link_target)
+                before = set(target.iterdir())
+
+                result = subprocess.run(
+                    [sys.executable, str(INIT), str(target), "--goal", "ship it", *options],
+                    capture_output=True,
+                    text=True,
+                )
+
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("CLAUDE.md symlink must resolve to an existing sibling AGENTS.md file", result.stderr)
+                self.assertTrue(claude_path.is_symlink())
+                self.assertEqual(claude_path.readlink(), Path(link_target))
+                self.assertEqual(set(target.iterdir()), before)
+                if link_target != "AGENTS.md":
+                    self.assertEqual(agents_path.read_text(encoding="utf-8"), content)
+                self.assertEqual(foreign_path.read_text(encoding="utf-8"), "Foreign instructions.\n")
+                self.assertFalse((Path(tmp) / "missing.md").exists())
+
+    def test_scaffold_keeps_regular_claude_backup_behavior(self) -> None:
+        for content in ("# Local instructions\n", "@AGENTS.md\n"):
+            with self.subTest(content=content), tempfile.TemporaryDirectory() as tmp:
+                target = Path(tmp) / "goal"
+                target.mkdir()
+                claude_path = target / "CLAUDE.md"
+                claude_path.write_text(content, encoding="utf-8")
+
+                subprocess.run(
+                    [sys.executable, str(INIT), str(target), "--goal", "ship it"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+
+                self.assertFalse(claude_path.is_symlink())
+                self.assertEqual(claude_path.read_text(encoding="utf-8"), "@AGENTS.md\n")
+                backup = target / "CLAUDE.md.bak"
+                if content == "@AGENTS.md\n":
+                    self.assertFalse(backup.exists())
+                else:
+                    self.assertEqual(backup.read_text(encoding="utf-8"), content)
 
 
 if __name__ == "__main__":
