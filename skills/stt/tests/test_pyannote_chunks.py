@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import unittest
+import warnings
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "pyannote-chunks.py"
@@ -77,6 +78,17 @@ class JoinTest(unittest.TestCase):
         speech = [[0.0, 10.0], [12.0, 20.0], [25.0, 30.0], [50.0, 55.0]]
         self.assertEqual(chunks.empty_stretches(segments, speech, 70.0), [[10.0, 25.0]])
 
+
+
+class WarningTest(unittest.TestCase):
+    def test_only_the_torchcodec_import_warning_is_silenced(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            chunks.silence_torchcodec_warning()
+            warnings.warn("\ntorchcodec is not installed correctly so built-in audio decoding "
+                          "will fail. Solutions are:", UserWarning, stacklevel=1)
+            warnings.warn("unrelated pyannote warning", UserWarning, stacklevel=1)
+        self.assertEqual([str(w.message) for w in caught], ["unrelated pyannote warning"])
 
 if __name__ == "__main__":
     unittest.main()

@@ -567,5 +567,123 @@ class SummaryPrivacyTests(unittest.TestCase):
             )
 
 
+def gateway_env(token: str) -> dict[str, str]:
+    """run.sh가 agents-env run 아래에서 summarize.py에 넘기는 env를 흉내낸다."""
+    return {
+        "VOICE_MEMOS_SUMMARY_BASE_URL": "https://gateway.example",
+        "VOICE_MEMOS_SUMMARY_AUTH_ENV": "FAKE_GATEWAY_KEY",
+        "FAKE_GATEWAY_KEY": token,
+    }
+
+
+class SummaryRuntimeTests(unittest.TestCase):
+    """워처(launchd)에서 요약이 돌 때 필요한 CLI, 인증, iCloud 처리를 고정한다."""
+
+    def transcript(self, root: Path) -> Path:
+        path = root / "transcript.md"
+        path.write_text(
+            "# memo\n\n## 전사 내용\n\n" + ("충분히 긴 전사 데이터입니다. " * 30),
+            encoding="utf-8",
+        )
+        return path
+
+    def test_default_model_is_the_sonnet_alias(self):
+        # 별칭이어야 claude CLI가 갱신될 때 최신 Sonnet을 따라간다. ID 고정은 env로만 한다.
+        expected = summarize.os.environ.get("VOICE_MEMOS_SUMMARY_MODEL", "sonnet")
+        self.assertEqual(summarize.SUMMARY_MODEL, expected)
+
+    def test_summary_env_is_empty_without_gateway_config(self):
+        with mock.patch.dict(summarize.os.environ, {}, clear=False):
+            for key in gateway_env(""):
+                summarize.os.environ.pop(key, None)
+            self.assertEqual(summarize.summary_env(), {})
+
+    def test_summary_env_maps_injected_secret_to_cli_auth(self):
+        with mock.patch.dict(summarize.os.environ, gateway_env("token-value")):
+            self.assertEqual(
+                summarize.summary_env(),
+                {
+                    "ANTHROPIC_BASE_URL": "https://gateway.example",
+                    "ANTHROPIC_AUTH_TOKEN": "token-value",
+                },
+            )
+
+    def test_summary_env_fails_loudly_when_secret_was_not_injected(self):
+        with (
+            mock.patch.dict(summarize.os.environ, gateway_env("")),
+            self.assertRaisesRegex(RuntimeError, "agents-env run"),
+        ):
+            summarize.summary_env()
+
+    def test_cli_path_prefers_override_then_installed_cli(self):
+        with tempfile.TemporaryDirectory() as temp:
+            installed = Path(temp) / "claude"
+            installed.write_text("#!/bin/sh\n", encoding="utf-8")
+            with mock.patch.dict(
+                summarize.os.environ, {"VOICE_MEMOS_CLAUDE_CLI": "/opt/x/claude"}
+            ):
+                self.assertEqual(summarize.summary_cli_path(), "/opt/x/claude")
+            with (
+                mock.patch.dict(summarize.os.environ, {"VOICE_MEMOS_CLAUDE_CLI": ""}),
+                mock.patch.object(summarize.shutil, "which", return_value=str(installed)),
+            ):
+                self.assertEqual(summarize.summary_cli_path(), str(installed))
+            with (
+                mock.patch.dict(summarize.os.environ, {"VOICE_MEMOS_CLAUDE_CLI": ""}),
+                mock.patch.object(summarize.shutil, "which", return_value=None),
+                mock.patch.object(summarize.Path, "home", return_value=Path(temp) / "none"),
+            ):
+                self.assertIsNone(summarize.summary_cli_path())
+
+    def test_options_carry_cli_path_gateway_env_and_model(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = self.transcript(Path(temp))
+            captured = {}
+
+            async def fake_query(*, prompt, options):
+                captured["options"] = options
+                if False:
+                    yield None
+
+            with (
+                mock.patch.dict(summarize.os.environ, gateway_env("token-value")),
+                mock.patch.object(summarize, "summary_cli_path", return_value="/x/claude"),
+                mock.patch.object(summarize, "query", fake_query),
+                self.assertRaisesRegex(RuntimeError, "빈 응답"),
+            ):
+                anyio.run(summarize.summarize_file, path)
+            options = captured["options"]
+            self.assertEqual(options.model, summarize.SUMMARY_MODEL)
+            self.assertEqual(str(options.cli_path), "/x/claude")
+            self.assertEqual(options.env["ANTHROPIC_BASE_URL"], "https://gateway.example")
+            self.assertEqual(options.env["ANTHROPIC_AUTH_TOKEN"], "token-value")
+
+    def test_cloud_only_transcript_is_deferred_and_downloaded(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = self.transcript(Path(temp))
+            with (
+                mock.patch.object(summarize, "is_dataless", return_value=True),
+                mock.patch.object(summarize, "request_download") as download,
+                mock.patch.object(summarize, "query") as query,
+            ):
+                self.assertFalse(anyio.run(summarize.summarize_file, path))
+            download.assert_called_once_with(path)
+            query.assert_not_called()
+
+    def test_cloud_only_transcript_with_summary_is_left_alone(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            path = self.transcript(root)
+            (root / "summary.md").write_text("요약\n", encoding="utf-8")
+            with (
+                mock.patch.object(summarize, "is_dataless", return_value=True),
+                mock.patch.object(summarize, "request_download") as download,
+                mock.patch.object(summarize, "query") as query,
+            ):
+                self.assertFalse(anyio.run(summarize.summarize_file, path))
+            download.assert_not_called()
+            query.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

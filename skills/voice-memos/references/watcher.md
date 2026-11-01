@@ -2,6 +2,13 @@
 
 새 녹음(Voice Memos·에이닷 통화)이 생기면 전사 -> 요약 -> 알림을 자동 실행하는 LaunchAgent. 설치 기본값은 `VOICE_MEMOS_STT_MODE=legacy`다. "전사가 안 됐어", "알림이 안 와", "워처 확인해줘" 요청 시 이 문서를 따른다. 파이프라인 코드 원본은 이 스킬의 `scripts/`다.
 
+## 목차
+
+- 구성
+- run.sh 단계, 모드와 활성화 상태
+- 진단 절차: A. FDA 부재, B. EX_CONFIG, C. 요약 인증 없음, 밀린 분량 처리
+- 재시작·상태 확인
+
 ## 구성
 
 - Label과 plist 이름은 설치 환경에서 정한다. 진단 전에 기존 plist와 Label을 찾는다.
@@ -24,7 +31,7 @@ WATCHER_LABEL="$(/usr/libexec/PlistBuddy -c 'Print :Label' "$WATCHER_PLIST")"
 
 1. `extract.py --all` — 음성 메모 전사
 2. `transcribe_calls.py` — 에이닷 통화 .m4a 전사
-3. `summarize.py` — 요약·제목 생성 (`uv run`, `CLAUDECODE` unset)
+3. `summarize.py` — 요약·제목 생성 (`uv run`, `CLAUDECODE` unset, 설정에 `SUMMARY_AUTH_SECRET`이 있으면 `agents-env run` 아래에서 실행)
 4. `notify.py` — Discord/Telegram 알림 (`--skip-notify`로 스킵)
 
 `extract.py --all`은 Voice Memos DB에서 최근 삭제된 항목과 로컬 오디오가 아직 내려오지 않은 iCloud 동기화 대기 항목을 제외한다. 동기화가 끝나 `ZLOCALDURATION`이 생기면 자동으로 다시 처리 대상이 된다.
@@ -47,6 +54,7 @@ run.sh는 boot identity + PID start identity를 검증하는 단일 전역 lock�
 
 Telegram 에러 알림을 받은 경우는 전달된 로그의 **마지막 실패 단계**를 먼저 본다. `1/4 voice memo transcription`의 `processed=0`만 보고 전사 실패로 단정하지 않는다. `3/4 summary`에 `Fatal error in message reader`가 있으면 요약 단계가 원인이다.
 이때 `scripts/summarize.py`의 model, claude CLI/SDK 인증, `tools=[]` 옵션이 바뀌었는지부터 확인한다.
+`3/4 summary`가 파일마다 `[ERROR] ... Exception`으로 끝나면 진단 C를 본다.
 
 ### A. 워처는 도는데 전사가 안 됨 — FDA 부재
 
@@ -76,6 +84,19 @@ VOICE_MEMOS_PYTHON=<후보 절대경로> bash scripts/verify_fda.sh
 ### B. 워처가 아예 실행 안 됨 — 로그가 iCloud 경로 (EX_CONFIG)
 
 `launchctl print`에 `last exit code = 78: EX_CONFIG`, kickstart해도 watcher.log에 새 줄이 안 찍히고 `runs`만 증가. 원인: plist `StandardOutPath`/`StandardErrorPath`(또는 run.sh `LOG_DIR`)가 iCloud(`Mobile Documents`) 경로다 → launchd가 못 써서 잡이 spawn 전에 죽는다. 해결: 위 **경로 분리 규칙**대로 로그 경로를 로컬 `~/.voice-memos/logs`로 되돌리고, plist 변경은 `bootout`→`bootstrap`으로 재로드(아래).
+
+### C. 요약만 실패 — launchd에 Claude 인증이 없음
+
+셸에서 `uv run python scripts/summarize.py --file <transcript.md>`는 되는데 워처에서는 파일마다 실패한다. launchd 잡은 로그인 셸의 env를 받지 않아, 셸에서만 export한 게이트웨이 주소와 토큰(`ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`)이 없다. CLI는 `Not logged in`으로 끝난다.
+
+해결: 게이트웨이 토큰을 `agents-env`에 저장한 뒤 `~/.config/voice-memos/.env`에 **키 이름**만 적는다. 토큰 값은 이 파일에 쓰지 않는다.
+
+```bash
+SUMMARY_BASE_URL=<게이트웨이 URL>
+SUMMARY_AUTH_SECRET=<agents-env 키 이름>
+```
+
+run.sh가 `agents-env run <키 이름> -- uv run python scripts/summarize.py`로 토큰을 주입하고, summarize.py가 이를 CLI의 `ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN`으로 넘긴다. 키가 비어 있으면 `RuntimeError: <키 이름> is empty`로 바로 실패한다. 게이트웨이 없이 claude CLI 로그인만 쓰는 환경은 두 줄을 넣지 않는다. 확인은 `launchctl kickstart -k`로 한 번 돌리고 watcher.log의 `summary written` 또는 `요약됨` 줄을 본다.
 
 ### 밀린 분량 처리
 
