@@ -30,6 +30,8 @@ CALL_TEXT_SUFFIX = ".txt"
 CALL_TRANSCRIPT_SUFFIX = ".transcript.md"
 RECORDING_SUFFIXES = (".m4a", ".qta")
 DIARIZED_NAME = "diarized.md"
+# diarize.sh가 stt 결과 전체를 넣는 녹음 폴더 아래 하위 폴더. 예전 결과는 녹음 폴더 바로 아래에 있다.
+DIARIZATION_DIR = "diarization"
 
 WEEKDAYS = {
     **{name: i for i, name in enumerate(("mon", "tue", "wed", "thu", "fri", "sat", "sun"))},
@@ -91,6 +93,19 @@ def parse_date_range(date_str: str) -> tuple[datetime, datetime]:
         sys.exit(1)
 
 
+def recording_dir(path: Path) -> Path:
+    """Voice Memos 산출물 파일이 속한 녹음 폴더(`YYYYMMDD/HHMMSS`)를 반환합니다."""
+    return path.parent.parent if path.parent.name == DIARIZATION_DIR else path.parent
+
+
+def diarized_path(directory: Path) -> Path | None:
+    """녹음 폴더의 화자 분리 결과. `diarization/` 아래를 먼저 보고 예전 위치도 읽습니다."""
+    for candidate in (directory / DIARIZATION_DIR / DIARIZED_NAME, directory / DIARIZED_NAME):
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def dir_to_datetime(transcript_path: Path) -> datetime | None:
     """Voice Memos transcript 디렉터리 경로에서 datetime을 파싱합니다.
 
@@ -98,8 +113,9 @@ def dir_to_datetime(transcript_path: Path) -> datetime | None:
     UUID suffix는 같은 초에 생성된 녹음을 구분하기 위해 extract.py가 붙입니다.
     """
     try:
-        time_part = transcript_path.parent.name.split("-", 1)[0]
-        date_part = transcript_path.parent.parent.name
+        folder = recording_dir(transcript_path)
+        time_part = folder.name.split("-", 1)[0]
+        date_part = folder.parent.name
         return datetime.strptime(f"{date_part} {time_part}", "%Y%m%d %H%M%S")
     except ValueError:
         return None
@@ -164,14 +180,17 @@ def file_to_datetime(path: Path) -> datetime | None:
 def voice_memo_files() -> list[Path]:
     """녹음 폴더마다 `transcript.md`, 없으면 화자 분리 결과 `diarized.md`를 하나 고릅니다."""
     directories = {
-        path.parent
+        recording_dir(path)
         for name in ("transcript.md", DIARIZED_NAME)
         for path in TRANSCRIPTS_DIR.rglob(name)
     }
     files = []
     for directory in sorted(directories):
         transcript = directory / "transcript.md"
-        files.append(transcript if transcript.exists() else directory / DIARIZED_NAME)
+        if transcript.exists():
+            files.append(transcript)
+        else:
+            files.append(diarized_path(directory) or directory / DIARIZED_NAME)
     return files
 
 
@@ -236,7 +255,8 @@ def iter_transcript_files(include_originals: bool = True) -> list[Path]:
     """
     files = voice_memo_files()
     covered = {
-        (path.parent.parent.name, path.parent.name.split("-", 1)[0]) for path in files
+        (recording_dir(path).parent.name, recording_dir(path).name.split("-", 1)[0])
+        for path in files
     }
     if CALL_RECORDINGS_DIR.exists():
         files.extend(CALL_RECORDINGS_DIR.glob("*.txt"))
@@ -391,7 +411,7 @@ def format_result(
         else (
             str(filepath)
             if vm_notes.is_note(filepath)
-            else (filepath.name if is_call_recording(filepath) else filepath.parent.name)
+            else (filepath.name if is_call_recording(filepath) else recording_dir(filepath).name)
         )
     )
 
@@ -425,13 +445,11 @@ def format_result(
     if is_call_recording(filepath):
         line = f"  [에이닷]    {date_str}  {call_display_name(filepath)}"
     else:
-        line = (
-            f"  [음성 메모] {date_str}  "
-            f"{filepath.parent.parent.name}/{filepath.parent.name}"
-        )
+        folder = recording_dir(filepath)
+        line = f"  [음성 메모] {date_str}  {folder.parent.name}/{folder.name}"
         if filepath.name == DIARIZED_NAME:
             line += "  화자 분리만"
-        elif (filepath.parent / DIARIZED_NAME).exists():
+        elif diarized_path(folder) is not None:
             line += "  +화자 분리"
 
     if match_count is not None:

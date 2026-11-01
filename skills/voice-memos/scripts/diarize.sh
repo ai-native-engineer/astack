@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Diarize a Voice Memos recording and keep every stt result file beside its transcript.
+# Diarize a Voice Memos recording and keep the whole stt result in <transcript_dir>/diarization.
 # usage: diarize.sh <audio> [transcript_dir|-] [start_sec] [end_sec]
 #   Without transcript_dir, or with "-", the folder the pipeline uses for this recording.
 set -euo pipefail
@@ -34,12 +34,15 @@ fi
 # private scratch folder and move the whole result. The review screen needs run.json,
 # names.json and speakers.json next to diarized.md, and speakers.json holds voice
 # embeddings that must not be left in whatever directory the caller happened to be in.
+# The result gets its own subfolder: stt's run.json is not the pipeline's run.json, and
+# beside transcript.md it would be read as strict run metadata and fail every summary pass.
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/voice-memos-diarize.XXXXXX")"
 GENERATED="$(STT_OUT="$WORK" bash "$STT_SCRIPT" "$AUDIO" "$START" "$END")"
 RESULT_DIR="$(dirname "$GENERATED")"
-mkdir -p "$TRANSCRIPT_DIR"
+DIARIZATION_DIR="$TRANSCRIPT_DIR/diarization"
+mkdir -p "$DIARIZATION_DIR"
 for file in "$RESULT_DIR"/*; do
-  mv -f -- "$file" "$TRANSCRIPT_DIR/"
+  mv -f -- "$file" "$DIARIZATION_DIR/"
 done
 rmdir "$RESULT_DIR" "$WORK"
-printf '%s\n' "$TRANSCRIPT_DIR/diarized.md"
+printf '%s\n' "$DIARIZATION_DIR/diarized.md"

@@ -6,7 +6,7 @@
 
 - 구성
 - run.sh 단계, 모드와 활성화 상태
-- 진단 절차: A. FDA 부재, B. EX_CONFIG, C. 요약 인증 없음, 밀린 분량 처리
+- 진단 절차: A. FDA 부재, B. EX_CONFIG, C. 요약 인증 없음, D. 화자 분리 결과의 run.json, 밀린 분량 처리
 - 재시작·상태 확인
 
 ## 구성
@@ -97,6 +97,12 @@ SUMMARY_AUTH_SECRET=<agents-env 키 이름>
 ```
 
 run.sh가 `agents-env run <키 이름> -- uv run python scripts/summarize.py`로 토큰을 주입하고, summarize.py가 이를 CLI의 `ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN`으로 넘긴다. 키가 비어 있으면 `RuntimeError: <키 이름> is empty`로 바로 실패한다. 게이트웨이 없이 claude CLI 로그인만 쓰는 환경은 두 줄을 넣지 않는다. 확인은 `launchctl kickstart -k`로 한 번 돌리고 watcher.log의 `summary written` 또는 `요약됨` 줄을 본다.
+
+### D. 요약이 PrivacyModeValidationError로 실패 — 화자 분리 결과의 run.json
+
+`3/4 summary`가 `PrivacyModeValidationError`로 끝나고, 그 녹음 폴더의 `run.json`에 `audio`, `start`, `end`만 있다. 이 파일은 파이프라인의 run 메타데이터가 아니라 stt 화자 분리 기록이다. 예전 `diarize.sh`가 결과를 녹음 폴더 바로 아래에 두어 생긴다. 한 파일이 pass 전체를 실패로 만들고 매번 에러 알림을 보낸다.
+
+해결: 그 폴더의 stt 결과(`diarized.md`, `transcript.json`, `diar.rttm`, `speakers.json`, `names.json`, `run.json`)를 같은 폴더의 `diarization/`으로 옮긴다. 지금의 `diarize.sh`는 처음부터 그 아래에 쓴다.
 
 ### 밀린 분량 처리
 
