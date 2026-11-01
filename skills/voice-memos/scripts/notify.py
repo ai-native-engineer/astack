@@ -39,6 +39,9 @@ from config import (
 from review import ContextValidationError, effective_privacy
 
 NOTIFIED_MARKER = "<!-- notified -->"
+# Telegram은 4096자를 넘는 메시지를 받지 않는다. 길이는 UTF-16 단위로 센다.
+TELEGRAM_LIMIT = 4096
+TRUNCATED_MARKER = "\n..."
 
 
 def load_env():
@@ -105,34 +108,68 @@ def send_discord(webhook_url: str, title: str, summary: str) -> bool:
         return False
 
 
+def _utf16_len(text: str) -> int:
+    return len(text.encode("utf-16-le")) // 2
+
+
+def fit_telegram(text: str, limit: int = TELEGRAM_LIMIT) -> str:
+    """Telegram 한도에 맞춰 줄 단위로 자릅니다.
+
+    글자 단위로 자르면 `- [ ]` 같은 줄 가운데서 끊겨 닫히지 않은 `[`나 `*`가 남고,
+    Telegram Markdown이 메시지 전체를 400으로 거부한다.
+    """
+    if _utf16_len(text) <= limit:
+        return text
+    budget = limit - _utf16_len(TRUNCATED_MARKER)
+    kept: list[str] = []
+    used = 0
+    for line in text.split("\n"):
+        size = _utf16_len(line) + (1 if kept else 0)
+        if used + size > budget:
+            break
+        kept.append(line)
+        used += size
+    if not kept:
+        # 첫 줄 하나가 한도를 넘는 경우만 글자 단위로 자른다.
+        head = text[:budget]
+        while _utf16_len(head) > budget:
+            head = head[:-1]
+        return head + TRUNCATED_MARKER
+    return "\n".join(kept) + TRUNCATED_MARKER
+
+
 def send_telegram(token: str, chat_id: str, title: str, summary: str) -> bool:
-    """Telegram bot으로 메시지를 전송합니다."""
-    text = f"*{title}*\n\n{summary}"
-    if len(text) > 4096:
-        text = text[:4093] + "..."
+    """Telegram bot으로 메시지를 전송합니다.
 
-    payload = json.dumps(
-        {
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "Markdown",
-        }
-    ).encode("utf-8")
-
+    Markdown이 거부되면(400) 같은 글을 서식 없이 한 번 더 보낸다. 요약에 Telegram
+    legacy Markdown이 받지 않는 문자(`_`, 짝 없는 `[`)가 남아도 알림은 도착해야 한다.
+    """
+    text = fit_telegram(f"*{title}*\n\n{summary}")
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    req = urllib.request.Request(
-        url,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req):
-            pass
-        print("  summary sent → Telegram")
+    for parse_mode in ("Markdown", None):
+        message = {"chat_id": chat_id, "text": text}
+        if parse_mode:
+            message["parse_mode"] = parse_mode
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(message).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req):
+                pass
+        except urllib.error.HTTPError as exc:
+            if parse_mode and exc.code == 400:
+                print("  [WARN] TelegramMarkdownRejected: retry as plain text")
+                continue
+            print("  [ERROR] TelegramDeliveryError")
+            return False
+        except urllib.error.URLError:
+            print("  [ERROR] TelegramDeliveryError")
+            return False
+        print("  summary sent → Telegram" + ("" if parse_mode else " (plain text)"))
         return True
-    except urllib.error.URLError:
-        print("  [ERROR] TelegramDeliveryError")
-        return False
+    return False
 
 
 def format_title(filepath: Path) -> str:

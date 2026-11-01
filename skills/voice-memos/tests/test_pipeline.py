@@ -379,10 +379,12 @@ else:
         transcribed = self.transcripts / "20261029" / "012247"
         transcribed.mkdir(parents=True)
         (transcribed / "transcript.md").write_text("## 전사 내용\n애플", encoding="utf-8")
+        # 예전 결과는 녹음 폴더 바로 아래, 새 결과는 diarization/ 아래에 있다. 둘 다 읽는다.
         (transcribed / "diarized.md").write_text("**[A]** (00:00) 애플", encoding="utf-8")
         diarized_only = self.transcripts / "20261101" / "022449"
-        diarized_only.mkdir(parents=True)
-        (diarized_only / "diarized.md").write_text("**[A]** (00:00) 스프린트", encoding="utf-8")
+        (diarized_only / "diarization").mkdir(parents=True)
+        diarized = diarized_only / "diarization" / "diarized.md"
+        diarized.write_text("**[A]** (00:00) 스프린트", encoding="utf-8")
         with self.search_environment() as recordings:
             for name in (
                 "20261029 012247-AAAA.m4a",
@@ -408,15 +410,17 @@ else:
             original = recordings / "20261028 174322-CCCC.m4a"
             self.assertEqual(
                 files,
-                [transcribed / "transcript.md", diarized_only / "diarized.md", original],
+                [transcribed / "transcript.md", diarized, original],
             )
             self.assertEqual(search.search_by_date("2026-10-28"), [original])
             line = search.format_result(original)
             self.assertIn("2026-10-28 17:43:22  녹음 56  66.5분  미전사", line)
             self.assertIn("+화자 분리", search.format_result(transcribed / "transcript.md"))
-            self.assertIn("화자 분리만", search.format_result(diarized_only / "diarized.md"))
+            line = search.format_result(diarized)
+            self.assertIn("2026-11-01 02:24:49  20261101/022449  화자 분리만", line)
+            self.assertEqual(search.search_by_date("2026-11-01"), [diarized])
             hits = search.search_by_keyword(["스프린트"])
-            self.assertEqual([path for path, _, _ in hits], [diarized_only / "diarized.md"])
+            self.assertEqual([path for path, _, _ in hits], [diarized])
 
     def test_keyword_search_skips_cloud_only_files_with_warning(self):
         folder = self.transcripts / "20260707" / "164215"
@@ -463,16 +467,20 @@ else:
             text=True,
         )
 
-    def test_diarize_moves_every_result_file_to_the_recording_folder(self):
+    def test_diarize_moves_every_result_file_to_the_diarization_subfolder(self):
         audio = self.audio("20261029 012247-C301C746.m4a", b"audio")
         result = self.run_diarize(str(audio))
         self.assertEqual(result.returncode, 0, result.stderr)
         target = self.root / "data" / "transcripts" / "20261029" / "012247"
-        self.assertEqual(result.stdout.strip(), str(target / "diarized.md"))
+        result_dir = target / "diarization"
+        self.assertEqual(result.stdout.strip(), str(result_dir / "diarized.md"))
         self.assertEqual(
-            sorted(path.name for path in target.iterdir()),
+            sorted(path.name for path in result_dir.iterdir()),
             ["diar.rttm", "diarized.md", "names.json", "run.json", "speakers.json", "transcript.json"],
         )
+        # stt의 run.json이 녹음 폴더에 있으면 파이프라인이 strict run 메타데이터로 읽어 요약이 실패한다.
+        self.assertEqual([path.name for path in target.iterdir()], ["diarization"])
+        self.assertFalse(config.run_path_for(target / "transcript.md").exists())
         self.assertEqual(list((self.root / "caller").iterdir()), [])
         self.assertEqual(list((self.root / "tmp").iterdir()), [])
 
@@ -480,7 +488,7 @@ else:
         explicit = self.root / "explicit"
         result = self.run_diarize(str(self.audio("20261029 012247-a.m4a", b"a")), str(explicit))
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue((explicit / "speakers.json").exists())
+        self.assertTrue((explicit / "diarization" / "speakers.json").exists())
 
         result = self.run_diarize(str(self.audio("meeting.m4a", b"b")))
         self.assertNotEqual(result.returncode, 0)

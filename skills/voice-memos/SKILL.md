@@ -48,7 +48,7 @@ python3 scripts/search.py --dates                # 녹음/메모 있는 날짜 �
 python3 scripts/search.py --recent 5 --no-preview --count
 ```
 
-- 음성 메모는 녹음 폴더마다 `transcript.md`, 없으면 화자 분리 결과 `diarized.md`를 보여 준다.
+- 음성 메모는 녹음 폴더마다 `transcript.md`, 없으면 화자 분리 결과 `diarization/diarized.md`(예전 결과는 녹음 폴더의 `diarized.md`)를 보여 준다.
 - 산출물이 없는 원본 녹음도 `미전사`로 앱 제목, 길이, 원본 경로와 함께 나온다. 화자 분리나 전사는 그 원본 경로로 실행한다.
 - `미전사`가 여러 건 쌓였으면 워처가 멈춘 것이므로 `references/watcher.md`로 진단한다.
 - 키워드 검색은 전사본만 읽는다. iCloud에만 있는 파일은 읽으면 멈추므로 빼고 개수를 경고한다.
@@ -76,7 +76,8 @@ bash scripts/diarize.sh <audio.m4a> [transcript_dir|-] [start] [end]
 ```
 
 - 결과 폴더를 생략하거나 `-`로 두면 파이프라인이 그 녹음에 쓰는 transcript 폴더에 둔다. 구간만 자를 때는 `-`를 넣고 `start`, `end`를 준다.
-- 결과 폴더에는 `diarized.md`와 확인 화면이 읽는 `transcript.json`, `diar.rttm`, `speakers.json`, `names.json`, `run.json`이 함께 생긴다. 다시 실행하면 이 파일들을 덮어쓴다.
+- 결과는 그 폴더 아래 `diarization/`에 모인다. `diarized.md`와 확인 화면이 읽는 `transcript.json`, `diar.rttm`, `speakers.json`, `names.json`, `run.json`이 함께 생기고, 다시 실행하면 덮어쓴다. 확인 화면은 `diarization/` 폴더로 연다.
+- 녹음 폴더 바로 아래에 stt의 `run.json`을 두지 않는다. 파이프라인이 strict run 메타데이터로 읽어 요약 단계 전체가 `PrivacyModeValidationError`로 실패한다.
 - 실행 전에 걸릴 시간을 `stt` 스킬 기준으로 알린다. 여러 녹음은 메모리 때문에 하나씩 차례로 돌린다.
 - 글과 화자는 `stt` 스킬의 화자 분리 모드(MOSS)가 함께 만들므로, `diarized.md`의 글은 Apple 전사본과 다를 수 있다. 턴 묶기, 빈 곳(`**[gap]**`), 확인 화면은 `stt` 스킬의 `references/diarization.md`를 따른다.
 
