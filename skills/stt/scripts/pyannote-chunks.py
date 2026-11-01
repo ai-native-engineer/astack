@@ -27,9 +27,11 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import warnings
 
 MODEL = "pyannote/speaker-diarization-community-1"
 RATE = 16000
+
 
 # Chunks: MOSS stays near 4 GB on 10-minute chunks. A cut moves at most
 # SEARCH_SECONDS from the target to land in the longest pause there, and the
@@ -49,6 +51,21 @@ SAME_SPEAKER = 0.62
 
 # A MOSS-free stretch this long that still holds speech is reported as a gap.
 MIN_GAP = 10.0
+
+
+def silence_torchcodec_warning() -> None:
+    """Drop the import-time torchcodec warning from pyannote.audio, and only that one.
+
+    The whispermlx tool env pairs torch 2.8 with a newer torchcodec, so pyannote warns
+    that built-in file decoding will fail. Audio here is decoded by ffmpeg and passed in
+    memory, the first remedy that warning lists, so the 10+ line message is only noise.
+    """
+    warnings.filterwarnings(
+        "ignore", message=r"\s*torchcodec is not installed correctly", category=UserWarning
+    )
+
+
+silence_torchcodec_warning()
 
 
 def pauses(speech: list[list[float]], duration: float) -> list[tuple[float, float]]:

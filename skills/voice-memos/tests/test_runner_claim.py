@@ -100,5 +100,78 @@ class RunnerClaimTest(unittest.TestCase):
             self.assertFalse(calls.exists(), f"outbound call attempted: {calls}")
 
 
+class RunnerSummaryAuthTest(unittest.TestCase):
+    """launchd에는 셸의 프록시 env가 없다. 설정이 키 이름을 주면 agents-env로 주입해야 한다."""
+
+    def run_summary_stage(self, root: Path, config_lines: str) -> tuple[Path, Path]:
+        runtime = root / "runtime"
+        config = root / "voice-memos.env"
+        config.write_text(config_lines, encoding="utf-8")
+
+        calls = root / "agents-env-calls"
+        uv_env = root / "uv-env"
+        fake_agents_env = root / "fake-agents-env"
+        fake_agents_env.write_text(
+            f"""#!/bin/bash
+echo "$*" >> {calls}
+[ "$1" = run ] || exit 64
+shift 2
+[ "$1" = -- ] || exit 64
+shift
+exec "$@"
+""",
+            encoding="utf-8",
+        )
+        fake_agents_env.chmod(0o755)
+        fake_uv = root / "fake-uv"
+        fake_uv.write_text(
+            f"""#!/bin/bash
+echo "base=${{VOICE_MEMOS_SUMMARY_BASE_URL:-}} secret=${{VOICE_MEMOS_SUMMARY_AUTH_ENV:-}}" >> {uv_env}
+""",
+            encoding="utf-8",
+        )
+        fake_uv.chmod(0o755)
+
+        result = subprocess.run(
+            ["/bin/bash", str(RUNNER), "--skip-notify"],
+            env=quiet_env(
+                root,
+                runtime,
+                VOICE_MEMOS_CONFIG_FILE=str(config),
+                VOICE_MEMOS_UV=str(fake_uv),
+                VOICE_MEMOS_AGENTS_ENV=str(fake_agents_env),
+            ),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return calls, uv_env
+
+    def test_named_secret_runs_summary_under_agents_env(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            calls, uv_env = self.run_summary_stage(
+                root,
+                "SUMMARY_BASE_URL=https://gateway.example\n"
+                "SUMMARY_AUTH_SECRET=FAKE_GATEWAY_KEY\n",
+            )
+            call = calls.read_text(encoding="utf-8")
+            self.assertTrue(call.startswith("run FAKE_GATEWAY_KEY -- "), call)
+            self.assertIn("summarize.py", call)
+            self.assertEqual(
+                uv_env.read_text(encoding="utf-8").strip(),
+                "base=https://gateway.example secret=FAKE_GATEWAY_KEY",
+            )
+
+    def test_without_secret_summary_runs_directly(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            calls, uv_env = self.run_summary_stage(root, "TELEGRAM_CHAT_ID=\n")
+            self.assertFalse(calls.exists())
+            self.assertEqual(uv_env.read_text(encoding="utf-8").strip(), "base= secret=")
+
+
 if __name__ == "__main__":
     unittest.main()

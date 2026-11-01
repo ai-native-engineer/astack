@@ -84,11 +84,13 @@ uv run python scripts/review.py render --analysis <analysis.json> --output <revi
 
 ## 3. 요약 (summarize)
 
-전사본을 claude-agent-sdk(`claude-sonnet-4-6`)로 요약한다. 결과는 같은 디렉터리의 `summary.md`에 저장한다. 요약과 함께 `## 제목`을 생성해 `transcript.md`의 frontmatter(`- **제목**:`)와 H1 헤딩에 주입한다(멱등). 이 단계는 교정이나 transcript 전역 치환을 하지 않는다.
+전사본을 claude-agent-sdk로 요약한다. 모델은 `sonnet` 별칭이라 설치된 claude CLI가 갱신되면 최신 Sonnet을 따라간다. 특정 ID로 고정할 때만 `VOICE_MEMOS_SUMMARY_MODEL`을 준다. 결과는 같은 디렉터리의 `summary.md`에 저장한다. 요약과 함께 `## 제목`을 생성해 `transcript.md`의 frontmatter(`- **제목**:`)와 H1 헤딩에 주입한다(멱등). 이 단계는 교정이나 transcript 전역 치환을 하지 않는다.
 
 Claude 호출은 `tools=[]`, `max_turns=1`로 고정해 파일·셸·웹 도구를 열지 않는다. strict artifact는 `run.json`이 `processed + finalizable`이고 현재 sidecar도 `standard`일 때만 SDK를 호출한다. `publishing`, `review_pending`, `shadow`, `privacy: local`, malformed metadata는 모두 fail-closed다.
 
 claude-agent-sdk 의존이라 스킬 디렉터리의 uv venv로 실행하고, Claude Code 세션 안에서는 `CLAUDECODE`를 unset한다 (run.sh와 동일).
+
+SDK 번들 CLI는 SDK 릴리스에 묶여 `sonnet` 별칭이 옛 모델을 가리키므로, `PATH`나 `~/.local/bin`의 설치 claude CLI를 먼저 쓴다(`VOICE_MEMOS_CLAUDE_CLI`로 재지정). 아직 iCloud에서 내려오지 않은 transcript는 읽지 않고 `summary deferred`로 넘기며 `brctl download`만 요청한다. 다음 pass에서 다시 시도한다.
 
 ```bash
 unset CLAUDECODE

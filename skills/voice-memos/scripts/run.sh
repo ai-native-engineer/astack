@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 umask 077
 
-export PATH="$HOME/scripts:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+export PATH="$HOME/scripts:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -17,6 +17,7 @@ PENDING_MARKER="$QUEUE_DIR/pending"
 PYTHON="${VOICE_MEMOS_PYTHON:-python3}"
 UV="${VOICE_MEMOS_UV:-uv}"
 CURL="${VOICE_MEMOS_CURL:-curl}"
+AGENTS_ENV="${VOICE_MEMOS_AGENTS_ENV:-agents-env}"
 SKIP_NOTIFY=false
 TEMP_LOG=""
 LOCK_TOKEN="$$.$(date +%s).${RANDOM:-0}"
@@ -121,6 +122,8 @@ load_local_config() {
         case "$key" in
             TELEGRAM_BOT_TOKEN) TELEGRAM_BOT_TOKEN="$value" ;;
             TELEGRAM_CHAT_ID) TELEGRAM_CHAT_ID="$value" ;;
+            SUMMARY_BASE_URL) SUMMARY_BASE_URL="$value" ;;
+            SUMMARY_AUTH_SECRET) SUMMARY_AUTH_SECRET="$value" ;;
         esac
     done < "$CONFIG_FILE"
 }
@@ -181,7 +184,15 @@ run_pass() {
         echo "[$(date '+%H:%M:%S')] 3/4 summary"
         cd "$PROJECT_DIR"
         unset CLAUDECODE
-        "$UV" run python "$SCRIPT_DIR/summarize.py" || status=1
+        if [ -n "${SUMMARY_AUTH_SECRET:-}" ]; then
+            # agents-env injects the gateway token; the config only names the key.
+            VOICE_MEMOS_SUMMARY_BASE_URL="${SUMMARY_BASE_URL:-}" \
+            VOICE_MEMOS_SUMMARY_AUTH_ENV="$SUMMARY_AUTH_SECRET" \
+                "$AGENTS_ENV" run "$SUMMARY_AUTH_SECRET" -- \
+                "$UV" run python "$SCRIPT_DIR/summarize.py" || status=1
+        else
+            "$UV" run python "$SCRIPT_DIR/summarize.py" || status=1
+        fi
 
         if [ "$SKIP_NOTIFY" = false ]; then
             echo "[$(date '+%H:%M:%S')] 4/4 notification"
