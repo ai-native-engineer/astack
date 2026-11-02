@@ -83,14 +83,24 @@ def proof_instructions(proof_command: str | None) -> str:
     )
 
 
-def goal_instructions(goal: str, proof_command: str | None, progress_file: str, goal_log: str) -> str:
+def issue_text(issue: str | None) -> str:
+    if issue is None:
+        return "TBD (`#N` or none)"
+    number = issue.strip().lstrip("#")
+    if not number.isdigit():
+        raise ValueError(f"--issue must be an issue number, got {issue!r}")
+    return f"#{number}"
+
+
+def goal_instructions(goal: str, proof_command: str | None, progress_file: str, goal_log: str,
+                      issue: str | None = None) -> str:
     clean_goal = tsv_cell(goal).strip() or DEFAULT_GOAL
     try:
         template = GOAL_TEMPLATE.read_text(encoding="utf-8")
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"missing goal template: {GOAL_TEMPLATE}") from exc
     missing = [
-        marker for marker in ["{{GOAL}}", "{{PROOF}}", "{{PROGRESS_FILE}}", "{{GOAL_LOG}}"]
+        marker for marker in ["{{GOAL}}", "{{PROOF}}", "{{PROGRESS_FILE}}", "{{GOAL_LOG}}", "{{ISSUE}}"]
         if marker not in template
     ]
     if missing:
@@ -102,6 +112,7 @@ def goal_instructions(goal: str, proof_command: str | None, progress_file: str, 
         .replace("{{PROOF}}", proof_instructions(proof_command))
         .replace("{{PROGRESS_FILE}}", progress_file)
         .replace("{{GOAL_LOG}}", goal_log)
+        .replace("{{ISSUE}}", issue_text(issue))
     )
 
 
@@ -157,7 +168,22 @@ def write_goal(path: Path, content: str) -> list[str]:
     return messages
 
 
+def validate_claude_symlink(path: Path) -> None:
+    if not path.is_symlink():
+        return
+    agents = path.with_name("AGENTS.md")
+    try:
+        if path.resolve(strict=True) == agents.resolve(strict=True) and agents.is_file():
+            return
+    except (OSError, RuntimeError):
+        pass
+    raise ValueError(f"CLAUDE.md symlink must resolve to an existing sibling AGENTS.md file: {path}")
+
+
 def write_claude(path: Path) -> list[str]:
+    validate_claude_symlink(path)
+    if path.is_symlink():
+        return [f"kept existing {path}"]
     messages = []
     content = "@AGENTS.md\n"
     if path.exists() and path.read_text(encoding="utf-8") == content:
@@ -247,6 +273,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="Create a dedicated goal repo at ~/.agents/goals/YYMMDD-HHMMSS-<NAME>")
     parser.add_argument("--dedicated-root", default=str(DEFAULT_DEDICATED_ROOT),
                         help="Root for --dedicated repos (default: ~/.agents/goals)")
+    parser.add_argument("--issue", default=None, metavar="N",
+                        help="GitHub tracking issue number to record in GOAL.md GitHub Flow")
     parser.add_argument("--progress-file", default="progress.tsv", help="Progress TSV file name")
     parser.add_argument("--force", action="store_true", help="Overwrite an existing progress file")
     args = parser.parse_args(argv)
@@ -296,14 +324,15 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     hook_files: list[tuple[Path, str]] = []
-    if args.proof_command:
-        command = stop_hook_command(args.proof_command)
-        try:
+    try:
+        validate_claude_symlink(target / "CLAUDE.md")
+        if args.proof_command:
+            command = stop_hook_command(args.proof_command)
             for path in (target / ".claude" / "settings.json", target / ".codex" / "hooks.json"):
                 hook_files.append((path, stop_hook_content(path, command)))
-        except ValueError as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return 2
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
     progress_file = args.progress_file
     goal_log = str(Path(__file__).resolve().parent / "goal_log.py")
@@ -313,12 +342,12 @@ def main(argv: list[str] | None = None) -> int:
         messages.extend(write_agents(target / "AGENTS.md"))
         messages.extend(write_goal(
             target / "GOAL.md",
-            goal_instructions(args.goal, args.proof_command, progress_file, goal_log),
+            goal_instructions(args.goal, args.proof_command, progress_file, goal_log, args.issue),
         ))
+        messages.extend(write_claude(target / "CLAUDE.md"))
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    messages.extend(write_claude(target / "CLAUDE.md"))
     for path, content in hook_files:
         messages.extend(write_stop_hook(path, content))
     messages.append(write_file(target / progress_file, progress_tsv(args.goal), args.force))
@@ -329,10 +358,12 @@ def main(argv: list[str] | None = None) -> int:
     if not args.worktree and not args.dedicated:
         messages.append(f"goal workspace ready at {target}")
     messages.extend([
-        "next: fill every TBD, add initial progress rows, commit the plan, then stop",
-        "handoff overview: summarize goal, acceptance criteria, proof, progress rows, workspace, branch, and plan commit",
+        "next: fill every TBD from the setup interview (Environment, Verification Layers, GitHub Flow "
+        "included), add initial progress rows with harness rows first, commit the plan, then stop",
+        "handoff overview: summarize goal, acceptance criteria, proof, environment, verification layers, "
+        "progress rows, workspace, branch, and plan commit",
         f"run: !cd {target}",
-        "run: /goal @GOAL.md",
+        f"run: python3 {goal_log} condition   # prints the /goal line to paste",
     ])
     print("\n".join(messages))
     return 0
