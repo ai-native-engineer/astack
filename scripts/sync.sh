@@ -54,40 +54,10 @@ for skill in "${SKILLS[@]}"; do
   [[ ! -L "$source" && -z "$link" ]] || { echo "error: symlink in shared skill: ${link:-$source}" >&2; exit 1; }
   python3 "$VALIDATORS/quick_validate.py" "$source"
   python3 "$VALIDATORS/lint_skill_authoring.py" "$source"
-  # .pytest_cache와 .ruff_cache는 테스트 도구가 스킬 폴더에 쓰는 캐시다. 빼지 않으면 배포
-  # 사본에 섞여 들어와, 드리프트 검사가 도구 버전 차이를 영구 drift로 보고한다. 제외 목록을
-  # 바꾸면 ~/.agents/hooks/astack-drift-check.sh의 같은 목록도 함께 바꾼다.
-  rsync -a \
-    --exclude '.env' \
-    --exclude '.venv/' \
-    --exclude '.git/' \
-    --exclude '.cache/' \
-    --exclude 'node_modules/' \
-    --exclude '__pycache__/' \
-    --exclude '*.pyc' \
-    --exclude '.pytest_cache/' \
-    --exclude '.ruff_cache/' \
-    --exclude '.DS_Store' \
-    --exclude '.omc/' \
-    --exclude 'prompts/' \
-    --exclude 'work/' \
-    --exclude 'references/transcripts' \
-    --exclude 'references/corrections.json' \
-    "$source/" "$stage/skills/$skill/"
 done
 
-# crawl은 공용 취득기와 정규화 모듈을 같은 폴더에서 실행한다.
-for helper in \
-  "$SOURCE_ROOT/youtube/scripts/captions.py" \
-  "$SOURCE_ROOT/youtube/scripts/fetch-subs.sh"; do
-  [[ -f "$helper" ]] || { echo "error: missing crawl helper: $helper" >&2; exit 1; }
-  rsync -a "$helper" "$stage/skills/crawl/scripts/$(basename "$helper")"
-done
-
-find "$stage/skills" -type f \( -name 'SKILL.md' -o -path '*/references/*.md' \) -exec sed -i.bak \
-  -e 's|\$HOME/.agents/skills/shared/|${CLAUDE_PLUGIN_ROOT}/skills/|g' \
-  -e 's|~/.agents/skills/shared/|${CLAUDE_PLUGIN_ROOT}/skills/|g' {} +
-find "$stage/skills" -type f -name '*.bak' -delete
+# 제외 목록, helper 번들, 경로 치환은 drift 소비자와 같은 진입점을 쓴다.
+bash "$ROOT/scripts/stage-skills.sh" "$SOURCE_ROOT" "$stage/skills" "${SKILLS[@]}"
 privacy_hits="$(rg --pcre2 -n --hidden \
   '(?<![A-Za-z0-9-])(sk-|ghp_|gho_|github_pat_|xox[bp]-)[A-Za-z0-9_-]{8,}|/Users/[^/[:space:]]+' \
   "$stage/skills" || true)"
