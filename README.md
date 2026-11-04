@@ -66,10 +66,25 @@ Then invoke a skill with the `astack:` prefix, e.g. `astack:session-history`.
 
 The source of truth is `~/.agents/skills/shared/`. This repository's `skills/` directory is generated; do not edit it directly. Run `scripts/sync.sh` after validating the shared skills, then validate both plugin manifests before committing.
 
+배포 변환의 정본은 `scripts/stage-skills.sh`다. `sync.sh`와 외부 drift 검사는 이 진입점을
+함께 사용한다. 제외 목록, crawl helper 번들, 문서 경로 치환을 소비자 쪽에 복사하지 않는다.
+
+```bash
+source_root="${AGENTS_ROOT:-$HOME/.agents}/skills/shared"
+stage="$(mktemp -d)"
+bash scripts/stage-skills.sh "$source_root" "$stage" agent-team crawl
+```
+
+출력 경로는 source 밖에 있는 빈 실디렉터리여야 한다. 이 명령은 그 임시 경로에만 복사하며
+정본, 배포본, Git, 하네스 설정을 바꾸지 않는다. allowlist, 정본 검증, 개인정보 검사,
+배포본 교체는 계속 `sync.sh`의 책임이다. helper가 없거나 실패하면 외부 검사는
+이를 drift 없음으로 해석하지 않고 미검증으로 보고해야 한다.
+
 ## Test
 
 ```bash
-python3 tests/test_repository.py
+python3 -I tests/test_repository.py
+python3 -I tests/test_staging.py
 claude plugin validate .claude-plugin/plugin.json --strict
 claude plugin validate .claude-plugin/marketplace.json --strict
 ```
