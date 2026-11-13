@@ -543,6 +543,34 @@ class ReplyTests(unittest.TestCase):
         self.assertIsNone(root.find("instruction"))
         self.assertEqual(root.find("memo").text, payload["text"])
 
+    def test_annotations_are_normalized_and_serialized_as_data(self):
+        payload = bridge.normalize_payload({
+            "annotations": [{
+                "id": "a1",
+                "quote": "선택한 문장",
+                "note": "이 부분을 다시 설명해 주세요.",
+                "context": "2장",
+                "location": "#section-2",
+            }],
+        })
+        packet = bridge.format_reply(self.artifact, payload, "annotation-reply")
+        root = ET.fromstring(packet.split("\n", 1)[1])
+        annotation = root.find("annotation")
+        self.assertEqual(annotation.attrib["id"], "a1")
+        self.assertEqual(annotation.find("quote").text, "선택한 문장")
+        self.assertEqual(annotation.find("comment").text, "이 부분을 다시 설명해 주세요.")
+        self.assertEqual(annotation.find("context").text, "2장")
+        self.assertEqual(annotation.find("at").text, "#section-2")
+
+    def test_annotation_controls_reject_duplicate_ids_and_empty_notes(self):
+        with self.assertRaises(ValueError):
+            bridge.normalize_payload({"annotations": [{"id": "a1", "quote": "문장", "note": ""}]})
+        with self.assertRaises(ValueError):
+            bridge.normalize_payload({"annotations": [
+                {"id": "a1", "quote": "문장", "note": "첫 의견"},
+                {"id": "a1", "quote": "다른 문장", "note": "둘째 의견"},
+            ]})
+
     def test_unanswered_only_is_previewable_but_not_submittable(self):
         body = {"items": [{"id": "R1", "values": []}]}
         payload = bridge.normalize_payload(body, allow_empty=True)
@@ -578,6 +606,56 @@ class ReplyTests(unittest.TestCase):
         bridge.dispatch(self.store, second, lambda _: fake)
         self.assertEqual(len(fake.sent), 2)
 
+    def test_held_head_is_announced_once_with_blocked_count(self):
+        self.enqueue()
+        self.store.update("response-one", "held", "입력창 확인 실패")
+        self.store.enqueue(self.artifact["id"], {"id": "response-two", "text": "뒤 회신"})
+        other = self.register_artifact("other-target", conversation="other-conversation")
+        self.store.enqueue(other["id"], {"id": "response-three", "text": "다른 대화"})
+        shown = []
+        class Notifier:
+            def call(self, *args):
+                shown.append(args)
+        bridge.announce_blocks(self.store, lambda _: Notifier())
+        bridge.announce_blocks(self.store, lambda _: Notifier())
+        self.assertEqual(len(shown), 1)
+        self.assertEqual(shown[0][:2], ("notification", "show"))
+        self.assertIn("뒤에 회신 1건", shown[0][4])
+        self.assertEqual(self.state("response-two"), "queued")
+
+    def test_reply_arriving_after_alert_names_its_blocker_and_stays_ordered(self):
+        self.enqueue()
+        self.store.update("response-one", "held", "입력창 확인 실패")
+        shown = []
+        class Notifier:
+            def call(self, *args):
+                shown.append(args)
+        bridge.announce_blocks(self.store, lambda _: Notifier())
+        self.store.enqueue(self.artifact["id"], {"id": "response-two", "text": "알림 뒤에 온 회신"})
+        bridge.announce_blocks(self.store, lambda _: Notifier())
+        later = self.store.reply("response-two", self.artifact["id"])
+        self.assertEqual(len(shown), 1)
+        self.assertEqual(later["state"], "queued")
+        self.assertIn("앞선 회신(검토 자료)이 보관 상태", later["detail"])
+        self.assertEqual(self.store.pending(), [])
+
+    def test_uncertain_blocker_never_promises_retry_or_cancel(self):
+        self.enqueue()
+        self.store.update("response-one", "uncertain", "전달 결과를 확인할 수 없습니다.")
+        self.store.enqueue(self.artifact["id"], {"id": "response-two", "text": "뒤 회신"})
+        shown = []
+        class Notifier:
+            def call(self, *args):
+                shown.append(args)
+        bridge.announce_blocks(self.store, lambda _: Notifier())
+        later = self.store.reply("response-two", self.artifact["id"])
+        for text in (shown[0][2], shown[0][4], later["detail"]):
+            self.assertNotIn("다시 보내", text.replace("다시 보내지 않습니다", ""))
+            self.assertNotIn("취소", text)
+        self.assertIn("도착", later["detail"])
+        with self.assertRaises(ValueError):
+            self.store.retry("response-one", self.artifact["id"])
+
 
 class HerdrContractTests(unittest.TestCase):
     def setUp(self):
@@ -585,101 +663,23 @@ class HerdrContractTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
-    def descriptor(self, native_id="gjc-native-test", pid=1234):
-        path = self.root / ".gjc/state/sdk" / f"{native_id}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"version": 1, "sessionId": native_id, "pid": pid}))
-        path.chmod(0o600)
-        return path
-
     def test_multiline_draft_and_unknown_footer_are_not_an_empty_prompt(self):
         self.assertTrue(bridge.empty_prompt("› \n\nGPT model · Context 70% left\n← for agents · ? for shortcuts", "codex"))
         for screen in ["› typed", "› \n  continuation of my draft", "› \nApprove changes?", "old output only"]:
             self.assertFalse(bridge.empty_prompt(screen, "codex"))
 
-    def test_native_harness_empty_editors_allow_status_footers(self):
-        self.assertTrue(bridge.empty_prompt("────\n❯\n────\nModel: Opus\n⏵⏵ auto mode on", "claude"))
-        self.assertTrue(bridge.empty_prompt("› Ask Codex to do anything\nContext 99% left\n? for shortcuts", "codex"))
-        self.assertTrue(bridge.empty_prompt("╭───╮\n│ > Type your message... ⌥Q: Queue · ⇧↩/⌃J: New line · ⌃C: Clear │\n╰───╯", "gjc"))
+    def test_claude_prompt_with_labeled_top_border_is_empty(self):
+        footer = "\nModel: Opus | Context: 40%\n⏵⏵ auto mode on"
+        labeled = "output\n──────── cleanup-worktrees ──\n❯\n────────────────" + footer
+        self.assertTrue(bridge.empty_prompt(labeled, "claude"))
+        self.assertFalse(bridge.empty_prompt(labeled.replace("❯", "❯ my draft"), "claude"))
 
-    def test_boxed_drafts_multiline_input_and_dialogs_are_not_empty(self):
-        cases = [
-            ("claude", "────\n❯ my draft\n────\nModel: Opus"),
-            ("claude", "────\n❯\n  continued draft\n────\nModel: Opus"),
-            ("claude", "────\n❯ 1. Yes\n2. No\n────\nEnter to confirm"),
-            ("gjc", "╭───╮\n│ > my draft │\n╰───╯"),
-            ("gjc", "╭───╮\n│ > Type your message... ⌥Q: Queue · New line │\n│ continued draft │\n╰───╯"),
-            ("gjc", "╭───╮\n│ > Type your message... ⌥Q: Queue · New line │\n╰───╯\nApprove operation?"),
-            ("codex", "› Ask Codex to do anything\n  draft continuation"),
-        ]
-        for agent, screen in cases:
-            with self.subTest(agent=agent, screen=screen):
-                self.assertFalse(bridge.empty_prompt(screen, agent))
+    def test_omp_prompt_is_empty_only_without_draft(self):
+        bar = " π > ◑ Opus 5.5 👁 > 📁 ~/.agents ▶────────4%────"
+        self.assertTrue(bridge.empty_prompt(f"output\n\n{bar}\n╰─\n", "omp"))
+        self.assertFalse(bridge.empty_prompt(f"output\n{bar}\n╰─ draft line here", "omp"))
+        self.assertFalse(bridge.empty_prompt(f"{bar}\n╰─\n  ⎋ Working…", "omp"))
 
-    def test_gjc_native_descriptor_binds_foreground_pid(self):
-        self.descriptor()
-        processes = [{"argv0": "gjc", "argv": ["gjc"], "cwd": str(self.root), "pid": 1234}]
-        self.assertTrue(bridge.gjc_session_matches(processes, "gjc-native-test"))
-        processes[0]["pid"] = 4321
-        self.assertFalse(bridge.gjc_session_matches(processes, "gjc-native-test"))
-
-    def test_gjc_descriptor_rejects_traversal_public_files_and_symlinks(self):
-        path = self.descriptor()
-        processes = [{"argv0": "gjc", "cwd": str(self.root), "pid": 1234}]
-        self.assertFalse(bridge.gjc_session_matches(processes, "../gjc-native-test"))
-        path.chmod(0o644)
-        self.assertFalse(bridge.gjc_session_matches(processes, "gjc-native-test"))
-        path.chmod(0o600)
-        actual = path.with_name("actual.json")
-        path.rename(actual)
-        path.symlink_to(actual)
-        self.assertFalse(bridge.gjc_session_matches(processes, "gjc-native-test"))
-
-    def test_gjc_owner_accepts_launcher_but_not_arbitrary_bun_script(self):
-        processes = [
-            {"argv0": "bun", "argv": ["bun", "/somewhere/gjc"], "pid": 1},
-            {"argv0": "bun", "argv": ["bun", "/somewhere/editor.js"], "pid": 2},
-            {"argv0": "zsh", "argv": ["zsh"], "pid": 3},
-        ]
-        self.assertEqual([p["pid"] for p in bridge.foreground_owners(processes, "gjc")], [1])
-
-    def test_gjc_ignores_stale_devin_reference_and_finds_native_session(self):
-        self.descriptor()
-        panes = [{"agent": "gjc", "pane_id": key, "terminal_id": key, "agent_status": "idle", "agent_session": {"agent": "devin", "kind": "id", "source": "herdr:devin", "value": "unrelated"}} for key in ("other", "target")]
-        herdr = bridge.Herdr("explicit-server")
-        with patch.object(herdr, "call", side_effect=[
-            {"panes": panes},
-            {"process_info": {"foreground_processes": [{"argv0": "gjc", "cwd": str(self.root), "pid": 999}]}},
-            {"process_info": {"foreground_processes": [{"argv0": "gjc", "cwd": str(self.root), "pid": 1234}]}},
-            {"text": "╭───╮\n│ > Type your message... ⌥Q: Queue · New line │\n╰───╯"},
-        ]):
-            state, _, identity = herdr.resolve({"agent": "gjc", "conversation": "gjc-native-test"})
-        self.assertEqual(state, "ready")
-        self.assertEqual(identity, ("target", "target", (1234,), "gjc"))
-
-    def test_gjc_duplicate_native_views_are_held(self):
-        self.descriptor()
-        process = {"process_info": {"foreground_processes": [{"argv0": "gjc", "cwd": str(self.root), "pid": 1234}]}}
-        herdr = bridge.Herdr("explicit-server")
-        with patch.object(herdr, "call", side_effect=[{"panes": [{"agent": "gjc", "pane_id": p} for p in ("p1", "p2")]}, process, process]):
-            self.assertEqual(herdr.resolve({"agent": "gjc", "conversation": "gjc-native-test"})[0], "held")
-
-    def test_gjc_send_is_one_pane_run_not_two_input_calls(self):
-        herdr = bridge.Herdr("explicit-server")
-        with patch.object(herdr, "call", return_value={}) as call:
-            herdr.send(("p", "t", (1234,), "gjc"), "message")
-        call.assert_called_once_with("pane", "run", "p", "message")
-
-    def test_focus_checks_identity_twice_and_never_reads_or_writes_prompt(self):
-        herdr = bridge.Herdr("explicit-server")
-        identity = ("p", "t", (1234,), "gjc")
-        pane = {"agent_status": "working", "workspace_id": "w", "tab_id": "w:t"}
-        snapshot = {"snapshot": {"focused_workspace_id": "w", "focused_tab_id": "w:t", "focused_pane_id": "p"}}
-        with patch.object(herdr, "locate", return_value=(pane, identity)) as locate, patch.object(herdr, "call", side_effect=[{}, {}, {}, snapshot, {"pane": {"terminal_id": "t", "focused": True}}]) as call, patch.object(bridge.sys, "platform", "linux"):
-            self.assertTrue(herdr.focus({"agent": "gjc", "conversation": "native"})["focused"])
-        self.assertEqual(locate.call_count, 2)
-        # Workspace and tab come first: agent focus alone leaves the client on its current tab.
-        self.assertEqual(call.call_args_list, [unittest.mock.call("workspace", "focus", "w"), unittest.mock.call("tab", "focus", "w:t"), unittest.mock.call("agent", "focus", "p"), unittest.mock.call("api", "snapshot"), unittest.mock.call("pane", "get", "p")])
 
     def test_focus_rejects_changed_missing_or_duplicate_identity(self):
         herdr = bridge.Herdr("explicit-server")

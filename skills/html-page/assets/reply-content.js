@@ -9,6 +9,9 @@
 	let positionScheduled = false;
 	let bottomSpace = 0;
 	let questionState = "";
+	const sourceOwnsAnnotations = Boolean(
+		document.getElementById("selection-action"),
+	);
 	const spacers = new Map();
 	const sourceStyle = document.createElement("style");
 	sourceStyle.textContent =
@@ -293,7 +296,12 @@
 		if (!quote && encoded === lastState) return;
 		lastState = encoded;
 		parent.postMessage(
-			{ type: "html-reply-context", ...state, ...(quote ? { quote } : {}) },
+			{
+				type: "html-reply-context",
+				...state,
+				annotationMode: sourceOwnsAnnotations ? "source" : "panel",
+				...(quote ? { quote } : {}),
+			},
 			"*",
 		);
 	}
@@ -355,9 +363,73 @@
 		context();
 	}
 
-	document.addEventListener("mouseup", () =>
-		context(window.getSelection()?.toString()),
-	);
+	if (!sourceOwnsAnnotations) {
+		let frame = 0;
+		const excluded =
+			"input,textarea,button,select,option,label,summary,a,[contenteditable],script,style,[hidden],[aria-hidden=true]";
+		function selectedText() {
+			frame = 0;
+			const selection = getSelection();
+			const range =
+				selection?.rangeCount === 1 && !selection.isCollapsed
+					? selection.getRangeAt(0)
+					: null;
+			const nodeElement = (node) =>
+				node?.nodeType === 1 ? node : node?.parentElement;
+			const start = range && nodeElement(range.startContainer),
+				end = range && nodeElement(range.endContainer);
+			let quote = range?.toString().trim() || "";
+			if (
+				!start ||
+				!end ||
+				start.closest(excluded) ||
+				end.closest(excluded) ||
+				quote.length > 1200
+			)
+				quote = "";
+			const common = range && nodeElement(range.commonAncestorContainer);
+			if (
+				quote &&
+				[...common.querySelectorAll(excluded)].some((node) =>
+					range.intersectsNode(node),
+				)
+			)
+				quote = "";
+			const rect = quote ? range.getBoundingClientRect() : null;
+			const section = start?.closest("section,article");
+			parent.postMessage(
+				{
+					type: "html-reply-selection",
+					quote,
+					rect: rect
+						? {
+								left: rect.left,
+								right: rect.right,
+								top: rect.top,
+								bottom: rect.bottom,
+							}
+						: null,
+					context:
+						section
+							?.querySelector("h1,h2,h3")
+							?.textContent.trim()
+							.slice(0, 400) || "",
+					location: section?.id ? `#${section.id}` : window.location.hash,
+				},
+				"*",
+			);
+		}
+		function scheduleSelection() {
+			if (!frame) frame = requestAnimationFrame(selectedText);
+		}
+		document.addEventListener("selectionchange", scheduleSelection);
+		document.addEventListener("mouseup", scheduleSelection);
+		document.addEventListener("scroll", scheduleSelection, {
+			capture: true,
+			passive: true,
+		});
+		window.addEventListener("resize", scheduleSelection);
+	}
 	function discardPendingField(field) {
 		const section = field.closest("[data-item]");
 		if (!section) return;

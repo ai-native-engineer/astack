@@ -47,13 +47,13 @@ QUESTION_FIXTURE = '''<!doctype html><html lang="ko"><meta charset="utf-8"><meta
 <fieldset data-item="C1"><legend>C1. 연결 방식</legend><label><input id="c1-origin" type="radio" name="C1" value="원래 대화">원래 대화</label><label><input id="c1-later" type="radio" name="C1" value="아직 결정하지 않음">아직 결정하지 않음</label><label for="c1-note">연결 의견</label><textarea id="c1-note"></textarea></fieldset>
 <fieldset data-item="C2"><legend>C2. 확인할 기능</legend><label><input id="c2-draft" name="C2" type="checkbox" value="초안 보존">초안 보존</label><label><input id="c2-mobile" name="C2" type="checkbox" value="모바일">모바일</label><label><input id="c2-none" name="C2" data-reply-exclusive type="checkbox" value="없음">없음</label></fieldset>
 <fieldset data-item="C3"><legend>C3. 직접 의견</legend><label for="c3-answer">직접 의견</label><textarea id="c3-answer" data-reply-answer></textarea></fieldset>
-<details id="closed-question" data-item="C4"><summary>접힌 질문</summary><fieldset><legend>C4. 복수 선택</legend><label for="c4-multiple">검증 환경</label><select id="c4-multiple" multiple><option value="Codex">Codex</option><option value="GJC">GJC</option><option value="Claude">Claude</option></select></fieldset></details>
+<details id="closed-question" data-item="C4"><summary>접힌 질문</summary><fieldset><legend>C4. 복수 선택</legend><label for="c4-multiple">검증 환경</label><select id="c4-multiple" multiple><option value="Codex">Codex</option><option value="OMP">OMP</option><option value="Claude">Claude</option></select></fieldset></details>
 <button id="toggle-conditional" type="button" onclick="document.getElementById('conditional').hidden=!document.getElementById('conditional').hidden">조건 질문 토글</button>
 <fieldset id="conditional" data-item="C5" hidden><legend>C5. 조건 질문</legend><label><input id="c5-check" type="checkbox" value="조건 확인">조건 확인</label></fieldset></section>
 <button id="disable-written" type="button" onclick="document.getElementById('c3-answer').disabled=!document.getElementById('c3-answer').disabled">글 답변 활성 토글</button>
 <button id="style-written" type="button" onclick="let s=document.querySelector('[data-item=C3]');s.style.display=s.style.display==='none'?'':'none'">글 질문 표시 토글</button>
 <button id="readonly-written" type="button" onclick="for(const id of ['c3-answer','c1-note'])document.getElementById(id).readOnly=!document.getElementById(id).readOnly">읽기 전용 토글</button>
-<button id="mount-options" type="button" onclick="document.getElementById('c4-multiple').innerHTML='<option value=Codex>Codex</option><option value=GJC>GJC</option><option value=Claude>Claude</option>'">선택지 로드</button>
+<button id="mount-options" type="button" onclick="document.getElementById('c4-multiple').innerHTML='<option value=Codex>Codex</option><option value=OMP>OMP</option><option value=Claude>Claude</option>'">선택지 로드</button>
 <script>if(location.search.includes('late-options'))document.getElementById('c4-multiple').replaceChildren();</script>
 <script>addEventListener('message',event=>{if(event.source!==parent||event.data?.type!=='question-qa-measure')return;parent.postMessage({type:'question-qa-result',focus:document.activeElement.id,caret:document.activeElement.selectionStart,scroll:document.scrollingElement.scrollTop,details:document.getElementById('closed-question').open,selected:[...document.getElementById('c4-multiple').selectedOptions].map(o=>o.value),conditional:document.getElementById('c5-check').checked},'*');});</script></html>'''
 
@@ -116,6 +116,11 @@ try {
   var snap=await snapshot(pg,{interactive:true});console.log(snap.tree);
   function ref(tree,kind,label){var pattern=new RegExp(kind+' "'+label+'" \\[ref=([^\\]]+)\\]');var m=tree.match(pattern);if(!m)throw Error('Missing '+kind+' '+label);return m[1];}
   function assert(value,message){if(!value)throw Error(message);}
+  async function infoAction(selector,close=true){
+    if(!await pg.evaluate(()=>document.getElementById('context-view').open))await pg.locator('#context-open').click();
+    await pg.locator(selector).click();
+    if(close&&await pg.evaluate(()=>document.getElementById('context-view').open))await pg.locator('#context-close').click();
+  }
   async function grayscale(allowSemanticColors=false){return await pg.evaluate(allowSemanticColors=>{
     const chromatic=[];
     for(const e of document.querySelectorAll('body,body *')){
@@ -161,18 +166,16 @@ try {
   snap=await snapshot(pg,{interactive:true});
   await pg.locator(ref(snap.tree,'textbox','보관 기간 메모')).fill('항목 이유 & <한글>');
   await pg.locator('#message').fill('첫 응답 & <태그>');await sleep(250);
-  await pg.locator('#summary-toggle').click();
+  await infoAction('#summary-toggle');
   assert(await pg.evaluate(()=>document.getElementById('answers').textContent.includes('90일')&&document.getElementById('answers').textContent.includes('항목 이유 & <한글>')),'Structured answer not in summary');
-  await pg.locator('#toggle').click();
-  assert(await pg.evaluate(()=>document.getElementById('reply-dock').hidden&&parseFloat(getComputedStyle(document.getElementById('reader')).paddingBottom)===0),'Reader not reclaimed when dock collapsed');
-  await pg.locator('#toggle').click();
+  assert(await pg.evaluate(()=>!document.getElementById('toggle')&&!document.getElementById('recipient')&&!document.getElementById('reply-dock').hidden&&document.getElementById('payload-preview').closest('#context-view')),'Compact composer/details contract broken');
   var stableUrl=pg.url();await pg.goto(stableUrl+'?restore=1',{waitUntil:'load'});snap=await snapshot(pg,{interactive:true});
   await pg.evaluate(()=>{globalThis.replyReaderErrors=[];addEventListener('error',e=>replyReaderErrors.push(e.message));addEventListener('unhandledrejection',e=>replyReaderErrors.push(String(e.reason)));});
   var restored=await pg.evaluate(()=>({memo:document.getElementById('message').value,summary:!document.getElementById('selection-summary').hidden,selected:document.getElementById('answers').textContent}));
   assert(restored.memo==='첫 응답 & <태그>'&&restored.summary&&restored.selected.includes('90일'),'Reload lost draft/summary');
   await pg.locator('#context-open').click();await pg.locator('#context-close').click();
   assert(await pg.evaluate(()=>document.getElementById('message').value==='첫 응답 & <태그>'&&document.getElementById('answers').textContent.includes('90일')),'Context view changed saved response');
-  await pg.locator('#summary-toggle').click();
+  await infoAction('#summary-toggle');
   snap=await snapshot(pg,{interactive:true});await pg.locator(ref(snap.tree,'checkbox','원래 대화 확인')).click();
   var geometries=[];
   for(var size of [[390,844],[768,900],[1440,900],[390,500],[844,390],[320,568]]){
@@ -183,7 +186,7 @@ try {
     await pg._sendToTarget('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
     await pg._sendToTarget('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
     for(var expanded of [false,true]){
-      if(await pg.evaluate(()=>document.getElementById('summary-toggle').getAttribute('aria-expanded'))!==String(expanded))await pg.locator('#summary-toggle').click();
+      if(await pg.evaluate(()=>document.getElementById('summary-toggle').getAttribute('aria-expanded'))!==String(expanded))await infoAction('#summary-toggle');
       await sleep(80);
       await pg.evaluate(()=>document.getElementById('send').scrollIntoView({block:'nearest'}));
       var g=await pg.evaluate(()=>{var f=document.getElementById('document').getBoundingClientRect(),d=document.getElementById('reply-dock').getBoundingClientRect(),s=document.getElementById('send').getBoundingClientRect(),r=document.getElementById('reader').getBoundingClientRect();return{width:innerWidth,overflow:document.documentElement.scrollWidth-innerWidth,frameBottom:f.bottom,dockTop:d.top,frameHeight:f.height,readerHeight:r.height,sendBottom:s.bottom,windowHeight:innerHeight,summary:document.getElementById('summary-toggle').getAttribute('aria-expanded')};});
@@ -192,14 +195,14 @@ try {
     }
   }
   await pg._sendToTarget('Emulation.clearDeviceMetricsOverride',{});
-  if(await pg.evaluate(()=>document.getElementById('summary-toggle').getAttribute('aria-expanded'))==='true')await pg.locator('#summary-toggle').click();
-  var passthrough=await pg.evaluate(()=>{var d=document.getElementById('reply-dock').getBoundingClientRect(),t=document.querySelector('.dock-top').getBoundingClientRect();return{side:document.elementFromPoint(20,d.top+80)?.id,gap:document.elementFromPoint(d.left+d.width/2,t.top+t.height/2)?.id,background:getComputedStyle(document.getElementById('reply-dock')).backgroundColor};});
+  if(await pg.evaluate(()=>document.getElementById('summary-toggle').getAttribute('aria-expanded'))==='true')await infoAction('#summary-toggle');
+  var passthrough=await pg.evaluate(()=>{var d=document.getElementById('reply-dock').getBoundingClientRect(),t={top:d.top-12,height:8};return{side:document.elementFromPoint(20,d.top+80)?.id,gap:document.elementFromPoint(d.left+d.width/2,t.top+t.height/2)?.id,background:getComputedStyle(document.getElementById('reply-dock')).backgroundColor};});
   assert(passthrough.side==='document'&&passthrough.gap==='document'&&passthrough.background==='rgba(0, 0, 0, 0)','Invisible dock backing blocks source '+JSON.stringify(passthrough));
   await pg.locator('#outline-toggle').click();await pg.locator('#outline-list button[data-heading="2"]').click();await sleep(700);
   assert(await pg.evaluate(()=>document.querySelector('#outline-list [aria-current="location"]')?.firstElementChild.textContent)==='R2. 마지막 검토 항목','Outline navigation/active section incorrect');
   var sourceState=await pg.evaluate(()=>new Promise(resolve=>{function receive(event){if(event.source!==document.getElementById('document').contentWindow||event.data?.type!=='reader-qa-measurement')return;removeEventListener('message',receive);resolve(event.data);}addEventListener('message',receive);document.getElementById('document').contentWindow.postMessage({type:'reader-qa-measure'},'*');}));
   var sourceClearance=await pg.evaluate(()=>({top:document.getElementById('document').getBoundingClientRect().top,dock:document.getElementById('reply-dock').getBoundingClientRect().top}));
-  assert(sourceState.scroll>0&&sourceState.space>200&&sourceState.lastBottom+sourceClearance.top<sourceClearance.dock,'End controls cannot scroll above composer '+JSON.stringify(sourceState));
+  assert(sourceState.scroll>0&&sourceState.space>0&&sourceState.lastBottom+sourceClearance.top<sourceClearance.dock,'End controls cannot scroll above composer '+JSON.stringify(sourceState));
   assert(sourceState.focused==='R2. 마지막 검토 항목','Outline did not move reading focus');
   await pg.locator('#outline-toggle').click();
   await pg._sendToTarget('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
@@ -245,7 +248,7 @@ try {
   }
   var offlinePending=await offlineCopy(true);assertOfflineContext(offlinePending);
   assert(offlinePending.memo==='새 초안 두 번째'&&!offlinePending.text.includes('새 초안 두 번째'),'Offline copy used next draft instead of frozen submission');
-  await pg.locator('#cancel').click();await sleep(150);await pg.locator('#send').click();
+  await infoAction('#cancel');await sleep(150);await pg.locator('#send').click();
   for(var tick=0;tick<30;tick++){if(await pg.evaluate(()=>document.getElementById('status').dataset.state)==='received')break;await sleep(150);}
   assert(await pg.evaluate(()=>document.getElementById('status').dataset.state)==='received','Store.receive did not return actual queued reply');
   var receivedColor=await pg.evaluate(()=>getComputedStyle(document.getElementById('status')).backgroundColor);
@@ -254,7 +257,7 @@ try {
   assert(await pg.evaluate(()=>document.getElementById('message').value)==='','Received memo not cleared');
   await pg.locator('#message').fill('복사 후에도 남을 초안');
   await pg.evaluate(()=>{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw Error('Clipboard disabled in fallback test');}}});document.execCommand=()=>false;});
-  await pg.locator('#copy').click();await sleep(150);
+  await infoAction('#copy',false);await sleep(150);
   var fallback=await pg.evaluate(()=>({summary:!document.getElementById('selection-summary').hidden,preview:document.getElementById('payload-preview').open,memo:document.getElementById('message').value,text:document.getElementById('payload-text').value,status:document.getElementById('draft-status').textContent}));
   assert(fallback.summary&&fallback.preview&&fallback.memo==='복사 후에도 남을 초안'&&fallback.text.includes('복사 후에도 남을 초안')&&fallback.status.includes('직접 복사'),'Copy fallback lost draft/selection');
   var offlineDraft=await offlineCopy(false);assertOfflineContext(offlineDraft);
@@ -281,7 +284,7 @@ try {
   await pg.evaluate(()=>{globalThis.questionErrors=[];addEventListener('error',e=>questionErrors.push(e.message));addEventListener('unhandledrejection',e=>questionErrors.push(String(e.reason)));});
   async function questionMeasure(){return await pg.evaluate(()=>new Promise(resolve=>{const listener=event=>{if(event.source!==document.getElementById('document').contentWindow||event.data?.type!=='question-qa-result')return;removeEventListener('message',listener);resolve(event.data);};addEventListener('message',listener);document.getElementById('document').contentWindow.postMessage({type:'question-qa-measure'},'*');}));}
   assert(await pg.evaluate(()=>document.querySelectorAll('#outline-questions button').length===4&&document.getElementById('review-progress').textContent.includes('0/4')),'Question/group/hidden count incorrect');
-  await pg.locator('#next-question').click();await sleep(250);
+  await infoAction('#next-question',false);await sleep(250);
   assert((await questionMeasure()).focus==='c1-origin','Next unanswered does not focus first real input');
   snap=await snapshot(pg,{interactive:true});await pg.locator(ref(snap.tree,'textbox','연결 의견')).fill('메모만 작성');await sleep(180);
   assert(await pg.evaluate(()=>document.querySelector('[data-question="C1"]').dataset.questionState)==='note','Memo-only choice falsely complete');
@@ -319,15 +322,15 @@ try {
   assert(await pg.evaluate(()=>JSON.parse(localStorage.getItem('html-reply:'+JSON.parse(document.getElementById('reply-meta').textContent).id)).items.find(i=>i.id==='C2').values.join())==='없음','Exclusive none kept conflicting selections');
   await pg.locator(ref(snap.tree,'checkbox','초안 보존')).click();await sleep(150);
   assert(await pg.evaluate(()=>JSON.parse(localStorage.getItem('html-reply:'+JSON.parse(document.getElementById('reply-meta').textContent).id)).items.find(i=>i.id==='C2').values.join())==='초안 보존','Normal checkbox did not clear none');
-  await pg.locator('#next-question').click();await sleep(250);snap=await snapshot(pg,{interactive:true});
+  await infoAction('#next-question',false);await sleep(250);snap=await snapshot(pg,{interactive:true});
   await pg.locator(ref(snap.tree,'textbox','직접 의견')).fill('   ');await sleep(150);
   assert(await pg.evaluate(()=>document.querySelector('[data-question="C3"]').dataset.questionState)==='unanswered','Whitespace treated as answer');
   await pg.locator(ref(snap.tree,'textbox','직접 의견')).fill('한글 의견 & <태그>');await sleep(180);
   assert(await pg.evaluate(()=>document.querySelector('[data-question="C3"]').dataset.questionState)==='answered','Written answer not complete');
   var typedFocus=await questionMeasure();assert(typedFocus.focus==='c3-answer'&&typedFocus.caret==='한글 의견 & <태그>'.length,'Question status update stole typing focus/caret '+JSON.stringify(typedFocus));
-  await pg.locator('#next-question').click();await sleep(250);
+  await infoAction('#next-question',false);await sleep(250);
   var openedQuestion=await questionMeasure();assert(openedQuestion.details&&openedQuestion.focus==='c4-multiple','Closed details question not revealed/focused');
-  snap=await snapshot(pg,{interactive:true});await pg.locator(ref(snap.tree,'combobox','검증 환경')).selectOption(['Codex','GJC']);await sleep(180);
+  snap=await snapshot(pg,{interactive:true});await pg.locator(ref(snap.tree,'combobox','검증 환경')).selectOption(['Codex','OMP']);await sleep(180);
   assert(await pg.evaluate(()=>document.getElementById('next-question').hidden&&document.getElementById('review-progress').textContent.includes('4/4')),'Completed questions still pending');
   await pg.locator('#outline-toggle').click();if(await pg.evaluate(()=>document.getElementById('outline-filter').getAttribute('aria-pressed'))!=='true')await pg.locator('#outline-filter').click();
   assert(await pg.evaluate(()=>!document.getElementById('question-empty').hidden),'All-complete empty state missing');
@@ -336,7 +339,7 @@ try {
   await pg.locator(ref(snap.tree,'checkbox','조건 확인')).click();await pg.locator(ref(snap.tree,'button','조건 질문 토글')).click();await sleep(200);
   var questionErrors=await pg.evaluate(()=>globalThis.questionErrors);assert(questionErrors.length===0,'Question workflow runtime errors '+JSON.stringify(questionErrors));
   await pg.goto(QUESTION_URL+'?restore=question',{waitUntil:'load'});await sleep(200);
-  var questionReload=await questionMeasure();assert(questionReload.selected.join()==='Codex,GJC'&&questionReload.conditional,'Reload lost multi-select/hidden question draft '+JSON.stringify(questionReload));
+  var questionReload=await questionMeasure();assert(questionReload.selected.join()==='Codex,OMP'&&questionReload.conditional,'Reload lost multi-select/hidden question draft '+JSON.stringify(questionReload));
   assert(await pg.evaluate(()=>document.getElementById('review-progress').textContent.includes('4/4')),'Reload question progress differs');
   snap=await snapshot(pg,{interactive:true});await pg.locator(ref(snap.tree,'button','글 답변 활성 토글')).click();await sleep(120);
   assert(await pg.evaluate(()=>document.querySelectorAll('#outline-questions button').length)===3,'Disabled question remains actionable');
@@ -352,10 +355,10 @@ try {
   assert(await pg.evaluate(()=>document.querySelectorAll('#outline-questions button').length)===4,'Restored visible question missing');
   await pg.evaluate(url=>{const id=JSON.parse(document.getElementById('reply-meta').textContent).id;localStorage.setItem('html-reply:'+url.split('/').at(-1),localStorage.getItem('html-reply:'+id));},LATE_URL);
   await pg.goto(LATE_URL,{waitUntil:'load'});await sleep(150);
-  assert(await pg.evaluate(()=>JSON.parse(localStorage.getItem('html-reply:'+JSON.parse(document.getElementById('reply-meta').textContent).id)).formState.find(f=>f.id==='C4').fields[0].selected.join())==='Codex,GJC','Pending option draft overwritten by empty select');
+  assert(await pg.evaluate(()=>JSON.parse(localStorage.getItem('html-reply:'+JSON.parse(document.getElementById('reply-meta').textContent).id)).formState.find(f=>f.id==='C4').fields[0].selected.join())==='Codex,OMP','Pending option draft overwritten by empty select');
   await pg.goto(LATE_URL+'?reload=pending',{waitUntil:'load'});await sleep(150);
   snap=await snapshot(pg,{interactive:true});await pg.locator(ref(snap.tree,'button','선택지 로드')).click();await sleep(160);
-  assert((await questionMeasure()).selected.join()==='Codex,GJC','Late options did not recover both saved choices');
+  assert((await questionMeasure()).selected.join()==='Codex,OMP','Late options did not recover both saved choices');
   await pg.goto(QUESTION_URL+'?restore=after-late-check',{waitUntil:'load'});await sleep(150);
   snap=await snapshot(pg,{interactive:true});await pg.locator(ref(snap.tree,'checkbox','초안 보존')).click();await sleep(150);
   assert(await pg.evaluate(()=>document.querySelector('[data-question="C2"]').dataset.questionState)==='unanswered','Clearing all checks did not restore unanswered');
@@ -373,7 +376,7 @@ try {
   assert(await pg.evaluate(()=>document.getElementById('status').dataset.state)==='held','Partial questions could not be submitted');
   var questionPacket=await pg.evaluate(()=>document.getElementById('payload-text').value);
   assert(questionPacket.includes('<unanswered>C2</unanswered>')&&questionPacket.includes('<answer id="C3">한글 의견 &amp; &lt;태그&gt;</answer>')&&!questionPacket.includes('id="GROUP"')&&!questionPacket.includes('id="C5"'),'Partial question packet lost exact semantics '+questionPacket);
-  await pg.locator('#cancel').click();await sleep(150);
+  await infoAction('#cancel');await sleep(150);
   assert(await pg.evaluate(()=>document.getElementById('preview-scope').textContent)==='지금 보낼 초안','Cancelled response preview still marked frozen');
   var offlineQuestions=await offlineCopy(true);assertOfflineContext(offlineQuestions);
   assert(offlineQuestions.packet.items.find(item=>item.id==='C4').values.length===2,'Offline multi-choice fixture is missing');

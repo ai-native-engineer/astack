@@ -17,7 +17,7 @@
 
 ## 구성
 
-- Start from `assets/review-template.html` for checks and text annotations. It is one offline Vanilla JS file; preserve its working review interactions while replacing the example content.
+- 새 페이지는 `assets/template.html`에서 시작한다. 글, 다이어그램, 차트와 비교표를 유지하고 필요한 질문만 추가한다. 일반 페이지의 선택 주석과 회신은 연결 패널이 맡는다. `review-template.html`은 원문 생성기와 기존 오프라인 검토 자료의 호환용이다.
 - Keep each item focused on one labelled question, visible evidence, and a real answer control. Use a comparison or flow to explain the difference, not a wall of prose.
 - 질문 앞에 `A1`, `A2` 같은 ID를 붙인다. 결과에서 이 ID로 항목을 찾는다.
 - Keep annotations behind text selection and a collapsed per-item list. Do not add an always-visible annotation toolbar or a separate “add to reply” step.
@@ -46,13 +46,16 @@ python3 <skill-dir>/scripts/build-review.py --source <source.md> --output <revie
 
 | 실물 | 넣는 법 |
 |---|---|
-| 영상, 오디오 | `<video controls preload="metadata">`, `<audio controls>`에 원본의 `file://` URL |
+| 영상 | `<video controls preload="metadata">`에 원본의 `file://` URL |
+| 오디오 | 파일마다 숨긴 `<audio preload="none" src="file://...">` 하나와 보이는 재생 버튼(아래 오디오 규칙) |
 | 이미지 | `<img>`. 1MB 이하면 data URI로 넣어도 된다 |
 | 원문, 로그, 대본 | 항목 안 `<details><pre>`. 요약이나 주장을 확인받는 항목이면 근거 원문을 함께 둔다 |
 | A/B 비교 | `<video>` 두 개를 나란히 둔다 |
 
 - 영상과 오디오는 base64로 넣지 않는다. 수십 MB가 되면 열리는 데 오래 걸리고 파일을 고치기도 어렵다. 원본을 한 폴더에 모아 두고 `file://` URL로 가리킨다.
 - URL은 `Path(p).resolve().as_uri()`처럼 도구로 만든다. 파일명에 `#`이나 `?`가 있으면 손으로 이어 붙인 URL은 파일명이 잘려 깨진다.
+- 오디오를 표 셀처럼 좁은 칸에 `<audio controls>`로 넣지 않는다. 칸이 68~81px로 줄면 Chromium(Aside)이 재생 버튼을 숨겨 아무것도 재생할 수 없다(파일과 회신 브리지의 `/media/` 제공은 정상이었다). 파일마다 숨긴 `<audio preload="none" src="file://...">`를 하나 두고(브리지가 `src`를 `/media/...`로 바꾼다), 보이는 `<button class="play" data-src="...">` 토글과 공유 플레이어 하나로 재생한다. 하나를 재생하면 나머지는 멈추고, `ended`에서 버튼을 되돌린다.
+- 재생 검증은 실제 클릭으로 한다. 스크립트의 `.click()`은 사용자 제스처가 없어 `play()`가 `NotAllowedError`로 거절된다.
 - 생성 스크립트가 `src`가 가리키는 파일이 실제로 있는지 확인한다. 없는 파일은 빈 플레이어로 뜨고 사용자에게는 원인이 보이지 않는다.
 
 ## 선택과 메모
@@ -70,6 +73,8 @@ python3 <skill-dir>/scripts/build-review.py --source <source.md> --output <revie
 - Show muted green with an explicit completed label when an answer exists, and muted red with an unanswered label otherwise. Keep the source badges, right outline, and dock consistent. Completion is not correctness or approval; start unchecked unless restoring the user's actual answer.
 
 ## 선택 영역 주석
+
+새 페이지의 패널 주석은 [reply-delivery](reply-delivery.md)를 따른다. 아래 항목별 자동 수집과 편집/위치 계약은 기존 소스 소유 주석과 생성기 호환 경로에 적용한다. 두 주석 UI를 같은 페이지에 중복 설치하지 않는다.
 
 - Selecting text within one item reveals a comment icon at the selection's upper-right, clamped inside the viewport. Clicking it opens the compact editor; no persistent reading-position toolbar is needed.
 - Freeze the item ID, stable anchor, original quotation, and optional `data-comment-context` when writing begins. Scrolling or changing comparison conditions must not retarget a draft. Context is explanatory text, not an inferred live session state.
@@ -111,7 +116,7 @@ A3 PR을 머지할까요: 미선택
 4. Verify reload, note edit/delete/location, rejected-draft recovery, cross-item selection rejection, narrow/short viewports, and frozen pending replies while the next draft changes. Use `tests/review-template-browser.py` when changing the reusable template; never submit a test reply to the user's live conversation.
 5. 문법 통과, DOM 동작, 실제 브라우저의 복사와 미디어 재생은 구분해 기록한다. 문법 검사만 한 결과를 페이지 전체 검수로 보고하지 않는다.
 
-`--syntax`는 인라인 JavaScript를 임시 파일에 추출해 Node.js로 검사하며 브라우저나 네트워크를 쓰지 않는다. 외부 스크립트, 지원하지 않는 script 타입이나 검사할 JavaScript가 없으면 미검증으로 종료한다. 실제 브라우저 검수는 기존 브라우저 스킬을 따르고, CDP 실행은 이 스킬의 명시 요청 경계를 유지한다.
+`--syntax`는 인라인 JavaScript를 임시 파일에 추출해 Node.js로 검사하며 브라우저나 네트워크를 쓰지 않는다. 인라인 스크립트는 외부 스크립트가 있어도 모두 검사하고, 외부 스크립트, 지원하지 않는 script 타입이나 검사할 JavaScript가 없으면 미검증(exit 2)으로 종료한다. `publish`는 문법 오류(exit 1)만 막고 미검증은 `syntax_unverified`로 함께 낸다. 실제 브라우저 검수는 기존 브라우저 스킬을 따르고, CDP 실행은 이 스킬의 명시 요청 경계를 유지한다.
 
 ## 열고 응답을 받는다
 
@@ -120,7 +125,7 @@ A3 PR을 머지할까요: 미선택
 
 ## 템플릿 수정 계약
 
-Copy the complete `assets/review-template.html`, then replace its title, context summary, questions, and evidence. Do not copy private research IDs, paths, source screenshots, or answers into the starter. The runtime discovers item IDs rather than relying on the three sample IDs. Within `#review-document`, adapt a complete item together:
+For generator maintenance or an existing offline review, preserve the complete `assets/review-template.html` while replacing its title, context summary, questions, and evidence. This is not the starting point for a new connected page. Do not copy private research IDs, paths, source screenshots, or answers into the starter. The runtime discovers item IDs rather than relying on the three sample IDs. Within `#review-document`, adapt a complete item together:
 
 ```html
 <section data-item="A1" id="comparison" data-comment-anchor="comparison"

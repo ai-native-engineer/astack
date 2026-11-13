@@ -13,7 +13,7 @@
 - [Gemini CLI와 Antigravity](#gemini-cli와-antigravity)
 - [opencode](#opencode)
 - [Aside](#aside)
-- [OpenClaw / senpi / gjc](#openclaw--senpi--gjc)
+- [OpenClaw / senpi / OMP](#openclaw--senpi--omp)
 - [GitHub Copilot](#github-copilot)
 - [사용자 메시지 필터](#사용자-메시지-필터)
 - [커버 범위 밖으로 확인한 저장소](#커버-범위-밖으로-확인한-저장소)
@@ -50,7 +50,7 @@
 | `aside` | Aside | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | 지원 |
 | `openclaw` | OpenClaw | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | 지원 |
 | `senpi` | senpi | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | 지원 |
-| `gjc` | gjc | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | 지원 |
+| `omp` | OMP | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | 지원 |
 | `copilot` | GitHub Copilot CLI, VS Code Chat | `list`, `timeline`, `rg`, `show` | 지원 | 지원 | CLI만 |
 
 `sources`는 위 adapter가 지원하는 저장소의 존재 여부와 인덱싱된 세션 수만 보고한다. adapter가 구조적으로 못 읽는 부분은 `source_notes()`로 함께 출력한다. 임의 형식 transcript를 발견하거나 해석하지 않는다.
@@ -120,15 +120,17 @@
 - `~/.aside/u/<n>/sessions/<YYYY-MM-DD>_<sid>/messages.jsonl`: 대화. timestamp는 **ms**라 초 단위와 섞이지 않게 정규화한다.
 - `parent_id`가 있으면 subagent다.
 
-## OpenClaw / senpi / gjc
+
+## OpenClaw / senpi / OMP
 
 - `--tool openclaw`: `~/.openclaw/agents/main/sessions/**/*.jsonl`
 - `--tool senpi`: `~/.senpi/agent/sessions/**/*.jsonl`
-- `--tool gjc`: `~/.gjc/agent/sessions/**/*.jsonl`
-- 세 도구는 `scripts/adapters/openclaw.py`의 공통 파서를 쓰되, 저장소와 인덱스는 제품별로 분리한다. 첫 줄이 `{"type":"session","id","timestamp","cwd"}` 헤더이고 이후 `{"type":"message","message":{"role","content","model","usage"}}`가 이어진다.
+- 세 도구는 `scripts/adapters/openclaw.py`의 공통 파서를 쓰되, 저장소와 인덱스는 제품별로 분리한다. 선택적인 native title slot 뒤 `{"type":"session","id","timestamp","cwd"}` 헤더이고 이후 `{"type":"message","message":{"role","content","model","usage"}}`가 이어진다.
 - 필터는 해당 제품만 읽으며 다른 제품의 저장소로 대체하지 않는다. `--tool all`은 세 제품을 함께 읽고, 목록과 토큰 집계에는 실제 제품명을 유지한다.
 - `.jsonl.reset.<ts>`는 같은 세션의 리셋 이전 회차라 `--include-subagents`에서만 보인다.
 - `~/.omo/memory/agents/*/runtime/transcripts/*/transcript.jsonl`은 senpi와 세션 ID를 공유하는 사본이라 따로 읽지 않는다.
+
+`openclaw`, `senpi`, `omp`는 서로 다른 source root를 가진다. OMP는 `~/.omp/agent/sessions/**/*.jsonl`에서 title 메타데이터 뒤 session header, message entry를 읽는다. `parentSession`은 보통 fork/continuation에도 있으므로 worker로 분류하지 않는다. OMP worker 분리는 별도 native 식별 계약이 확인되기 전까지 미지원이다. 사용자 지정 `--session-dir`는 기본 조회에 포함되지 않는다.
 
 ## GitHub Copilot
 

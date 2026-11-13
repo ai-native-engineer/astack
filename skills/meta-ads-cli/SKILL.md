@@ -32,7 +32,7 @@ description: "Use for: Manage Meta Facebook/Instagram campaigns, creatives, insi
 
 | 필요 | 읽을 곳 |
 | --- | --- |
-| 설치·시스템 사용자 토큰 발급·`.env` 구성 (최초 1회) | `references/setup-guide.md` |
+| 설치·시스템 사용자 토큰 발급·`.env` 구성 (최초 1회) | `references/SETUP.md` |
 | 리소스별 명령·필수 옵션·enum 값(objective/optimization-goal/CTA 등) | `references/commands.md` |
 | 실전 워크플로: 캠페인 end-to-end 생성·전환추적 셋업·성과 분석·스크립트 자동화·exit code | `references/recipes.md` |
 

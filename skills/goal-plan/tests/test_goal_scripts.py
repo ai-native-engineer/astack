@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Runnable checks for goal-plan scaffold options, the /goal condition line, and the result PR script."""
+"""Runnable checks for goal-plan scaffolding, readiness, and the result PR script."""
 
 from __future__ import annotations
 
@@ -47,8 +47,10 @@ class ScaffoldOptionTests(unittest.TestCase):
                 self.assertIn(section, goal)
             self.assertIn("tracking issue: #42.", goal)
             self.assertNotIn("{{", goal)
-            self.assertIn("condition", result.stdout)
-            self.assertNotIn("/goal @GOAL.md", result.stdout)
+            progress = (target / "progress.tsv").read_text(encoding="utf-8")
+            self.assertIn("worker\tbranch\tworktree\tdepends_on", progress.splitlines()[0])
+            self.assertIn("/goal @GOAL.md", result.stdout)
+            self.assertIn("optional check:", result.stdout)
 
     def test_issue_must_be_a_number(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -62,34 +64,26 @@ class ScaffoldOptionTests(unittest.TestCase):
 
 def fill_goal(goal_path: Path, *, bounds: str = "stop after 20 turns", decisions: str | None = None,
               criteria: str | None = None) -> None:
-    """Replace every template TBD with an answer, the way a finished interview would."""
+    """Replace every template TBD with an answer, the way a finished interview would. The fixed defaults
+    (Acceptance Criteria, Bounds, GitHub Flow, Input Stability, Target Change Tracking) are already in the template."""
     lines = []
     section = ""
     for line in goal_path.read_text(encoding="utf-8").splitlines():
         if line.startswith("## "):
             section = line[3:].strip()
         if line.startswith("TBD"):
-            line = {"Bounds": bounds}.get(section, "none")
+            line = "none"
         if line.startswith("| ") and "TBD" in line:
             line = line.replace("TBD", "exists", 1).replace("TBD", "`true`")
-        if line.startswith("- <axis>"):
-            continue
-        if line.startswith("- AC-"):
-            continue
-        if line.startswith("- cannot start here: TBD"):
-            line = "- cannot start here: nothing"
-        if line.startswith("- row issues: TBD"):
-            line = "- row issues: sub-issues of the tracking issue, one per row"
-        if line.startswith("- result PR: base branch TBD"):
-            line = "- result PR: base branch main"
         if line.startswith("- tracking issue: TBD"):
             line = "- tracking issue: #7."
         lines.append(line)
     text = "\n".join(lines) + "\n"
     text = text.replace("## Decisions\n\nnone\n",
                         "## Decisions\n\n" + (decisions or '- Proof (2026-01-01): "pytest면 충분". Unit suite only.') + "\n", 1)
-    text = text.replace("## Acceptance Criteria\n\nnone\n",
-                        "## Acceptance Criteria\n\n" + (criteria or "Covered by Proof.") + "\n", 1)
+    if criteria:
+        text = text.replace("## Acceptance Criteria\n\nCovered by Proof.\n", "## Acceptance Criteria\n\n" + criteria + "\n", 1)
+    text = text.replace("## Bounds\n\nnone\n", "## Bounds\n\n" + bounds + "\n", 1)
     goal_path.write_text(text, encoding="utf-8")
 
 
@@ -176,7 +170,7 @@ class ResultPrTests(unittest.TestCase):
         (repo / "progress.tsv").write_text(
             (repo / "progress.tsv").read_text(encoding="utf-8") + "1\tdone\tkeep\tapp\tprints\tabc\tok\t-\t-\n",
             encoding="utf-8")
-        commit_all(repo, "feat(app): print hi (row 1 keep)")
+        commit_all(repo, "feat(app): print hi")
         return origin, repo
 
     def test_dry_run_builds_branch_without_scaffold(self) -> None:
@@ -199,17 +193,17 @@ class ResultPrTests(unittest.TestCase):
             origin, repo = self.make_repo(Path(tmp))
             unnumbered = run(sys.executable, str(GOAL_PR), "--branch", "feat/demo-a", "--dry-run", cwd=repo)
             self.assertIn("warning: commit without an issue number", unnumbered.stderr)
-            self.assertIn("feat(app): print hi (row 1 keep)", unnumbered.stderr)
+            self.assertIn("feat(app): print hi", unnumbered.stderr)
             self.assertNotIn("remove goal scaffold", unnumbered.stderr)
 
             goal_path = repo / "GOAL.md"
             goal_path.write_text(goal_path.read_text(encoding="utf-8").replace(
                 "tracking issue: TBD (`#N` or none)", "tracking issue: #42", 1), encoding="utf-8")
             (repo / "src" / "app.py").write_text("print('hi #42')\n", encoding="utf-8")
-            commit_all(repo, "feat(app): greet (#42, row 2 keep)")
+            commit_all(repo, "feat(app): greet (#42)")
             numbered = run(sys.executable, str(GOAL_PR), "--branch", "feat/demo-b", "--dry-run", cwd=repo)
             self.assertNotIn("greet (#42", numbered.stderr)
-            self.assertIn("print hi (row 1 keep)", numbered.stderr)
+            self.assertIn("print hi", numbered.stderr)
             subject = git("log", "-1", "--format=%s", "feat/demo-b", cwd=repo)
             self.assertEqual(subject, "chore(goal): remove goal scaffold from result branch (#42)")
 
@@ -223,6 +217,28 @@ class ResultPrTests(unittest.TestCase):
             self.assertIn("GOAL.md", files)
             self.assertNotIn("progress.tsv", files)
             self.assertIn("remove goal scaffold", git("log", "-1", "--format=%s", "feat/demo-result", cwd=repo))
+
+    def test_pr_create_targets_the_given_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            origin, repo = self.make_repo(Path(tmp))
+            fake = Path(tmp) / "bin"
+            fake.mkdir()
+            log = Path(tmp) / "gh.log"
+            (fake / "gh").write_text(
+                f'#!/bin/sh\nprintf \'%s\\n\' "$*" >> {log}\necho https://github.com/octo/fork/pull/1\n',
+                encoding="utf-8")
+            (fake / "gh").chmod(0o755)
+            body = Path(tmp) / "body.md"
+            body.write_text("body\n", encoding="utf-8")
+            env = {**GIT_ENV, "PATH": f"{fake}:{GIT_ENV['PATH']}"}
+            result = subprocess.run(
+                [sys.executable, str(GOAL_PR), "--branch", "feat/demo-result", "--title", "feat(app): hi (#1)",
+                 "--body-file", str(body), "--repo", "octo/fork"],
+                cwd=repo, capture_output=True, text=True, check=True, env=env)
+            self.assertIn("https://github.com/octo/fork/pull/1", result.stdout)
+            call = log.read_text(encoding="utf-8")
+            self.assertIn("pr create", call)
+            self.assertIn("--repo octo/fork", call)
 
     def test_rejects_bad_branch_dirty_tree_and_missing_pr_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

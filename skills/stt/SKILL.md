@@ -8,7 +8,7 @@ description: "Use for: Transcribe local audio/video, meetings, lectures, intervi
 
 ## 전사 (음성 -> 텍스트)
 
-기본은 macOS 26+의 `apple-stt`다. 일반 텍스트는 Apple 실패 시 Handy에서 선택한 로컬 모델로 한 번 fallback하고, 구조화 출력은 Apple 결과만 쓴다.
+기본은 macOS 26+의 `apple-stt`다. `mlx_whisper` 같은 다른 엔진을 직접 고르지 않는다. 텍스트는 `apple-stt`만 만든다. 일반 텍스트는 Apple 실패 시 Handy에서 선택한 로컬 모델로 한 번 fallback하고, 구조화 출력은 Apple 결과만 쓴다.
 
 - 일반 텍스트: `bash scripts/stt-fallback.sh 녹음.m4a` - Apple이 오류로 종료할 때만 16kHz mono WAV로 변환해 Handy fallback을 실행한다. 이 스크립트는 읽지 말고 실행한다.
 - Apple 직접 실행: `apple-stt 녹음.m4a` - `-t`(타임스탬프), `--srt`, `--json`, `--save`, `-l en-US`

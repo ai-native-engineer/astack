@@ -1,19 +1,23 @@
-"""Fixture tests for Cursor, Gemini, and Claude Desktop discovery."""
+"""Fixture tests for adapter discovery and primary/worker boundaries."""
 
 from __future__ import annotations
 
 import datetime
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from adapters import claude, cursor, gemini
+from adapters.openclaw import SessionJsonlAdapter
 from common import set_include_subagents
 
 KST = datetime.timezone(datetime.timedelta(hours=9))
@@ -31,6 +35,33 @@ def write_jsonl(path: Path, entries):
         "".join(json.dumps(entry, ensure_ascii=False) + "\n" for entry in entries),
         encoding="utf-8",
     )
+
+
+class TestOmpNativeSessions(unittest.TestCase):
+    def test_title_before_header_and_forks_remain_readable(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "native.jsonl"
+            write_jsonl(path, [
+                {"type": "title", "v": 1, "title": "fixture", "pad": ""},
+                {"type": "session", "id": "native-id", "cwd": "/fixture", "parentSession": "original", "timestamp": "2026-11-06T00:00:00Z"},
+                {"type": "message", "timestamp": "2026-11-06T00:00:01Z", "message": {"role": "user", "content": "fixture question"}},
+                {"type": "message", "timestamp": "2026-11-06T00:00:02Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "fixture answer"}], "usage": {"input": 5, "output": 2, "cacheRead": 3, "cacheWrite": 1}}},
+            ])
+            adapter = SessionJsonlAdapter("omp", "OMP", "[P]", Path(root))
+            self.assertEqual(adapter.find_session_file("native-id"), path)
+            self.assertFalse(adapter.session_index()["native-id"]["subagent"])
+            messages, found = adapter.read_conversation("native-id")
+            self.assertEqual(found, path)
+            self.assertEqual([m["text"] for m in messages], ["fixture question", "fixture answer"])
+            rows = adapter.collect_token_rows(None, None, SimpleNamespace(cwd=False, project=None))
+            self.assertEqual(rows[0]["total_tokens"], 11)
+
+    def test_unrelated_prefix_is_not_guessed_as_session_header(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "foreign.jsonl"
+            write_jsonl(path, [{"type": "message", "message": {}}, {"type": "session", "id": "wrong"}])
+            adapter = SessionJsonlAdapter("omp", "OMP", "[P]", Path(root))
+            self.assertEqual(adapter.session_index(), {})
 
 
 class TestCursorAdapter(unittest.TestCase):

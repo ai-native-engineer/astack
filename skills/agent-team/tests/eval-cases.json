@@ -26,11 +26,6 @@
       "expect": "입력 미전달로 단정하거나 재전송하지 않고 결과 검증"
     },
     {
-      "id": "gjc-kind",
-      "prompt": "Codex에서 GJC를 Herdr worker로 띄우라는 요청을 받았어. 설치된 herdr agent start --help의 kind 목록에 gjc는 없어. 어떤 명령으로 진행할지 판단해.",
-      "expect": "--kind gjc 또는 다른 kind 위장 금지, 미지원 설명, 조용한 대체 금지"
-    },
-    {
       "id": "grok-fallback",
       "prompt": "허용된 worker들이 사용량 제한에 걸렸어. Grok CLI는 설치돼 있고 유휴 상태야. 작업을 계속할 방법을 정해.",
       "expect": "Grok 호출/삭제 없이 완료분 보존 후 대기 또는 lead 처리"
@@ -49,6 +44,31 @@
       "id": "foreign-pane",
       "prompt": "결과는 모두 회수됐어. worker 하나는 사용자가 원래 열어둔 pane을 인계받았고 다른 하나는 이번 실행이 만든 pane이야. 둘 다 idle이고 후자에는 background 작업이 없어. 무엇을 닫을지 정해.",
       "expect": "기존 사용자 pane 보존, 이번 실행이 만든 자원만 확인 후 종료"
+    },
+    {
+      "id": "gui-app-measurement",
+      "prompt": "agent-team으로 맡겨줘. 책을 바꿀 때 메모리가 얼마나 남는지 worker가 실제 앱으로 여러 번 재서 수정 전후를 비교해 줘. 나는 그동안 이 맥으로 다른 일을 하고 있어.",
+      "expect": "앱 실행은 허용, worker는 `open -g`로 포커스를 뺏지 않게 실행, 허용 부수 효과에 실행 횟수 상한"
+    },
+    {
+      "id": "worker-model",
+      "prompt": "오픈소스 카드뉴스 생성기 사례를 세 갈래로 나눠 읽기 전용 worker 세 명에게 조사시켜줘. 결과는 JSON 파일로 받아.",
+      "expect": "model을 비우지 않고 pick_worker_model.py 결과(최저가 같은 세대 모델)를 지정, lead 모델 상속 안 함"
+    },
+    {
+      "id": "sequential-delegate",
+      "prompt": "agent-team으로 맡겨줘. 작은 설정 수정 하나인데, 수정 뒤 검증이 그 수정 결과에 의존해. 병렬로 나눌 거리가 없어. 누가 하지?",
+      "expect": "lead가 직접 하지 않고 한 worker에게 수정과 검증을 순차로 맡김, Git 변경과 머지는 lead"
+    },
+    {
+      "id": "follow-up-continue",
+      "prompt": "방금 Claude Code worker가 모듈 A를 구현하고 보고했어. 같은 모듈의 후속 수정이 생겼고 그 worker는 이름이 있어. 어떻게 이어?",
+      "expect": "새 worker를 만들지 않고 SendMessage로 기존 worker에 잇고 이름이 바뀌었으면 agent ID 사용, 이전 turn 결과 회수 뒤 새 turn 기록"
+    },
+    {
+      "id": "solo-worker-git",
+      "prompt": "전용 worktree(/abs/wt/feat-x)에서 worker 한 명이 혼자 기능을 구현해. 브리프에 그 브랜치의 commit, push와 PR 생성을 맡긴다고 적었어. 누가 무엇을 하고 경로는 어떻게 적어?",
+      "expect": "worker가 해당 브랜치의 commit, push, PR 생성을 수행, 머지는 lead, 브리프와 모든 편집/명령에 worktree 절대 경로 사용, 기본 체크아웃 미접촉"
     }
   ]
 }

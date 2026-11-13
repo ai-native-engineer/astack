@@ -41,6 +41,9 @@ SOURCE_PATHS = (
 _META_SCAN_MAX_LINES = 200
 
 _SYSTEM_REMINDER_RE = re.compile(r"<system-reminder>.*?</system-reminder>", re.DOTALL)
+_TASK_NOTIFICATION_RE = re.compile(
+    r"<task-notification(?:\s[^>]*)?>.*?(?:</task-notification>|\Z)", re.DOTALL
+)
 _COMMAND_NAME_RE = re.compile(r"<command-name>(.*?)</command-name>", re.DOTALL)
 _COMMAND_ARGS_RE = re.compile(r"<command-args>(.*?)</command-args>", re.DOTALL)
 _META_PREFIXES = (
@@ -73,6 +76,7 @@ def _real_user_text(text: str) -> str:
     if not text:
         return ""
     text = _SYSTEM_REMINDER_RE.sub("", text)
+    text = _TASK_NOTIFICATION_RE.sub("", text)
     args_match = _COMMAND_ARGS_RE.search(text)
     if args_match:
         # 슬래시 커맨드는 이름과 인자를 합쳐야 history.jsonl의 표시 문자열과 같아진다.
@@ -84,6 +88,12 @@ def _real_user_text(text: str) -> str:
     if stripped.startswith(_META_PREFIXES):
         return ""
     return stripped
+
+
+def _claude_real_user_text(entry: dict) -> str:
+    if entry.get("isMeta") or entry.get("isCompactSummary"):
+        return ""
+    return _real_user_text(_claude_user_entry_text(entry))
 
 
 def _claude_transcript_roots():
@@ -170,12 +180,8 @@ def _scan_claude_transcript(path: Path) -> dict:
                     cwd = entry.get("cwd") or ""
                 if not ts:
                     ts = entry.get("timestamp") or ""
-                if (
-                    not first_user
-                    and entry.get("type") == "user"
-                    and not entry.get("isMeta")
-                ):
-                    first_user = _real_user_text(_claude_user_entry_text(entry))
+                if not first_user and entry.get("type") == "user":
+                    first_user = _claude_real_user_text(entry)
                 if cwd and ts and first_user:
                     break
     except OSError:
@@ -254,6 +260,18 @@ def _claude_messages(fpath: Path, full: bool):
             content = msg.get("content")
 
             if entry_type == "user":
+                user_text = _claude_user_entry_text(d)
+                if full:
+                    for notification in _TASK_NOTIFICATION_RE.finditer(user_text):
+                        add(
+                            "tool_result",
+                            notification.group(),
+                            ts,
+                            phase="task-notification",
+                        )
+                if d.get("isCompactSummary"):
+                    add("summary", _TASK_NOTIFICATION_RE.sub("", user_text), ts)
+                    continue
                 if full and isinstance(content, list):
                     for part in content:
                         if isinstance(part, dict) and part.get("type") == "tool_result":
@@ -263,10 +281,7 @@ def _claude_messages(fpath: Path, full: bool):
                                 ts,
                                 call_id=part.get("tool_use_id"),
                             )
-                if d.get("isMeta"):
-                    # 스킬 본문·런타임 컨텍스트 주입은 사용자 발화가 아니다.
-                    continue
-                add("user", _real_user_text(_claude_user_entry_text(d)), ts)
+                add("user", _claude_real_user_text(d), ts)
 
             elif entry_type == "assistant":
                 parts = [part for part in content or [] if isinstance(part, dict)]
@@ -359,6 +374,8 @@ def extract_claude_history(start_ms, end_ms, project_filter=None, cwd_filter=Non
                     d = json.loads(line.strip())
                 except json.JSONDecodeError:
                     continue
+                if d.get("isMeta") or d.get("isCompactSummary"):
+                    continue
                 ts = int(d.get("timestamp", 0))
                 if not (start_ms <= ts < end_ms):
                     continue
@@ -368,7 +385,7 @@ def extract_claude_history(start_ms, end_ms, project_filter=None, cwd_filter=Non
                     # 하나의 가짜 세션으로 합쳐진다.
                     continue
                 project = d.get("project", "")
-                display = d.get("display", "").strip()
+                display = _real_user_text(d.get("display", ""))
                 if project_filter and project_filter not in project:
                     continue
                 if cwd_filter and not path_matches(project, cwd_filter):
@@ -410,22 +427,14 @@ def extract_claude_history(start_ms, end_ms, project_filter=None, cwd_filter=Non
                             continue
                         if entry.get("type") != "user":
                             continue
-                        content = (entry.get("message") or {}).get("content", "")
-                        if isinstance(content, str):
-                            display = content.strip()
-                        elif isinstance(content, list):
-                            display = "\n".join(
-                                part.get("text", "")
-                                for part in content
-                                if isinstance(part, dict) and part.get("type") == "text"
-                            ).strip()
+                        display = _claude_real_user_text(entry)
                         if display:
                             break
             except OSError:
                 display = ""
         display = (
             display
-            or str(meta.get("initialMessage") or meta.get("title") or "").strip()
+            or _real_user_text(str(meta.get("initialMessage") or meta.get("title") or ""))
         )
         sessions[sid]["project"] = project
         sessions[sid]["first_ts_ms"] = ts
@@ -462,7 +471,12 @@ def extract_claude_history(start_ms, end_ms, project_filter=None, cwd_filter=Non
 
 def grep_claude_session(fpath: Path, keyword, session_id: str | None = None):
     """Claude Code 세션 JSONL에서 keyword 포함 대화·도구 기록 반환."""
-    return hits_from_messages(_claude_messages(fpath, True), keyword)
+    messages = [
+        message
+        for message in _claude_messages(fpath, True)
+        if message.get("phase") != "task-notification"
+    ]
+    return hits_from_messages(messages, keyword)
 
 
 # Public adapter surface (stable names for CLI)

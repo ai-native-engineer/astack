@@ -7,7 +7,10 @@
 		sheet = "",
 		location = "",
 		items = [],
+		annotations = [],
 		formState = [];
+	let sourceOwnsAnnotations = false;
+	let annotationDraft = null;
 	let draftId = crypto.randomUUID(),
 		pending = null,
 		pendingPacket = null;
@@ -48,10 +51,15 @@
 	function jumpQuestion(id) {
 		lastQuestion = id;
 		closeOutline();
-		el("document").contentWindow.postMessage(
-			{ type: "html-reply-question", id },
-			"*",
-		);
+		const send = () =>
+			el("document").contentWindow.postMessage(
+				{ type: "html-reply-question", id },
+				"*",
+			);
+		if (contextView.open) {
+			contextView.close();
+			setTimeout(send, 0);
+		} else send();
 	}
 	function nextQuestion() {
 		const start = questions.findIndex(
@@ -278,9 +286,10 @@
 		`${meta.agent} / 세션 ${meta.conversation}\n자료 ${meta.id} / 버전 ${meta.revision.slice(0, 12)}`;
 	el("context-open").onclick = () => contextView.showModal();
 	el("context-close").onclick = () => contextView.close();
-	contextView.addEventListener("close", () =>
-		el("context-open").focus({ preventScroll: true }),
-	);
+	contextView.addEventListener("close", () => {
+		if (document.activeElement === document.body)
+			el("context-open").focus({ preventScroll: true });
+	});
 	async function openSession() {
 		el("session-open").disabled = true;
 		el("session-jump").disabled = true;
@@ -301,12 +310,6 @@
 	el("session-jump").onclick = openSession;
 	el("title").textContent = meta.title;
 	document.title = `${meta.title} · 응답`;
-	el("recipient").textContent =
-		"받는 곳: " +
-		(meta.conversation_label ||
-			`${meta.agent} · ${meta.conversation.slice(0, 8)}`) +
-		" / 원래 대화";
-	el("version").textContent = meta.revision.slice(0, 7);
 	el("receipt").textContent =
 		meta.agent +
 		" " +
@@ -315,6 +318,14 @@
 		meta.id +
 		"\n버전 " +
 		meta.revision.slice(0, 12);
+	function restoreDocument() {
+		el("loading").hidden = true;
+		updateViewport();
+		el("document").contentWindow?.postMessage(
+			{ type: "html-reply-restore", forms: formState, annotations },
+			"*",
+		);
+	}
 	el("document").src = `${base}/content`;
 
 	function save() {
@@ -328,18 +339,21 @@
 					sheet,
 					location,
 					items,
+					annotations,
 					formState,
 					draftId,
 					pending,
 					pendingPacket,
 					savedText,
 					summaryOpen: !summary.hidden,
-					dockHidden: dock.hidden,
+					annotationDraft,
 				}),
 			);
 			el("draft-status").textContent = pending
-				? "전송한 응답은 고정됩니다. 새 메모는 다음 초안에 보관합니다."
-				: "초안 저장됨";
+				? labels[currentState] || "전송 대기"
+				: annotations.length
+					? `주석 ${annotations.length}개`
+					: "";
 		} catch {
 			el("draft-status").textContent =
 				"초안 저장이 막혔습니다. 보내기 전에는 이 창을 유지해 주세요.";
@@ -353,22 +367,18 @@
 			sheet = draft.sheet || "";
 			location = draft.location || "";
 			items = Array.isArray(draft.items) ? draft.items : [];
+			annotations = Array.isArray(draft.annotations) ? draft.annotations : [];
 			formState = Array.isArray(draft.formState) ? draft.formState : [];
 			draftId = draft.draftId || draftId;
 			pending = draft.pending || null;
 			pendingPacket = draft.pendingPacket || null;
 			savedText = draft.savedText || "";
 			showSummary(draft.summaryOpen === true);
-			dock.hidden = draft.dockHidden === true;
+			annotationDraft = draft.annotationDraft || null;
 		}
 	} catch {
 		/* Server receipts remain authoritative when browser storage is unavailable. */
 	}
-	function updateToggle() {
-		el("toggle").setAttribute("aria-expanded", String(!dock.hidden));
-		el("toggle").textContent = dock.hidden ? "응답 보기" : "응답 접기";
-	}
-	updateToggle();
 
 	function draftPacket() {
 		return {
@@ -378,13 +388,15 @@
 			items,
 			sheet: items.length ? "" : sheet,
 			location,
+			annotations,
 		};
 	}
 	function meaningful(packet) {
 		return !!(
 			packet.text.trim() ||
 			packet.sheet.trim() ||
-			packet.items.some((item) => item.values.length || item.memo.trim())
+			packet.items.some((item) => item.values.length || item.memo.trim()) ||
+			(packet.annotations || []).some((annotation) => annotation.note.trim())
 		);
 	}
 	function controls() {
@@ -397,6 +409,7 @@
 			: "지금 보낼 초안";
 		el("send").disabled =
 			submitting ||
+			!!annotationDraft?.note?.trim() ||
 			!!previewError ||
 			(active && currentState !== "missing") ||
 			(!active && !meaningful(draftPacket())) ||
@@ -404,12 +417,12 @@
 		el("send-label").textContent = submitting
 			? "보내는 중…"
 			: currentState === "queued"
-				? "원래 대화의 입력을 기다리는 중"
+				? "전송 대기"
 				: currentState === "sending"
 					? "전달 중…"
 					: currentState === "missing" && pendingPacket
 						? "같은 응답 다시 보내기"
-						: "원래 대화로 보내기";
+						: "보내기";
 		el("retry").hidden = currentState !== "held" || !meta.delivery;
 		el("cancel").hidden =
 			!pending || !["held", "queued"].includes(currentState);
@@ -419,6 +432,9 @@
 		el("status").dataset.state = state;
 		el("state").textContent = labels[state] || state;
 		el("detail").textContent = detail;
+		el("context-open").dataset.attention = String(
+			["held", "uncertain", "missing", "error"].includes(state),
+		);
 		controls();
 	}
 	function renderAnswers() {
@@ -481,7 +497,30 @@
 		el("legacy-sheet").hidden = !!items.length || !sheet;
 		el("legacy-sheet").textContent = sheet;
 		el("quote").textContent = quote;
-		el("citation").hidden = !quote;
+		el("citation").hidden = !quote && !annotations.length;
+		el("annotation-count").textContent = `주석 ${annotations.length}`;
+		const annotationList = el("annotations");
+		annotationList.hidden = !annotations.length;
+		annotationList.replaceChildren();
+		for (const annotation of annotations) {
+			const row = document.createElement("li");
+			row.className = "annotation-row";
+			const selected = document.createElement("blockquote");
+			selected.textContent = annotation.quote;
+			const note = document.createElement("p");
+			note.textContent = annotation.note;
+			const remove = document.createElement("button");
+			remove.type = "button";
+			remove.textContent = "주석 지우기";
+			remove.onclick = () => {
+				annotations = annotations.filter(
+					(candidate) => candidate.id !== annotation.id,
+				);
+				changed();
+			};
+			row.append(selected, note, remove);
+			annotationList.append(row);
+		}
 		controls();
 	}
 	async function post(path, packet) {
@@ -659,22 +698,137 @@
 		send();
 	});
 	el("send").onclick = send;
+
+	const editor = el("annotation-editor");
+	const trigger = el("annotation-trigger");
+	let candidate = null;
+	window.addEventListener("resize", () => {
+		if (!editor.hidden) positionAnnotation(editor, annotationDraft?.rect);
+		else if (!trigger.hidden)
+			positionAnnotation(trigger, annotationDraft?.rect || candidate?.rect);
+	});
+	function positionAnnotation(node, rect) {
+		const frame = el("document").getBoundingClientRect();
+		const width = node.offsetWidth,
+			height = node.offsetHeight;
+		const x = rect?.right ?? frame.width - width - 16;
+		const y = rect?.top ?? 24;
+		node.style.left = `${Math.max(8, Math.min(frame.width - width - 8, x + 6))}px`;
+		node.style.top = `${Math.max(8, Math.min(frame.height - height - 8, y - height - 6))}px`;
+	}
+	function showAnnotation(draft) {
+		annotationDraft = draft;
+		trigger.hidden = true;
+		el("annotation-selected").textContent = draft.quote;
+		el("annotation-note").value = draft.note;
+		el("annotation-error").textContent = "";
+		editor.hidden = false;
+		positionAnnotation(editor, draft.rect);
+		controls();
+		el("annotation-note").focus({ preventScroll: true });
+		save();
+	}
+	trigger.onpointerdown = (event) => event.preventDefault();
+	trigger.onclick = () => {
+		if (annotationDraft?.note) showAnnotation(annotationDraft);
+		else if (candidate) showAnnotation({ ...candidate, note: "" });
+	};
+	el("annotation-note").oninput = () => {
+		if (annotationDraft) annotationDraft.note = el("annotation-note").value;
+		save();
+		controls();
+	};
+	el("annotation-cancel").onclick = () => {
+		editor.hidden = true;
+		if (!annotationDraft?.note.trim()) annotationDraft = null;
+		trigger.hidden = !annotationDraft;
+		if (annotationDraft) positionAnnotation(trigger, annotationDraft.rect);
+		save();
+		controls();
+	};
+	el("annotation-save").onclick = () => {
+		if (!annotationDraft) return;
+		const note = el("annotation-note").value;
+		if (!note.trim()) return el("annotation-note").focus();
+		if (note.length > 1000 || annotations.length >= 20) {
+			el("annotation-error").textContent =
+				"주석은 1,000자, 20개까지입니다. 입력은 보관됩니다.";
+			return;
+		}
+		annotations = [
+			...annotations,
+			{
+				id: `annotation-${crypto.randomUUID()}`,
+				quote: annotationDraft.quote,
+				note,
+				context: annotationDraft.context || "",
+				location: annotationDraft.location || "",
+			},
+		];
+		annotationDraft = null;
+		quote = "";
+		editor.hidden = true;
+		trigger.hidden = true;
+		changed();
+	};
+	editor.addEventListener("keydown", (event) => {
+		if (event.isComposing || event.keyCode === 229) return;
+		if (event.key === "Escape") {
+			event.preventDefault();
+			el("annotation-cancel").click();
+		}
+		if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+			event.preventDefault();
+			el("annotation-save").click();
+		}
+	});
 	el("clear-quote").onclick = () => {
 		quote = "";
 		changed();
 	};
-	el("toggle").onclick = () => {
-		dock.hidden = !dock.hidden;
-		updateToggle();
-		updateViewport();
-		save();
-	};
+	if (annotationDraft?.quote && annotationDraft?.note) {
+		trigger.hidden = false;
+		positionAnnotation(trigger, annotationDraft.rect);
+	}
 	el("summary-toggle").onclick = () => {
 		showSummary(summary.hidden);
 		save();
 	};
 	window.addEventListener("message", (event) => {
 		if (event.source !== el("document").contentWindow) return;
+		if (event.data?.type === "html-reply-selection") {
+			const selected = event.data;
+			if (sourceOwnsAnnotations || !editor.hidden || annotationDraft?.note)
+				return;
+			if (
+				typeof selected.quote !== "string" ||
+				!selected.quote.trim() ||
+				selected.quote.length > 1200 ||
+				!selected.rect ||
+				!["top", "right", "bottom", "left"].every((key) =>
+					Number.isFinite(selected.rect[key]),
+				)
+			) {
+				candidate = null;
+				trigger.hidden = true;
+				return;
+			}
+			candidate = {
+				quote: selected.quote,
+				rect: selected.rect,
+				context:
+					typeof selected.context === "string"
+						? selected.context.slice(0, 400)
+						: "",
+				location:
+					typeof selected.location === "string"
+						? selected.location.slice(0, 500)
+						: "",
+			};
+			trigger.hidden = false;
+			positionAnnotation(trigger, candidate.rect);
+			return;
+		}
 		if (event.data?.type === "html-reply-question-focus") {
 			if (questions.some((question) => question.id === event.data.id))
 				lastQuestion = event.data.id;
@@ -708,18 +862,13 @@
 			return;
 		}
 		if (event.data?.type === "html-reply-ready") {
-			el("loading").hidden = true;
-			updateViewport();
-			event.source.postMessage(
-				{ type: "html-reply-restore", forms: formState },
-				"*",
-			);
+			restoreDocument();
 			return;
 		}
 		if (event.data?.type !== "html-reply-context") return;
 		if (Array.isArray(event.data.items)) items = event.data.items;
 		if (Array.isArray(event.data.forms)) formState = event.data.forms;
-		if (typeof event.data.quote === "string") quote = event.data.quote;
+		if (event.data.annotationMode === "source") sourceOwnsAnnotations = true;
 		if (typeof event.data.sheet === "string") sheet = event.data.sheet;
 		if (typeof event.data.location === "string") location = event.data.location;
 		changed();
@@ -755,6 +904,11 @@
 		}
 		if (packet.sheet) lines.push(packet.sheet);
 		if (packet.location) lines.push(`\n위치: ${packet.location}`);
+		for (const annotation of packet.annotations || []) {
+			lines.push(`\n선택한 원문:\n${annotation.quote}`);
+			if (annotation.context) lines.push(`위치: ${annotation.context}`);
+			lines.push(`주석:\n${annotation.note}`);
+		}
 		if (packet.quote) lines.push(`\n인용:\n${packet.quote}`);
 		if (packet.text) lines.push(`\n추가 메모:\n${packet.text}`);
 		return lines.join("\n");
@@ -780,6 +934,7 @@
 					? "서비스 연결 없이 Markdown 초안을 복사했습니다."
 					: "Markdown/XML 응답을 복사했습니다.";
 			} catch {
+				if (!contextView.open) contextView.showModal();
 				showSummary(true);
 				el("payload-preview").open = true;
 				el("payload-text").select();

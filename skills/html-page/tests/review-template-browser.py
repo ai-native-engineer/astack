@@ -26,12 +26,14 @@ window.reviewErrors=[];
 addEventListener('error',e=>reviewErrors.push(e.message));
 addEventListener('unhandledrejection',e=>reviewErrors.push(String(e.reason)));
 addEventListener('message',event=>{
- if(event.source!==parent||event.data?.type!=='review-qa')return;
+ if(event.source!==parent)return;
+ if(event.data?.type==='html-reply-layout'){window.qaDockBottom=event.data.bottom;return;}
+ if(event.data?.type!=='review-qa')return;
  const {op,id}=event.data;
  const item=document.querySelector('#review-document [data-item="'+(id||'R1')+'"]');
  const target=item?.querySelector('p');
  const rect=node=>{const r=node.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
- if(op==='scroll')window.scrollTo(0,item.getBoundingClientRect().top+scrollY-65);
+ if(op==='scroll'){const r=target.getBoundingClientRect(),available=innerHeight-(window.qaDockBottom||0);window.scrollTo(0,r.top+scrollY-Math.max(8,Math.min(65,(available-r.height)/2)));}
  if(op==='select'){
   const range=document.createRange();range.selectNodeContents(target);
   getSelection().removeAllRanges();getSelection().addRange(range);
@@ -54,7 +56,7 @@ addEventListener('message',event=>{
   const start=document.createRange(),end=document.createRange();start.setStart(textNode,0);start.setEnd(textNode,1);end.setStart(textNode,Math.min(11,textNode.length-1));end.setEnd(textNode,Math.min(12,textNode.length));
   const a=rect(start),b=rect(end),selected=getSelection();
   const colors=[...document.querySelectorAll('#review-document .review-row')].map(row=>{const badge=row.querySelector('[data-reply-state]');const style=getComputedStyle(badge);return {state:row.dataset.reviewState,text:badge.textContent,color:style.color,bg:style.backgroundColor};});
-  parent.postMessage({type:'review-qa-result',key:event.data.key,width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth-innerWidth,scroll:scrollY,focus:document.activeElement.id,caret:document.activeElement.selectionStart,icon:!document.getElementById('selection-action').hidden,iconRect:rect(document.getElementById('selection-action')),editor:!document.getElementById('selection-editor').hidden,editorRect:rect(document.getElementById('selection-editor')),text:document.getElementById('selection-message').value,quote:document.getElementById('selection-quote').textContent,selectedText:selected.toString(),selectedRect:selected.rangeCount?rect(selected.getRangeAt(0)):null,drag:{from:{x:a.left+1,y:a.top+a.height/2},to:{x:b.right-1,y:b.top+b.height/2}},state:document.getElementById('selection-state').value,checks:['R1','R2','R3'].map(q=>document.querySelector('[data-item="'+q+'"] input').checked),memos:['R1','R2','R3'].map(q=>document.getElementById('memo-'+q).value),colors,notices:[...document.querySelectorAll('#selection-note-status,.section-notes')].map(e=>e.textContent).join('\n'),errors:reviewErrors},'*');
+  parent.postMessage({type:'review-qa-result',key:event.data.key,width:innerWidth,height:innerHeight,usableHeight:Math.max(0,innerHeight-(window.qaDockBottom||0)),overflow:document.documentElement.scrollWidth-innerWidth,scroll:scrollY,focus:document.activeElement.id,caret:document.activeElement.selectionStart,icon:!document.getElementById('selection-action').hidden,iconRect:rect(document.getElementById('selection-action')),editor:!document.getElementById('selection-editor').hidden,editorRect:rect(document.getElementById('selection-editor')),text:document.getElementById('selection-message').value,quote:document.getElementById('selection-quote').textContent,selectedText:selected.toString(),selectedRect:selected.rangeCount?rect(selected.getRangeAt(0)):null,drag:{from:{x:a.left+1,y:a.top+a.height/2},to:{x:b.right-1,y:b.top+b.height/2}},state:document.getElementById('selection-state').value,checks:['R1','R2','R3'].map(q=>document.querySelector('[data-item="'+q+'"] input').checked),memos:['R1','R2','R3'].map(q=>document.getElementById('memo-'+q).value),colors,notices:[...document.querySelectorAll('#selection-note-status,.section-notes')].map(e=>e.textContent).join('\n'),errors:reviewErrors},'*');
  }));
 });
 </script>'''
@@ -63,6 +65,12 @@ BROWSER = r'''
 var pg=await openTab(PAGE_URL);
 try{
  function check(ok,message){if(!ok)throw Error(message);}
+ async function infoAction(selector,close=true){
+  if(!await pg.evaluate(()=>document.getElementById('context-view').open))await pg.locator('#context-open').click();
+  await pg.locator(selector).click();
+  if(close&&await pg.evaluate(()=>document.getElementById('context-view').open))await pg.locator('#context-close').click();
+  await sleep(30);
+ }
  function ref(tree,kind,label){const matches=[...tree.matchAll(new RegExp(kind+' "([^"\\n]*)" \\[ref=([^\\]]+)\\]','g'))];const found=matches.find(m=>m[1]===label||m[1]===label+' '+label);if(!found)throw Error('Missing '+kind+' '+label+'\n'+tree);return found[2];}
  async function click(kind,label){const snap=await snapshot(pg,{interactive:true});await pg.locator(ref(snap.tree,kind,label)).click();}
  async function source(op='measure',id=''){return await pg.evaluate(({op,id})=>new Promise((resolve,reject)=>{const key=crypto.randomUUID();const timer=setTimeout(()=>{removeEventListener('message',listener);reject(Error('Source timeout'));},5000);function listener(event){if(event.source!==document.getElementById('document').contentWindow||event.data?.type!=='review-qa-result'||event.data.key!==key)return;removeEventListener('message',listener);clearTimeout(timer);resolve(event.data);}addEventListener('message',listener);document.getElementById('document').contentWindow.postMessage({type:'review-qa',op,id,key},'*');}),{op,id});}
@@ -107,10 +115,10 @@ try{
  await source('notes','R2');await click('button','R2 주석 1 위치');check((await source()).selectedText.length>0,'Location does not restore quotation');
  await source('notes','R2');await click('button','R2 주석 1 지우기');const deleted=await source();check(deleted.memos[1]==='','Delete did not clear item memo '+JSON.stringify({state:deleted.state,memo:deleted.memos[1],focus:deleted.focus,editor:deleted.editor,errors:deleted.errors}));
  await source('scroll','R2');await source('select','R2');await waitFor(async()=>(await source()).icon,'Second question selection missing after delete');await click('button','선택한 문장에 주석');await fillNote('두 번째 주석');await click('button','주석 창 닫기');
- await pg.locator('#summary-toggle').click();await waitFor(async()=>await pg.evaluate(()=>document.getElementById('payload-text').value.includes('두 번째 주석')),'Outgoing preview did not update');
+ await infoAction('#summary-toggle');await waitFor(async()=>await pg.evaluate(()=>document.getElementById('payload-text').value.includes('두 번째 주석')),'Outgoing preview did not update');
  const packet=await pg.evaluate(()=>document.getElementById('payload-text').value);
  check(packet.includes('<answer id="R1">')&&packet.includes('<note for="R1">')&&packet.includes('<note for="R2">')&&packet.includes('첫 주석 &amp; &lt;태그&gt;')&&packet.includes('<unanswered>R2 R3</unanswered>')&&!packet.includes('ANNOTATION_STATE'),'Compact item packet mismatch '+packet);
- await pg.locator('#summary-toggle').click();
+ await infoAction('#summary-toggle');
  const palette=[];
  for(const theme of ['light','dark']){
   await pg._sendToTarget('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:theme},{name:'prefers-reduced-motion',value:'reduce'}]});await sleep(90);
@@ -120,12 +128,12 @@ try{
  await pg.locator('#message').fill('고정된 첫 회신');await pg.locator('#send').click();await waitFor(async()=>await pg.evaluate(()=>document.getElementById('status').dataset.state)==='held','Isolated reply not held');
  const frozen=await pg.evaluate(()=>document.getElementById('payload-text').value);
  await source('scroll','R1');await source('notes','R1');await click('button','R1 주석 1 수정');await fillNote('수정한 첫 주석 & <태그>');await click('button','주석 창 닫기');check(await pg.evaluate(()=>document.getElementById('payload-text').value)===frozen,'Pending packet mutated');
- await pg.locator('#message').fill('REVIEW_TEMPLATE_RECEIVER');await pg.locator('#cancel').click();await waitFor(async()=>await pg.evaluate(()=>document.getElementById('status').dataset.state)!=='held','Cancel not applied');await pg.locator('#send').click();await waitFor(async()=>await pg.evaluate(()=>document.getElementById('status').dataset.state)==='received','Isolated Store.receive failed');
- await pg.locator('#toggle').click();const layouts=[];
+ await pg.locator('#message').fill('REVIEW_TEMPLATE_RECEIVER');await infoAction('#cancel');await waitFor(async()=>await pg.evaluate(()=>document.getElementById('status').dataset.state)!=='held','Cancel not applied');await pg.locator('#send').click();await waitFor(async()=>await pg.evaluate(()=>document.getElementById('status').dataset.state)==='received','Isolated Store.receive failed');
+ const layouts=[];
  for(const theme of ['light','dark']){
   await pg._sendToTarget('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:theme},{name:'prefers-reduced-motion',value:'reduce'}]});
   for(const size of [[1440,900],[768,900],[390,844],[320,568],[844,390]]){
-   await pg._sendToTarget('Emulation.setDeviceMetricsOverride',{width:size[0],height:size[1],deviceScaleFactor:1,mobile:false});await source('scroll','R1');await source('select','R1');await waitFor(async()=>(await source()).icon,'Responsive selection missing');await source('comment');const g=await source();
+   await pg._sendToTarget('Emulation.setDeviceMetricsOverride',{width:size[0],height:size[1],deviceScaleFactor:1,mobile:false});await source('scroll','R1');await source('select','R1');await waitFor(async()=>(await source()).icon,'Responsive selection missing '+JSON.stringify({theme,size,state:await source()}));await source('comment');const g=await source();
    check(g.editor&&g.overflow<=1&&g.editorRect.left>=0&&g.editorRect.right<=g.width&&g.editorRect.top>=0&&g.editorRect.bottom<=g.height,'Responsive editor overflow '+JSON.stringify({theme,size,g}));layouts.push({theme,size,editor:g.editorRect,syntheticOpen:true});await source('close');await source('clear');
   }
  }

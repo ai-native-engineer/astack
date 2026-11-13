@@ -1,9 +1,10 @@
-"""Shared session JSONL parser with separate OpenClaw, senpi, and gjc identities."""
+"""Shared session JSONL parser with separate OpenClaw, senpi, and OMP identities."""
 
 from __future__ import annotations
 
 import functools
 import json
+import re
 from pathlib import Path
 
 from common import (
@@ -18,6 +19,10 @@ from common import (
 
 EDIT_TOOLS = {"write", "edit", "str_replace", "create_file", "apply_patch"}
 SHELL_TOOLS = {"bash", "exec", "shell"}
+_SESSION_UUID_RE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    re.IGNORECASE,
+)
 # 사람이 입력한 게 아니라 런타임이 끼워넣는 발화들.
 _SYNTHETIC_PREFIXES = (
     "A new session was started via",
@@ -75,6 +80,10 @@ def _iter_lines(path: Path):
 
 def _session_header(path: Path):
     for entry in _iter_lines(path):
+        if not isinstance(entry, dict):
+            return None
+        if entry.get("type") == "title":
+            continue
         return entry if entry.get("type") == "session" else None
     return None
 
@@ -92,10 +101,19 @@ class SessionJsonlAdapter:
         self.TAG = tag
         self.SOURCE_PATHS = (root,)
         self.session_index = functools.lru_cache(maxsize=1)(self._session_index)
+        self.all_session_index = functools.lru_cache(maxsize=1)(self._all_session_index)
         register_cache_clearer(self.session_index.cache_clear)
+        register_cache_clearer(self.all_session_index.cache_clear)
 
     def _session_index(self):
-        """session_id -> {path, cwd, ts, archived}, scoped to this tool."""
+        return {
+            sid: info
+            for sid, info in self.all_session_index().items()
+            if include_subagents() or not info["subagent"]
+        }
+
+    def _all_session_index(self):
+        """Include workers for direct lookup; reset archives remain opt-in."""
         idx: dict[str, dict] = {}
         root = self.SOURCE_PATHS[0]
         if not root.is_dir():
@@ -112,23 +130,28 @@ class SessionJsonlAdapter:
             sid = header.get("id") or path.stem
             # `.jsonl.reset.<ts>`는 같은 세션의 이전 회차라 ID가 겹친다.
             archived = ".reset." in path.name
-            if sid in idx:
-                if not archived:
-                    idx[sid].update({"path": path, "archived": False})
-                    continue
-                sid = f"{sid}@{path.name.split('.reset.')[-1]}"
             if archived and not include_subagents():
                 continue
+            # Runtime-specific worker layouts are not inferred from filenames.
+            subagent = False  # parentSession also identifies ordinary forks/continuations.
+            if sid in idx:
+                if not archived:
+                    idx[sid].update(
+                        {"path": path, "archived": False, "subagent": subagent}
+                    )
+                    continue
+                sid = f"{sid}@{path.name.split('.reset.')[-1]}"
             idx[sid] = {
                 "path": path,
                 "cwd": header.get("cwd") or "",
                 "ts": iso_to_ms(header.get("timestamp")),
                 "archived": archived,
+                "subagent": subagent,
             }
         return idx
 
     def _resolve(self, session_id: str):
-        idx = self.session_index()
+        idx = self.all_session_index()
         if session_id in idx:
             return session_id, idx[session_id]
         for sid, info in idx.items():
@@ -255,16 +278,17 @@ class SessionJsonlAdapter:
 
     def grep_session(self, fpath: Path, keyword, session_id: str | None = None):
         sid = session_id
+        idx = self.session_index()
         if not sid:
             sid = next(
                 (
                     key
-                    for key, info in self.session_index().items()
+                    for key, info in idx.items()
                     if info["path"] == fpath
                 ),
                 None,
             )
-        if not sid:
+        if sid not in idx:
             return []
         messages, _ = self.read_conversation(sid, full=True)
         return hits_from_messages(messages or [], keyword)
@@ -320,7 +344,7 @@ class SessionJsonlAdapter:
                     "cwd": cwd,
                     "path": str(info["path"]),
                     "model": message.get("model") or "",
-                    "subagent": False,
+                    "subagent": info["subagent"],
                     "input_tokens": int(usage.get("input") or 0),
                     "output_tokens": int(usage.get("output") or 0),
                     "cache_read_input_tokens": int(usage.get("cacheRead") or 0),

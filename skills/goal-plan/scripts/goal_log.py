@@ -3,26 +3,24 @@
 
 Every change goes through this tool: it auto-fills id/checkpoint, escapes
 tabs/newlines, and validates the status/decision enums. Run `<cmd> --help`
-for flags, `condition` for the /goal line, or `selftest` to verify the tool itself.
+for flags, `condition` for readiness or a Codex-compatible /goal line.
 """
 from __future__ import annotations
 
 import argparse
-import io
 import re
 import subprocess
 import sys
-import tempfile
-from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 CONDITION_LIMIT = 4000  # Claude Code caps a /goal condition at 4,000 characters
 
 COLUMNS = ["id", "status", "decision", "task", "done_when",
-           "checkpoint", "artifact", "next", "notes"]
-STATUSES = {"todo", "doing", "done", "blocked", "dropped"}
+           "checkpoint", "artifact", "next", "notes", "worker", "branch",
+           "worktree", "depends_on"]
+STATUSES = {"todo", "doing", "deferred", "blocked", "done", "dropped"}
 DECISIONS = {"n/a", "keep", "discard", "crash"}
-OPEN_STATUSES = {"todo", "doing", "blocked"}
+OPEN_STATUSES = {"todo", "doing", "deferred", "blocked"}
 DONE_DECISIONS = {"keep", "discard", "crash"}
 DROP_DECISIONS = {"discard", "crash"}
 EDITABLE = [c for c in COLUMNS if c != "id"]
@@ -60,6 +58,10 @@ def read_rows(path: Path):
 
 
 def write_rows(path: Path, header, rows):
+    header = list(header)
+    for column in COLUMNS:
+        if column not in header:
+            header.append(column)
     out = ["\t".join(header)]
     out += ["\t".join(_clean(r.get(c, "")) for c in header) for r in rows]
     path.write_text("\n".join(out) + "\n", encoding="utf-8")
@@ -138,7 +140,9 @@ def cmd_add(args):
     rows.append({"id": rid, "status": "todo", "decision": "n/a",
                  "task": task, "done_when": _clean(args.done_when),
                  "checkpoint": "-", "artifact": "-",
-                 "next": _clean(args.next), "notes": _clean(args.notes)})
+                 "next": _clean(args.next), "notes": _clean(args.notes),
+                 "worker": "-", "branch": "-", "worktree": "-",
+                 "depends_on": _clean(getattr(args, "depends_on", "")) or "-"})
     write_rows(path, header, rows)
     print(rid)
     return 0
@@ -162,6 +166,23 @@ def cmd_done(args):
 
 def cmd_block(args):
     return _update(args, status="blocked", notes=args.notes)
+
+
+def cmd_defer(args):
+    if not _has_evidence(args.reason):
+        print("error: deferred rows need a reason in --reason", file=sys.stderr)
+        return 2
+    return _update(args, status="deferred", notes=args.reason, next=args.resume_when)
+
+
+def cmd_resume(args):
+    return _update(args, status="todo", decision="n/a", next=args.next)
+
+
+def cmd_assign(args):
+    fields = {"worker": args.worker, "branch": args.branch,
+              "worktree": args.worktree, "depends_on": args.depends_on}
+    return _update(args, **fields)
 
 
 def cmd_drop(args):
@@ -245,12 +266,11 @@ def readiness_problems(text: str) -> list[str]:
 
 
 def cmd_condition(args):
-    """Print the /goal line for a filled GOAL.md.
+    """Validate a filled GOAL.md and print a Codex-compatible /goal line.
 
-    /goal registers its argument verbatim and does not expand an @file, so the
-    condition itself must name the goal and the proof for the evaluator. The
-    line is refused while the contract is incomplete, because the evaluator can
-    only judge what the contract names.
+    Claude Code uses `/goal @GOAL.md` so the fresh loop reads the saved
+    contract directly. This command remains useful as a readiness check and
+    for runtimes that require the goal and proof in the condition text.
     """
     path = Path(args.goal_file)
     if not path.is_file():
@@ -289,67 +309,6 @@ def cmd_condition(args):
     return 0
 
 
-def cmd_selftest(args):
-    from argparse import Namespace
-
-    def expect(code, func, ns):
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with redirect_stdout(stdout), redirect_stderr(stderr):
-            rc = func(ns)
-        assert rc == code, (func.__name__, rc, stdout.getvalue(), stderr.getvalue())
-
-    with tempfile.TemporaryDirectory() as d:
-        f = str(Path(d) / "progress.tsv")
-        expect(0, cmd_add, Namespace(file=f, task="first\twith tab",
-                                     done_when="x", next="n", notes=""))
-        expect(0, cmd_add, Namespace(file=f, task="second", issue="#7",
-                                     done_when="", next="", notes=""))
-        expect(2, cmd_add, Namespace(file=f, task="third", issue="soon",
-                                     done_when="", next="", notes=""))
-        _, rows = read_rows(Path(f))
-        assert [r["id"] for r in rows] == ["1", "2"], rows
-        assert rows[1]["task"] == "#7 second", rows[1]
-        assert "\t" not in rows[0]["task"] and "with tab" in rows[0]["task"]
-        expect(0, cmd_start, Namespace(file=f, id="1"))
-        _, rows = read_rows(Path(f))
-        assert find_row(rows, "1")["status"] == "doing"
-        expect(0, cmd_done, Namespace(file=f, id="1", decision="keep",
-                                      artifact="proof", notes=None))
-        _, rows = read_rows(Path(f))
-        r = find_row(rows, "1")
-        assert r["status"] == "done" and r["decision"] == "keep" and r["artifact"] == "proof"
-        expect(2, cmd_done, Namespace(file=f, id="99", decision="keep",
-                                      artifact="proof", notes=None))  # unknown id
-        expect(2, cmd_done, Namespace(file=f, id="2", decision="bogus",
-                                      artifact="proof", notes=None))   # bad enum
-        expect(2, cmd_done, Namespace(file=f, id="2", decision="n/a",
-                                      artifact="proof", notes=None))   # open-only decision
-        expect(2, cmd_done, Namespace(file=f, id="2", decision="keep",
-                                      artifact=None, notes=None))      # missing proof
-        expect(2, cmd_done, Namespace(file=f, id="2", decision="keep",
-                                      artifact="-", notes=None))       # placeholder proof
-        expect(2, cmd_drop, Namespace(file=f, id="2", decision="n/a",
-                                      notes=None))                     # open-only decision
-        expect(2, cmd_drop, Namespace(file=f, id="2", decision="keep",
-                                      notes=None))                     # done-only decision
-        expect(2, cmd_drop, Namespace(file=f, id="2", decision="discard",
-                                      notes=None))                     # missing drop reason
-        expect(2, cmd_set, Namespace(file=f, id="2", col="status", value="done"))
-        expect(2, cmd_set, Namespace(file=f, id="2", col="decision", value="keep"))
-        expect(2, cmd_set, Namespace(file=f, id="1", col="artifact", value="-"))
-        expect(2, cmd_set, Namespace(file=f, id="1", col="decision", value="n/a"))
-        expect(2, cmd_set, Namespace(file=f, id="1", col="status", value="blocked"))
-        expect(2, cmd_block, Namespace(file=f, id="1", notes="reopen"))
-        expect(0, cmd_drop, Namespace(file=f, id="2", decision="discard",
-                                      notes="not needed"))
-        _, rows = read_rows(Path(f))
-        assert find_row(rows, "2")["status"] == "dropped"
-        expect(2, cmd_set, Namespace(file=f, id="2", col="status", value="nope"))
-    print("selftest OK")
-    return 0
-
-
 def main(argv=None):
     parent = argparse.ArgumentParser(add_help=False)
     parent.add_argument("--file", default="progress.tsv", help="progress TSV path")
@@ -364,6 +323,7 @@ def main(argv=None):
     a.add_argument("--done-when", dest="done_when", default="")
     a.add_argument("--next", default="")
     a.add_argument("--notes", default="")
+    a.add_argument("--depends-on", default="", help="comma-separated row ids that must be done")
     a.set_defaults(func=cmd_add)
 
     s = sub.add_parser("start", parents=[parent], help="mark row doing")
@@ -377,10 +337,29 @@ def main(argv=None):
     dn.add_argument("--notes", default=None)
     dn.set_defaults(func=cmd_done)
 
-    b = sub.add_parser("block", parents=[parent], help="mark row blocked")
+    b = sub.add_parser("block", parents=[parent], help="mark row blocked by a technical dependency")
     b.add_argument("id")
     b.add_argument("--notes", default=None)
     b.set_defaults(func=cmd_block)
+
+    df = sub.add_parser("defer", parents=[parent], help="record an approval or external-condition hold")
+    df.add_argument("id")
+    df.add_argument("--reason", required=True)
+    df.add_argument("--resume-when", default="", help="condition or next action for resuming")
+    df.set_defaults(func=cmd_defer)
+
+    rs = sub.add_parser("resume", parents=[parent], help="return a deferred row to the todo queue")
+    rs.add_argument("id")
+    rs.add_argument("--next", default=None)
+    rs.set_defaults(func=cmd_resume)
+
+    aa = sub.add_parser("assign", parents=[parent], help="record the worker allocation for a row")
+    aa.add_argument("id")
+    aa.add_argument("--worker", required=True)
+    aa.add_argument("--branch", required=True)
+    aa.add_argument("--worktree", required=True)
+    aa.add_argument("--depends-on", default="-", help="comma-separated row ids")
+    aa.set_defaults(func=cmd_assign)
 
     dr = sub.add_parser("drop", parents=[parent], help="mark row dropped")
     dr.add_argument("id")
@@ -402,9 +381,6 @@ def main(argv=None):
     cd = sub.add_parser("condition", help="print the /goal line from GOAL.md")
     cd.add_argument("--goal-file", default="GOAL.md", help="goal file path")
     cd.set_defaults(func=cmd_condition)
-
-    sub.add_parser("selftest", parents=[parent],
-                   help="run internal checks").set_defaults(func=cmd_selftest)
 
     args = p.parse_args(argv)
     return args.func(args)

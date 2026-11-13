@@ -9,6 +9,8 @@ import unittest
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+# `python3 -I` drops the script directory from sys.path; the sibling fixture must still import.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_reply_bridge import bridge
 
 
@@ -58,6 +60,27 @@ class HttpTests(unittest.TestCase):
         for options in [dict(origin="null"), dict(origin="https://example.invalid"), dict(csrf=False)]:
             with self.assertRaises(HTTPError) as caught:
                 self.post(body, **options)
+            self.assertEqual(caught.exception.code, 403)
+            caught.exception.close()
+        self.assertEqual(self.store.pending(), [])
+
+    def test_unproxied_tailnet_host_is_rejected(self):
+        # Without `tailscale serve` there is no owner login, so a forged Host cannot read or post.
+        for headers in [{"Host": "node.tailnet.ts.net"}, {"Host": "node.tailnet.ts.net", "Tailscale-User-Login": "someone@github"}]:
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(Request(self.origin + "/artifact/" + self.artifact["id"], headers=headers))
+            self.assertEqual(caught.exception.code, 403)
+            caught.exception.close()
+
+    def test_proxied_request_claiming_loopback_host_is_rejected(self):
+        # A tailnet peer can send `Host: 127.0.0.1:<port>` through Serve; Serve still adds X-Forwarded-*.
+        forged = {"Host": self.origin.removeprefix("http://"), "X-Forwarded-For": "100.64.0.9", "Tailscale-User-Login": "guest@github"}
+        page = self.origin + "/artifact/" + self.artifact["id"]
+        for req in [Request(page, headers=forged),
+                    Request(page + "/reply", data=b'{"id":"reply-forged-one","text":"x"}',
+                            headers={**forged, "Content-Type": "application/json", "Origin": self.origin, "X-Reply-CSRF": self.meta["csrf"]})]:
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(req)
             self.assertEqual(caught.exception.code, 403)
             caught.exception.close()
         self.assertEqual(self.store.pending(), [])
@@ -123,6 +146,20 @@ class HttpTests(unittest.TestCase):
         self.process.wait(timeout=5)
         self.process = None
         self.assertEqual(self.store.reply("reply-http-stop", self.artifact["id"])["state"], "held")
+
+
+class TailnetTests(unittest.TestCase):
+    def test_only_the_proxied_host_and_node_owner_are_admitted(self):
+        calls = []
+        def routes(port):
+            calls.append(port)
+            return {"node.tailnet.ts.net:8443"}, "owner@github"
+        tailnet = bridge.Tailnet(54794, routes)
+        self.assertTrue(tailnet.allows("node.tailnet.ts.net:8443", "owner@github"))
+        for host, login in [("node.tailnet.ts.net:8443", "guest@github"), ("node.tailnet.ts.net:8443", None),
+                            ("other.tailnet.ts.net:8443", "owner@github"), (None, "owner@github")]:
+            self.assertFalse(tailnet.allows(host, login))
+        self.assertEqual(calls, [54794])
 
 
 if __name__ == "__main__":

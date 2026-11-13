@@ -195,21 +195,17 @@ def sample_payload(args: argparse.Namespace, root: Path) -> dict:
         tool_input: dict = {}
         if args.file:
             tool_input["file_path"] = str((root / args.file).resolve()) if not Path(args.file).is_absolute() else args.file
-        if args.command_text:
-            tool_input["command"] = args.command_text
         payload["tool_input"] = tool_input
         if args.event == "PostToolUse":
             payload["tool_response"] = {"success": True}
     if args.event in {"Stop", "SubagentStop"}:
         payload["stop_hook_active"] = False
     if args.event == "UserPromptSubmit":
-        payload["prompt"] = args.prompt or "sample prompt"
+        payload["prompt"] = "sample prompt"
     if args.event == "SessionStart":
         payload["source"] = "resume"
     if args.event == "PreCompact":
         payload["trigger"] = "auto"
-    if args.payload:
-        payload.update(json.loads(args.payload))
     return payload
 
 
@@ -225,7 +221,7 @@ def matcher_hits(matcher: str, tool: str) -> bool:
 def cmd_fire(args: argparse.Namespace, root: Path) -> int:
     if args.event not in EVENTS:
         return fail(f"unknown event {args.event}; one of {', '.join(EVENTS)}")
-    source = root / RUNTIME_FILES[0] if args.runtime == "claude" else root / RUNTIME_FILES[1]
+    source = root / RUNTIME_FILES[0]
     if not inside_root(root, source):
         return fail(f"{source} or one of its parents is a symlink")
     data = load(source)
@@ -268,7 +264,7 @@ def cmd_fire(args: argparse.Namespace, root: Path) -> int:
             status = "FAIL"
         print(f"{status} {gid} exit {code}  {shown(handler['command'])}")
         if out:
-            for line in out.splitlines()[-args.tail:]:
+            for line in out.splitlines()[-5:]:
                 print(f"       {shown(line)}")
     print(f"fired {ran} hook(s) for {args.event}; {failures} failed" + ("; expected a block (exit 2)" if args.expect_block else ""))
     return 1 if failures else 0
@@ -297,15 +293,10 @@ def main(argv: list[str] | None = None) -> int:
     fire.add_argument("event")
     fire.add_argument("--tool", help="tool name for PreToolUse/PostToolUse (default Edit)")
     fire.add_argument("--file", help="tool_input.file_path for the sample payload")
-    fire.add_argument("--command-text", help="tool_input.command for a Bash sample payload")
-    fire.add_argument("--prompt", help="prompt text for UserPromptSubmit")
-    fire.add_argument("--payload", help="JSON object merged over the sample payload")
-    fire.add_argument("--runtime", choices=("claude", "codex"), default="claude", help="which file to read hooks from")
     fire.add_argument("--expect-block", action="store_true", help="pass only when every hook exits 2 (a deliberate block)")
     fire.add_argument("--id", action="append", help="run only this hook id (repeatable)")
     fire.add_argument("--trust-workspace", action="store_true",
                       help="actually run the commands; without it the matching commands are listed and nothing runs")
-    fire.add_argument("--tail", type=int, default=5, help="output lines to show per hook")
     fire.set_defaults(func=cmd_fire)
 
     args = parser.parse_args(argv)

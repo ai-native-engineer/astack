@@ -10,12 +10,14 @@ Claude, Codex, Grok 로컬 세션 로그로 **토큰 실사용**과 **API 환산
 - 단가표
 - 구독 한도
 - 해석 주의
+- 원시 전사 직접 집계
 
 ## 언제 이 문서를 읽나
 
 - 이번 달/최근 N일 “얼마 썼지”, 모델별 비중, 구독 대비 API 가치가 필요할 때
 - `token_usage.py`의 `--cost` / `--by-model` / `--month` / `--quota` 동작을 확인할 때
 - 단가가 바뀌었거나 새 모델을 표에 넣을 때
+- 도구별 결과 크기나 호출 패턴처럼 `token_usage.py`가 세지 않는 값을 전사 파일에서 직접 셀 때
 
 ## 대표 명령
 
@@ -31,7 +33,6 @@ python3 scripts/token_usage.py --days 7 --cost --quota --format json
 
 전체 플래그는 `python3 scripts/token_usage.py -h`.
 
-제품별 집계는 세션 명령과 같은 `--tool`을 쓴다. OpenClaw, senpi, gjc는 각각 `openclaw`, `senpi`, `gjc`로 선택하며 `all`에서도 별도 제품으로 집계한다.
 
 ## 데이터 정본
 
@@ -120,11 +121,19 @@ Anthropic 스타일은 `cache_write_5m`, `cache_write_1h`, `cache_read` 키를 �
 4. 단가는 공식 list price 스냅샷이다. 프로모션·intro 기간·지역 가산은 표 note를 본다.
 5. 모델별 표의 `unpriced`는 단가 미매칭이다. 토큰 합에는 들어가고 비용 합에는 빠진다.
 
+## 원시 전사 직접 집계
+
+`token_usage.py`가 세지 않는 값(도구별 결과 크기, 호출 패턴)을 전사 파일에서 직접 셀 때의 함정이다.
+
+1. 기간은 기록마다 `timestamp`로 거른다. 파일 수정 시각은 마지막 기록의 시각이라, 최근에 이어 쓴 세션의 오래된 기록까지 기간에 들어간다.
+2. Claude의 `type: "api-request-blob"` 기록은 빼고 센다. 같은 도구 결과를 일반 `user`/`assistant` 기록과 중복해 담고 있어 함께 세면 이중 계상된다.
+3. 규칙이나 hook의 준수율은 제안이 나온 지점과 그다음 호출을 짝지은 뒤에만 판정한다. 호출에 특정 키가 있는 비율은 제안과 무관하게 지정한 경우까지 섞인 값이다.
+4. 보고에는 기준 시각, 제외한 기록 수, 측정하지 못한 런타임을 함께 적는다. 숫자의 범위를 독자가 판단할 수 있게 하기 위해서다.
+
 ## 관련 파일
 
 - `scripts/token_usage.py` — CLI (토큰+비용 단일 패스 집계)
 - `scripts/pricing.py` — 단가·해석·환산
 - `scripts/quota.py` — live 한도
-- `scripts/adapters/{claude,codex,grok,opencode,aside,openclaw,copilot}.py` — 토큰을 남기는 로그 파서. `openclaw.py`는 OpenClaw/senpi/gjc가 공유하며 제품별 인스턴스는 `scripts/adapters/__init__.py`에 등록한다.
 - `scripts/adapters/{cursor,gemini}.py` — 대화만 있고 토큰은 없는 파서
 - `tests/test_pricing.py`, `tests/test_token_cost_integration.py`

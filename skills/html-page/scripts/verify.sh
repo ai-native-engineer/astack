@@ -7,6 +7,7 @@ set -euo pipefail
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
   echo "usage: verify.sh <file.html>                 # CDP render checks (explicit request only)"
   echo "       verify.sh --syntax <file.html>        # inline JavaScript syntax only; Python 3 + Node.js"
+  echo "         exit 0 checked, 1 syntax error, 2 unverified (external/unsupported scripts, no inline JS, or no Node.js)"
   exit 0
 fi
 
@@ -58,8 +59,8 @@ try:
     page = Scripts()
     page.feed(args.html_file.read_text(encoding="utf-8"))
     page.close()
-    if not page.scripts or page.unchecked:
-        raise ValueError("Inline JavaScript is missing or script dependencies/types remain unchecked; verify with the matching browser workflow.")
+    # Check every supported inline script even when other scripts stay unchecked,
+    # so an external dependency never hides a broken inline script.
     with tempfile.TemporaryDirectory(prefix="html-inline-js-") as folder:
         for index, script in enumerate(page.scripts, 1):
             file = Path(folder) / (str(index) + (".mjs" if script["module"] else ".js"))
@@ -70,8 +71,13 @@ try:
                 # Report the error category, not source lines that may contain private values.
                 error = next((line for line in run.stderr.splitlines() if line.startswith("SyntaxError:")), "Node.js syntax check failed")
                 result["errors"].append({"script": index, "htmlLine": script["line"], "message": error})
-    result["ok"] = not result["errors"]
-    code = 0 if result["ok"] else 1
+    if result["errors"]:
+        code = 1
+    elif not page.scripts or page.unchecked:
+        result["unverified"] = {"scripts": page.unchecked, "message": "Inline JavaScript is missing or script dependencies/types remain unchecked; verify with the matching browser workflow."}
+    else:
+        result["ok"] = True
+        code = 0
 except (OSError, UnicodeError, ValueError) as exc:
     result["errors"].append({"message": str(exc)})
 print(json.dumps(result, ensure_ascii=False))
