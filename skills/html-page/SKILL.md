@@ -1,6 +1,6 @@
 ---
 name: html-page
-description: "Use for: 로컬 HTML 페이지 한 장으로 설명, 비교, 인터랙티브 walkthrough, 용어집, 확인 시트, 회의록, 정리본, 프로토타입을 만들고 Herdr 패널로 바로 회신받는다. 편집형 도식 파일은 diagram, 제품 UI는 dev-frontend."
+description: "Use for: 전문 시각화·UI 스킬이 소유하지 않는 일반적인 로컬 HTML 페이지 한 장으로 설명, 비교, 일반 인터랙티브 walkthrough, 용어집, 확인 시트, 회의록, 정리본, 서비스 프로토타입을 만들고 Herdr 패널로 바로 회신받는다. 시스템·알고리즘을 물리적 기계로 설명하는 인터랙티브 figure나 anatomy-style SVG/HTML은 anatomy, 편집형 도식 파일은 diagram, 제품 UI는 dev-frontend를 사용한다."
 argument-hint: "[visual|interactive|wiki|sheet] [topic]"
 ---
 
@@ -10,7 +10,7 @@ argument-hint: "[visual|interactive|wiki|sheet] [topic]"
 
 ## 1. 만들기
 
-- 시작점은 둘이다. 설명, 도표, 차트는 `assets/template.html`, 보고 고르거나 메모를 받는 확인 시트는 `assets/review-template.html`을 복사한다. 두 파일 다 `assets/design.css`의 토큰 블록을 인라인하고 있다.
+- 새 페이지의 시작점은 `assets/template.html` 하나다. 글, 도표, 차트, 비교표, 미디어를 이 파일에 구성하고, 연결된 회신 패널이 선택 인용과 주석을 덧붙인다. `assets/review-template.html`은 `build-review.py`가 만드는 기존 원문 검토 사본과 호환 테스트를 위한 보존 템플릿이다. 두 파일은 `assets/design.css`의 토큰 블록을 인라인한다.
 - 색은 토큰 이름으로만 쓴다(`--paper`, `--ink`, `--muted`, `--line`, `--action`, `--complete`, `--pending`, 범주색 `--teal`, `--amber`). 새 색을 정하지 않는다. 한 벌이어야 패널, 완료 표시, 다크 모드가 같은 규칙으로 보인다.
 - 저장 위치는 수명으로 정한다. 이 턴의 답이나 선택을 받으면 끝나는 페이지(선택지, 설명 한 번, 확인 시트)는 `$TMPDIR/html-pages/<name>.html`에 둔다. 나중에 다시 열어 볼 내용(회의록, 정리본, 조사 보고, 서비스 프로토타입)은 `~/.agents/artifacts/YYMMDD-<harness>-<native-session-id>-<name>.html`에 둔다. 애매하면 임시에 두고 사용자가 남기자고 하면 아티팩트로 옮긴다.
 - 임시 폴더는 `mkdir -m 700`으로 만든다. 공용 `/tmp`에는 두지 않는다(`$TMPDIR`이 없으면 `~/.cache/html-pages`). 회신 서비스는 등록 시점의 페이지 스냅샷을 따로 보관하므로 보낸 응답과 그 페이지는 남는다. 세션 ID는 실제 값을 쓴다(Herdr 패널이면 `herdr agent list`). 저장소 소유 산출물은 그 저장소 위치를 따른다.
@@ -33,7 +33,8 @@ python3 <skill-dir>/scripts/reply-bridge.py --state-dir ~/.agents/artifacts/.htm
 ```
 
 - 이 명령 하나가 문법 검사, 디자인 검사, 현재 Herdr 패널의 대화 식별, 회신 서비스 기동, 등록, 브라우저 열기를 한다. 파일을 `open`으로 직접 열지 않는다. 열어만 두면 사용자가 복사해 붙여 넣어야 한다.
-- exit 0: 출력 JSON의 `url`과 `log`를 사용자에게 알린다. 서비스는 턴이 끝나도 남으며 멈추는 명령은 같은 스크립트의 `stop`이다.
+- exit 0: 사용자에게 주소를 `<url> (<tailnet_url>)` 한 줄로 알리고 `log`를 덧붙인다. 기기 이름표와 원본 파일 경로는 적지 않는다. Tailscale DNS를 끈 기기는 `*.ts.net` 이름을 찾지 못하므로 `url`을 빼지 않는다. `tailnet_url`이 `null`이면 [reply-delivery](references/reply-delivery.md) 운영 5번으로 연결한 뒤 다시 `publish`한다. 서비스는 턴이 끝나도 남으며 멈추는 명령은 같은 스크립트의 `stop`이다.
+- `syntax_unverified`가 있으면 CDN이나 `text/babel` 스크립트를 문법 검사하지 못한 것이다. 페이지는 보내졌으니 미검증으로 보고하고, 동작은 브라우저에서 확인한다.
 - exit 1: 검사 실패. 출력의 `errors`를 고친 뒤 다시 실행한다.
 - exit 3: Herdr 패널 밖이거나 대화를 식별하지 못했다. 파일은 열린 상태다. "미연결"이라고 명시하고 `reason`을 보고한다. 대화를 알면 `--session`, `--agent`, `--conversation`을 셋 다 지정한다.
 - 회신이 오면 메모 있는 항목부터 처리하고 어디까지 반영했는지 보고한다. 미선택은 동의가 아니다. 회신 상태, Codex `receive`, fallback은 [reply-delivery](references/reply-delivery.md)를 읽는다.

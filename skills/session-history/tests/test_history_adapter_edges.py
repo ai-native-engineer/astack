@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -15,7 +17,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from adapters import claude, codex, grok
-from common import set_include_subagents
+from common import iso_to_ms, set_include_subagents
 
 
 def write_json(path: Path, value):
@@ -171,6 +173,215 @@ class TestCodexSubagentFiltering(unittest.TestCase):
                 index["sid-1004"],
                 {"name": "session-1004", "provider": "openai"},
             )
+
+
+class TestClaudeContextBoundaries(unittest.TestCase):
+    def setUp(self):
+        set_include_subagents(False)
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.home = Path(self.temp.name)
+        self.projects = self.home / ".claude" / "projects"
+        self.history = self.home / ".claude" / "history.jsonl"
+        self.desktop = self.home / "desktop"
+        self.sid = "10000000-0000-4000-8000-000000000090"
+        self.transcript = self.projects / "fixture" / f"{self.sid}.jsonl"
+        self.summary = "compact-context-needle: generated prior context"
+        self.notification = (
+            "<task-notification>notification-only-needle "
+            + "x" * 900
+            + " notification-tail-needle</task-notification>"
+        )
+        write_jsonl(
+            self.transcript,
+            [
+                self._user(self.summary, isCompactSummary=True),
+                self._user(
+                    [{"type": "text", "text": "meta compact context"}],
+                    isCompactSummary=True,
+                    isMeta=True,
+                ),
+                self._user(self.notification),
+                self._user(
+                    "<system-reminder><task-notification>wrapped-notice</task-notification>"
+                    "</system-reminder>",
+                    isMeta=True,
+                ),
+                self._user(
+                    [
+                        {"type": "text", "text": "actual request\n" + self.notification},
+                        {"type": "tool_result", "content": "ordinary tool result"},
+                    ]
+                ),
+            ],
+        )
+        timestamp = iso_to_ms("2026-08-18T09:10:00+09:00") / 1000
+        os.utime(self.transcript, (timestamp, timestamp))
+        for name, value in {
+            "CLAUDE_PROJECTS_DIR": self.projects,
+            "CLAUDE_LOCAL_PROJECT_ROOTS": (),
+            "CLAUDE_HISTORY": self.history,
+            "CLAUDE_DESKTOP_SESSIONS_DIR": self.desktop,
+            "CLAUDE_DESKTOP_LOCAL_SESSIONS_DIR": self.home / "local",
+        }.items():
+            patcher = mock.patch.object(claude, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self._clear()
+        self.addCleanup(self._clear)
+        self.addCleanup(set_include_subagents, False)
+
+    @staticmethod
+    def _clear():
+        claude.claude_conversation_index.cache_clear()
+        claude.claude_transcript_mtimes.cache_clear()
+        claude.claude_desktop_metadata.cache_clear()
+
+    @staticmethod
+    def _user(content, **flags):
+        return {
+            "type": "user",
+            "timestamp": "2026-08-18T09:10:00+09:00",
+            "cwd": "/tmp/context-fixture",
+            "message": {"content": content},
+            **flags,
+        }
+
+    def _history(self):
+        return claude.extract_claude_history(
+            iso_to_ms("2026-08-18T00:00:00+09:00"),
+            iso_to_ms("2026-08-19T00:00:00+09:00"),
+        )
+
+    def _run(self, *args):
+        env = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in {
+                "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", "UNSUPPORTED_SESSION_ID"
+            }
+        }
+        env.update({
+            "HOME": str(self.home),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "TZ": "Asia/Seoul",
+        })
+        result = subprocess.run(
+            [sys.executable, str(SCRIPTS / "session_history.py"), *args, "--tool", "claude"],
+            cwd=self.home,
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=20,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result.stdout
+
+    def test_compact_context_has_its_own_role_and_notifications_are_full_only(self):
+        messages, found = claude.read_claude_conversation(self.sid)
+        self.assertEqual(found, self.transcript)
+        self.assertEqual([m["role"] for m in messages], ["summary", "summary", "user"])
+        self.assertEqual(messages[0]["text"], self.summary)
+        self.assertEqual(messages[-1]["text"], "actual request")
+
+        full, _ = claude.read_claude_conversation(self.sid, full=True)
+        notifications = [m for m in full if m.get("phase") == "task-notification"]
+        self.assertEqual(len(notifications), 3)
+        self.assertTrue(all(m["role"] == "tool_result" for m in notifications))
+        self.assertEqual(notifications[0]["text"], self.notification)
+        self.assertIn("ordinary tool result", [m["text"] for m in full])
+        self.assertEqual(
+            [m["text"] for m in full if m["role"] == "user"], ["actual request"]
+        )
+
+    def test_summary_is_searchable_context_but_notification_is_not_a_search_hit(self):
+        hits = claude.grep_claude_session(self.transcript, "compact-context-needle")
+        self.assertEqual([hit["role"] for hit in hits], ["summary"])
+        for keyword in ("notification-only-needle", "notification-tail-needle", "wrapped-notice"):
+            self.assertEqual(claude.grep_claude_session(self.transcript, keyword), [])
+        self.assertEqual(
+            [hit["role"] for hit in claude.grep_claude_session(self.transcript, "ordinary tool")],
+            ["tool_result"],
+        )
+
+    def test_preview_uses_real_intent_for_transcript_desktop_and_history(self):
+        self.assertEqual(self._history()[self.sid]["messages"][0]["text"], "actual request")
+        write_json(
+            self.desktop / "account" / "local_fixture.json",
+            {
+                "cliSessionId": self.sid,
+                "createdAt": iso_to_ms("2026-08-18T09:10:00+09:00"),
+                "originCwd": "/tmp/context-fixture",
+            },
+        )
+        self._clear()
+        self.assertEqual(self._history()[self.sid]["messages"][0]["text"], "actual request")
+        records = []
+        for display, flags in (
+            (self.summary, {"isCompactSummary": True}),
+            ("meta context", {"isMeta": True}),
+            (self.notification, {}),
+            (self.notification + "\nactual history request", {}),
+        ):
+            records.append({
+                "sessionId": self.sid,
+                "timestamp": iso_to_ms("2026-08-18T09:10:00+09:00"),
+                "project": "/tmp/context-fixture",
+                "display": display,
+                **flags,
+            })
+        write_jsonl(self.history, records)
+        self.assertEqual(
+            [m["text"] for m in self._history()[self.sid]["messages"]],
+            ["actual history request"],
+        )
+
+    def test_context_only_transcript_has_no_user_preview(self):
+        write_jsonl(
+            self.transcript,
+            [self._user(self.summary + self.notification, isCompactSummary=True)],
+        )
+        timestamp = iso_to_ms("2026-08-18T09:10:00+09:00") / 1000
+        os.utime(self.transcript, (timestamp, timestamp))
+        self.assertEqual(self._history()[self.sid]["messages"], [])
+        messages, _ = claude.read_claude_conversation(self.sid)
+        self.assertEqual([m["role"] for m in messages], ["summary"])
+        self.assertEqual(messages[0]["text"], self.summary)
+        self.assertEqual(claude.grep_claude_session(self.transcript, "notification-only-needle"), [])
+
+    def test_notification_blocks_preserve_surrounding_intent_and_truncated_tail(self):
+        for text, expected in (
+            (self.notification + "\nreal question", "real question"),
+            ("before" + self.notification + "after", "beforeafter"),
+            ("real question\n<task-notification>unfinished", "real question"),
+            ("real question\n<task-notification source='worker'>notice</task-notification>", "real question"),
+        ):
+            with self.subTest(text=text[:30]):
+                self.assertEqual(claude._real_user_text(text), expected)
+        self.assertEqual(claude._claude_real_user_text(self._user(self.summary)), self.summary)
+
+    def test_cli_role_search_and_bounded_full_output(self):
+        normal = json.loads(self._run("show", self.sid, "--format", "json"))
+        self.assertEqual([m["role"] for m in normal], ["summary", "summary", "user"])
+        full = json.loads(self._run("show", self.sid, "--full", "--format", "json"))
+        notification = next(m for m in full if m.get("phase") == "task-notification")
+        self.assertEqual(notification["role"], "tool_result")
+        self.assertEqual(notification["chars"], len(self.notification))
+        self.assertLessEqual(len(notification["text"]), 506)
+        text = self._run("show", self.sid, "--full")
+        self.assertIn("task-notification", text)
+        self.assertNotIn("x" * 301, text)
+        hits = json.loads(self._run("rg", "compact-context-needle", "--date", "2026-08-18", "--format", "json"))
+        self.assertEqual(hits[0]["talk_count"], 0)
+        self.assertEqual(hits[0]["hits"][0]["role"], "summary")
+        for command in (
+            ("rg", "notification-only-needle", "--include-self"),
+            ("list", "--search", "compact-context-needle"),
+            ("list", "--search", "notification-only-needle"),
+        ):
+            result = json.loads(self._run(*command, "--date", "2026-08-18", "--format", "json"))
+            self.assertFalse(result)
 
 
 class TestClaudeChangedFiles(unittest.TestCase):

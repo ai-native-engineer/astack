@@ -12,7 +12,7 @@ Choose a process explorer, a stateful lab, or a sequential lesson according to t
 ## 스택과 골격
 
 - The sequential starter uses React 18, ReactDOM, and Babel from pinned CDNs. Explorers and labs can use Vanilla JS or an existing offline runtime; preserve the selected example's stack.
-- For a sequential lesson, `assets/interactive-template.html` provides progress, keyboard navigation, and themes. A process explorer or lab may reuse the relevant retained example instead.
+- 새 페이지는 `assets/template.html`에서 시작한다. 단계형 수업에 진행 표시와 키보드 탐색이 필요하면 `assets/interactive-template.html`의 상호작용을 참고해 가져온다. 이 파일은 별도 시작점이 아닌 호환 예시다. 탐색기나 실험실도 목적에 맞는 보관 예시의 필요한 부분만 재사용한다.
 - When using the step starter, edit `STEP_NAMES` and `Steps()` together. For an explorer, preserve selection and detail state rather than forcing a step engine.
 
 ## 스텝 작성

@@ -32,7 +32,7 @@ bunx ctx7@latest <command>
 
 - **[Documentation](references/docs.md)** — Fetch current docs for any library. Use when writing code, verifying API signatures, or when training data may be outdated.
 - **[Skills management](references/skills.md)** — Install, search, suggest, list, remove, and generate AI coding skills.
-- **[Setup](references/setup.md)** — Authentication (login for higher rate limits) and CLI skill install.
+- **[Setup](references/SETUP.md)** — Authentication (login for higher rate limits) and CLI skill install.
 
 ## Quick Reference
 
@@ -45,7 +45,7 @@ ctx7 docs <libraryId> <query>  # Step 2: fetch docs with that ID
 
 - Full docs flags, query-writing, version IDs → [references/docs.md](references/docs.md)
 - Skills commands (install/search/suggest/list/remove/generate) → [references/skills.md](references/skills.md)
-- Authentication (login/logout/whoami, API key) + CLI skill install → [references/setup.md](references/setup.md)
+- Authentication (login/logout/whoami, API key) + CLI skill install → [references/SETUP.md](references/SETUP.md)
 
 Run `ctx7 <command> --help` for the authoritative, installed-version flags.
 

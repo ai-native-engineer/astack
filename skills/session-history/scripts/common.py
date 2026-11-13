@@ -42,7 +42,7 @@ OPENCODE_DB = HOME / ".local" / "share" / "opencode" / "opencode.db"
 ASIDE_PROFILES_DIR = HOME / ".aside" / "u"
 OPENCLAW_SESSIONS_DIR = HOME / ".openclaw" / "agents" / "main" / "sessions"
 SENPI_SESSIONS_DIR = HOME / ".senpi" / "agent" / "sessions"
-GJC_SESSIONS_DIR = HOME / ".gjc" / "agent" / "sessions"
+OMP_SESSIONS_DIR = HOME / ".omp" / "agent" / "sessions"
 
 BASH_MUTATION_RE = re.compile(
     r"(?:(?:^|[;&|\s])(?:rm|mv|cp|mkdir|rmdir|touch|ln|chmod|chown|sed\s+-i|tee|apply_patch)\b)|(?:\s>>?\s*[^\s;&|])",

@@ -7,13 +7,14 @@
 - 현재 세션이 실제로 제공하는 subagent 도구가 있으면 그 스키마를 사용한다. 이름이 비슷한 다른 CLI의 팀 도구를 가져오지 않는다.
 - `agy agent`와 `agy agents`는 사용 가능한 agent 목록 조회다. worker 생성이나 메시지 전송 명령으로 사용하지 않는다.
 - 네이티브 팀 도구가 없고 Herdr 안에서 실행 중이면 Herdr 경로를 사용한다. 둘 다 없으면 lead가 직접 처리하고 제한을 보고한다.
-- 모델 ID는 필요할 때 `agy models`로 확인한다. Codex나 Claude의 모델 ID를 그대로 넘기지 않는다.
+- 모델 ID는 필요할 때 `agy models`로 확인한다. Codex나 Claude의 모델 ID를 그대로 넘기지 않는다. 읽기 전용 worker는 `pick_worker_model.py --harness agy`가 그 목록에서 고른 ID를 쓴다.
 - effort와 권한 모드는 기존 사용자 설정을 유지한다. worker 실행을 위해 전역 설정을 바꾸거나 권한 우회 인자를 추가하지 않는다.
 
 ## Herdr worker
 
 - `herdr agent start`의 대상 kind는 `agy`다. 설치된 명령에서 지원 여부를 확인한 뒤 pane을 만든다. 지원 여부가 미확인이면 생성 단계로 넘어가지 않는다.
 - `agy --help`에서 모델과 effort 인자를 확인한 뒤 허용된 인자만 Herdr의 `--` 뒤에 전달한다.
+- `herdr agent start`는 pane 셸에 `agy`를 입력하므로 사용자 셸 alias의 인자(권한 우회 포함)가 그대로 붙는다. 이것도 기존 사용자 설정이므로 alias를 해제하거나 인자를 바꾸지 않고, 결과 보고에 pane의 `terminal_title`로 확인한 실제 권한 모드를 적는다.
 - AGY가 입력 대기로 돌아와도 background task가 실행 중일 수 있다. 해당 turn의 결과와 남은 작업을 함께 확인한다.
 - `agy --print`를 관찰 가능한 pane의 대체 경로로 사용하지 않는다.
 

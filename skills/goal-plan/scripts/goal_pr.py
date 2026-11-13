@@ -29,13 +29,13 @@ def git(*args: str, cwd: Path | None = None, check: bool = True) -> str:
     return result.stdout.strip()
 
 
-def default_base(root: Path, remote: str) -> str:
+def default_base(root: Path, remote: str, repo: str | None = None) -> str:
     try:
         ref = git("symbolic-ref", "--short", f"refs/remotes/{remote}/HEAD", cwd=root)
         return ref.split("/", 1)[1]
     except RuntimeError:
         pass
-    probe = subprocess.run(["gh", "repo", "view", "--json", "defaultBranchRef",
+    probe = subprocess.run(["gh", "repo", "view", *([repo] if repo else []), "--json", "defaultBranchRef",
                             "--jq", ".defaultBranchRef.name"],
                            cwd=root, capture_output=True, text=True, check=False)
     name = probe.stdout.strip()
@@ -79,9 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--body-file", default=None, help="Markdown file with the PR body")
     parser.add_argument("--include", action="append", default=[],
                         help="Scaffold file to keep in the result (repeatable)")
-    parser.add_argument("--exclude", action="append", default=[],
-                        help="Extra path to drop from the result (repeatable)")
-    parser.add_argument("--draft", action="store_true", help="Open the PR as a draft")
+    parser.add_argument("--repo", default=None, help="owner/name for gh; required on a fork so the PR opens there")
     parser.add_argument("--dry-run", action="store_true", help="Build the result branch, do not push")
     parser.add_argument("--no-pr", action="store_true", help="Push the branch, do not open a PR")
     args = parser.parse_args(argv)
@@ -106,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
         if git("status", "--porcelain", "--untracked-files=no", cwd=root):
             print("error: uncommitted changes; commit or revert them first", file=sys.stderr)
             return 2
-        base = args.base or default_base(root, args.remote)
+        base = args.base or default_base(root, args.remote, args.repo)
         if args.branch in {base, goal_branch}:
             print("error: --branch must differ from the base and goal branches", file=sys.stderr)
             return 2
@@ -115,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: branch {args.branch} already exists {where}", file=sys.stderr)
             return 2
 
-        drop = [p for p in SCAFFOLD_FILES if p not in args.include] + args.exclude
+        drop = [p for p in SCAFFOLD_FILES if p not in args.include]
         tracked = [p for p in drop if git("ls-files", "--", p, cwd=root)]
         issue = tracking_issue(root)
         scaffold_subject = "chore(goal): remove goal scaffold from result branch"
@@ -150,8 +148,8 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             cmd = ["gh", "pr", "create", "--base", base, "--head", args.branch,
                    "--title", args.title, "--body-file", args.body_file]
-            if args.draft:
-                cmd.append("--draft")
+            if args.repo:
+                cmd += ["--repo", args.repo]
             created = subprocess.run(cmd, cwd=work, capture_output=True, text=True, check=False)
             if created.returncode != 0:
                 print(f"error: gh pr create failed: {(created.stderr or created.stdout).strip()}",

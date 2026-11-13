@@ -1,6 +1,5 @@
 """Bounded search keeps full-search ordering without reading discarded sessions."""
 
-import json
 import sys
 import unittest
 from pathlib import Path
@@ -69,10 +68,10 @@ class TestSearchLimit(unittest.TestCase):
                     None if sid == "missing" else Path(__file__)
                 ),
             ),
-            patch.object(history, "emit") as emit,
+            patch.object(history, "emit_json") as emit,
         ):
             history.cmd_grep(args)
-        return json.loads(emit.call_args.args[0]), search
+        return emit.call_args.args[0], search
 
     def test_recent_limit_keeps_newest_and_bounds_adapter_reads(self):
         ordered_hits = ["late", "tie-first", "tie-second", "early"]

@@ -167,6 +167,8 @@ ffmpeg -y -i in.mp4 -vf "fps=1/10" frame_%04d.jpg              # 10초마다 1�
 
 `-ss`를 `-i` 앞에 둬 빠르게 점프. `-q:v 2`=고화질 JPG(2~5 권장).
 
+**함정**: Homebrew ffmpeg에 libwebp가 없으면 `.webp` 출력이 인코더를 찾지 못해 실패한다. `ffmpeg -hide_banner -encoders`로 확인하고, 없으면 png로 뽑은 뒤 `cwebp -q 80 -m 6 in.png -o out.webp`(Homebrew `webp`)로 바꾼다.
+
 ## 속도 변경 (배속) — 재인코딩
 
 ```bash

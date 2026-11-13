@@ -1,12 +1,13 @@
 ---
 argument-hint: "[query]"
 name: session-history
-description: "Use for: Claude·Codex·Cursor 등 로컬 AI 세션의 목록, 전사, 도구 호출, 변경 파일, 토큰·비용을 검색하고 키를 마스킹한다. Hermes state.db, 현재 저장소 검색, 회고 작성, 메모리 갱신에는 쓰지 않는다."
+description: "Use for: 로컬 AI 세션(Claude, Codex, Cursor 등)의 검색, 전사, 도구 호출, 변경 파일, 토큰과 비용 조회. 지금 세션의 진행 정리와 남은 일은 session-wrapup, 반복 작업에서 스킬 후보 발굴은 skill-harvest."
 ---
 
 # Session History
 
-Claude Code/Desktop Cowork, Codex, Grok, Cursor, Gemini CLI/Antigravity, opencode, Aside, OpenClaw/senpi/gjc, GitHub Copilot(CLI/VS Code)의 로컬 대화 로그를 하나의 CLI로 조회한다.
+Claude Code, Codex, OMP, Cursor와 다른 지원 런타임의 로컬 대화 로그를 조회한다. 제품을 지정하면 `--tool omp|claude|codex`처럼 출처를 고정한다. OMP는 native title 메타데이터 뒤의 session header를 읽으며 과거 파일을 변환하거나 옮기지 않는다.
+
 
 Hermes Agent 자체 대화(Discord/Telegram/Gateway/CLI)는 이 스크립트 대상이 아니다. Hermes 대화는 `session_search` 도구가 `~/.hermes/state.db`를 검색한다.
 
@@ -25,7 +26,6 @@ python3 $SH redact
 
 서브커맨드는 `sources`, `list`, `timeline`, `rg`/`grep`, `show`, `redact`다. `--tool`의 기본값은 `all`이다. 전체 도구와 옵션은 `python3 $SH <subcommand> -h`를 먼저 본다.
 
-특정 제품만 요청하면 그 제품의 `--tool`을 지정한다. gjc는 `--tool gjc`, senpi는 `--tool senpi`, OpenClaw는 `--tool openclaw`다. 공통 로그 형식을 쓰더라도 출처를 섞으면 검색과 집계 범위가 달라진다.
 
 ## 워크플로
 
@@ -48,10 +48,11 @@ python3 $SH redact
 - `show`의 `#번호`는 세션 안 위치다. 대화만 볼 때와 도구 기록을 포함할 때(`--full`, `--grep`) 기준이 달라서 `--offset`도 같은 모드로 준다.
 - `show`는 도구 출력을 텍스트에서 300자, JSON에서 500자로 줄인다. `--grep`을 쓰면 일치한 위치 주변을 남기고, `--full` 없이도 도구 기록까지 찾는다.
 - 복원 경고가 있으면 전사 마지막 답변을 마지막 작업으로 단정하지 않는다. `history` 출처는 사용자 입력만 복원한 것이며, 빠진 답변이나 실행 완료를 증명하지 않는다. JSON에서도 행의 `source`와 stderr 경고를 함께 확인한다.
-- 모든 출력은 시크릿을 가린 뒤 나간다. 원문이 필요하면 `--raw`를 붙인다. 로그에는 사용자가 붙여넣은 키가 그대로 있어, 무심코 검색하면 그 값이 다시 컨텍스트와 새 로그로 번진다.
+- 모든 출력은 시크릿을 가린 뒤 나간다. JSON은 직렬화 전에 문자열 값만 가려 키와 숫자, 참/거짓, null의 구조를 보존한다. 원문이 필요하면 `--raw`를 붙인다. 로그에는 사용자가 붙여넣은 키가 그대로 있어, 무심코 검색하면 그 값이 다시 컨텍스트와 새 로그로 번진다.
 - 세션 ID는 prefix 매칭한다. 충돌을 피하려면 목록의 12자리 이상을 그대로 쓴다.
 - 모든 도구의 주입 컨텍스트는 사용자 의도가 아니다. `<user_query>`·`<USER_REQUEST>` 블록을 우선하고 Claude의 `<system-reminder>`, `<command-args>`, hook 출력은 걷어낸다.
-- subagent/internal 세션은 기본 제외한다. Claude `subagents/`, Cursor `subagents/`와 chats의 `subagentInfo`, OpenClaw `.jsonl.reset.*`, Codex `exec` 세션이 모두 여기 해당하며 `--include-subagents`로 켠다.
+- Claude 압축 컨텍스트는 `summary`로 구분하고, 작업 완료 알림은 일반 검색에서 제외하며 `show --full`에서 길이를 제한한 도구 결과로만 표시한다.
+- subagent/internal은 지원되는 native 식별자에 한해 기본 제외한다. Claude/ Cursor `subagents/`, Cursor chats `subagentInfo`, OpenClaw reset archives와 Codex exec 세션은 `--include-subagents`로 포함한다. OMP `parentSession`만으로 worker를 추정하지 않으며 ordinary fork/continuation은 보존한다.
 - `show --files`는 구조화된 편집 호출과 mutation 형태의 shell 호출을 모은다. Gemini는 안정적인 changed-file event 계약이 없어 빈 결과가 무변경을 보장하지 않는다.
 - `sources`는 지원 adapter의 저장소와 인덱싱 수를 보여준다. adapter가 못 읽는 부분은 `·` 주석으로 함께 밝힌다(Claude의 transcript 없는 세션, Antigravity IDE 암호화 본문 등). 임의 형식 로그를 자동 해석하지는 않는다.
 - Codex의 세션 이름과 provider는 보조 SQLite 인덱스에서 읽어 보충한다. 이 값은 검색·표시용이며 transcript를 대체하지 않는다.
@@ -71,6 +72,7 @@ python3 $SH redact --apply                          # 백업 후 치환
 ```
 
 - 기본은 세기만 한다. `--apply`가 있어야 파일을 고치고, 고치기 전에 대상 전체를 `tar.gz`로 백업한 뒤 되돌리는 명령을 찍는다.
+- 백업에는 지운 키가 원문으로 남는다. 백업은 소유자만 읽게 만들고 기존 백업은 덮어쓰지 않지만, 치환을 확인한 뒤 백업까지 지워야 키가 디스크에서 사라진다. 백업을 남긴 채 회수가 끝났다고 보고하지 않는다.
 - 지울 때는 `sk-`·`ntn_`·`AIza`처럼 **모양이 확실한 키만** 건드린다. 화면 마스킹이 함께 쓰는 `token=...` 이름 기반 휴리스틱은 `token=3` 같은 멀쩡한 기록까지 덮어써, 되돌릴 수 없는 쪽에서는 놓치는 것보다 부수는 것이 비싸다.
 - 살아 있는 세션의 파일은 `--exclude`로 빼고 그 세션이 끝난 뒤 돌린다. 자기 세션만이 아니라 **동시에 떠 있는 다른 세션도** 해당한다. 그 세션은 자기가 들고 있는 상태로 로그를 다시 쓰므로, 치환해도 그 위에 덮여 사라진다.
 - `--apply` 뒤에 인자를 그대로 두고 한 번 더 세어 0인지 확인한다. 남아 있으면 그 파일을 누가 다시 쓰고 있다는 신호다.
@@ -87,7 +89,7 @@ python3 scripts/token_usage.py --days 7 --cost --by-model
 python3 scripts/token_usage.py --month --cost --quota
 ```
 
-Cursor, Gemini, VS Code Copilot Chat transcript에는 안정적인 token usage가 없어 토큰·비용 집계에서 제외한다. 단가, 모델 해석, cache, quota 세부는 `references/cost-measurement.md`를 읽는다.
+Cursor, Gemini, VS Code Copilot Chat transcript에는 안정적인 token usage가 없어 토큰·비용 집계에서 제외한다. 단가, 모델 해석, cache, quota 세부와 전사 파일을 직접 집계할 때의 함정은 `references/cost-measurement.md`를 읽는다.
 
 ## 대화 맥락 교정 대응
 

@@ -28,6 +28,7 @@ DEFAULT_PROOF = (
     "screenshot comparison the first progress row."
 )
 DEFAULT_DEDICATED_ROOT = Path("~/.agents/goals")
+PROGRESS_FILE = "progress.tsv"
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 AGENTS_TEMPLATE = SKILL_ROOT / "templates" / "AGENTS.md.tmpl"
 GOAL_TEMPLATE = SKILL_ROOT / "templates" / "GOAL.md.tmpl"
@@ -100,7 +101,8 @@ def goal_instructions(goal: str, proof_command: str | None, progress_file: str, 
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"missing goal template: {GOAL_TEMPLATE}") from exc
     missing = [
-        marker for marker in ["{{GOAL}}", "{{PROOF}}", "{{PROGRESS_FILE}}", "{{GOAL_LOG}}", "{{ISSUE}}"]
+        marker for marker in ["{{GOAL}}", "{{PROOF}}", "{{PROGRESS_FILE}}", "{{GOAL_LOG}}", "{{GOAL_WORKER}}",
+                              "{{ISSUE}}"]
         if marker not in template
     ]
     if missing:
@@ -112,6 +114,7 @@ def goal_instructions(goal: str, proof_command: str | None, progress_file: str, 
         .replace("{{PROOF}}", proof_instructions(proof_command))
         .replace("{{PROGRESS_FILE}}", progress_file)
         .replace("{{GOAL_LOG}}", goal_log)
+        .replace("{{GOAL_WORKER}}", str(Path(goal_log).with_name("goal_worker.py")))
         .replace("{{ISSUE}}", issue_text(issue))
     )
 
@@ -119,7 +122,7 @@ def goal_instructions(goal: str, proof_command: str | None, progress_file: str, 
 def progress_tsv(goal: str) -> str:
     timestamp = now_iso()
     clean_goal = tsv_cell(goal).strip() or DEFAULT_GOAL
-    header = "id\tstatus\tdecision\ttask\tdone_when\tcheckpoint\tartifact\tnext\tnotes"
+    header = "id\tstatus\tdecision\ttask\tdone_when\tcheckpoint\tartifact\tnext\tnotes\tworker\tbranch\tworktree\tdepends_on"
     row = "\t".join([
         "0",
         "todo",
@@ -130,6 +133,10 @@ def progress_tsv(goal: str) -> str:
         "-",
         "goal_log.py add --task ... to queue the first implementation row",
         f"Initialized goal plan at {timestamp}",
+        "-",
+        "-",
+        "-",
+        "-",
     ])
     return f"{header}\n{row}\n"
 
@@ -168,32 +175,12 @@ def write_goal(path: Path, content: str) -> list[str]:
     return messages
 
 
-def validate_claude_symlink(path: Path) -> None:
-    if not path.is_symlink():
-        return
-    agents = path.with_name("AGENTS.md")
-    try:
-        if path.resolve(strict=True) == agents.resolve(strict=True) and agents.is_file():
-            return
-    except (OSError, RuntimeError):
-        pass
-    raise ValueError(f"CLAUDE.md symlink must resolve to an existing sibling AGENTS.md file: {path}")
-
-
-def write_claude(path: Path) -> list[str]:
-    validate_claude_symlink(path)
-    if path.is_symlink():
-        return [f"kept existing {path}"]
-    messages = []
-    content = "@AGENTS.md\n"
-    if path.exists() and path.read_text(encoding="utf-8") == content:
-        return [f"kept existing {path}"]
-    backup = backup_existing(path)
-    if backup:
-        messages.append(backup)
-    path.write_text(content, encoding="utf-8")
-    messages.append(f"wrote {path}")
-    return messages
+def claude_md_notice(path: Path) -> list[str]:
+    """Claude Code reads AGENTS.md directly, but any project CLAUDE.md makes it skip AGENTS.md."""
+    if not (path.exists() or path.is_symlink()):
+        return []
+    return [f"warning: {path} exists, so Claude Code reads it instead of AGENTS.md; "
+            "merge it into AGENTS.md and delete it"]
 
 
 def stop_hook_command(proof_command: str) -> str:
@@ -267,15 +254,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--worktree", metavar="TAG", default=None,
                         help="Create the plan in a timestamped external goal/<TAG> git worktree")
-    parser.add_argument("--worktree-root", default=str(DEFAULT_DEDICATED_ROOT),
-                        help="Root for --worktree worktrees (default: ~/.agents/goals)")
     parser.add_argument("--dedicated", metavar="NAME", default=None,
                         help="Create a dedicated goal repo at ~/.agents/goals/YYMMDD-HHMMSS-<NAME>")
-    parser.add_argument("--dedicated-root", default=str(DEFAULT_DEDICATED_ROOT),
-                        help="Root for --dedicated repos (default: ~/.agents/goals)")
     parser.add_argument("--issue", default=None, metavar="N",
                         help="GitHub tracking issue number to record in GOAL.md GitHub Flow")
-    parser.add_argument("--progress-file", default="progress.tsv", help="Progress TSV file name")
     parser.add_argument("--force", action="store_true", help="Overwrite an existing progress file")
     args = parser.parse_args(argv)
 
@@ -283,8 +265,7 @@ def main(argv: list[str] | None = None) -> int:
         print("error: choose either --worktree or --dedicated, not both", file=sys.stderr)
         return 2
     if args.dedicated and args.path != ".":
-        print("error: --dedicated creates its own path; use --dedicated-root to change the root",
-              file=sys.stderr)
+        print("error: --dedicated creates its own path; drop the path argument", file=sys.stderr)
         return 2
     if args.proof_command is not None and not args.proof_command.strip():
         print("error: --proof-command cannot be empty", file=sys.stderr)
@@ -303,7 +284,7 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
             return 2
         try:
-            target = add_worktree(root, args.worktree, Path(args.worktree_root))
+            target = add_worktree(root, args.worktree, DEFAULT_DEDICATED_ROOT)
         except subprocess.CalledProcessError as exc:
             detail = (exc.stderr or "").strip() or f"exit {exc.returncode}"
             print(f"error: git worktree add failed: {detail} "
@@ -311,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     if args.dedicated:
-        target = timestamped_goal_path(Path(args.dedicated_root), args.dedicated)
+        target = timestamped_goal_path(DEFAULT_DEDICATED_ROOT, args.dedicated)
 
     target.mkdir(parents=True, exist_ok=True)
     if args.dedicated and not (target / ".git").exists():
@@ -325,7 +306,6 @@ def main(argv: list[str] | None = None) -> int:
 
     hook_files: list[tuple[Path, str]] = []
     try:
-        validate_claude_symlink(target / "CLAUDE.md")
         if args.proof_command:
             command = stop_hook_command(args.proof_command)
             for path in (target / ".claude" / "settings.json", target / ".codex" / "hooks.json"):
@@ -334,7 +314,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    progress_file = args.progress_file
+    progress_file = PROGRESS_FILE
     goal_log = str(Path(__file__).resolve().parent / "goal_log.py")
 
     messages = []
@@ -344,7 +324,7 @@ def main(argv: list[str] | None = None) -> int:
             target / "GOAL.md",
             goal_instructions(args.goal, args.proof_command, progress_file, goal_log, args.issue),
         ))
-        messages.extend(write_claude(target / "CLAUDE.md"))
+        messages.extend(claude_md_notice(target / "CLAUDE.md"))
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -358,12 +338,14 @@ def main(argv: list[str] | None = None) -> int:
     if not args.worktree and not args.dedicated:
         messages.append(f"goal workspace ready at {target}")
     messages.extend([
-        "next: fill every TBD from the setup interview (Environment, Verification Layers, GitHub Flow "
-        "included), add initial progress rows with harness rows first, commit the plan, then stop",
+        "next: fill every remaining TBD (Decisions, Context, Scope, Environment, Verification Layers, "
+        "Constraints, tracking issue), add initial progress rows with harness rows first, commit the plan, "
+        "then stop",
         "handoff overview: summarize goal, acceptance criteria, proof, environment, verification layers, "
         "progress rows, workspace, branch, and plan commit",
         f"run: !cd {target}",
-        f"run: python3 {goal_log} condition   # prints the /goal line to paste",
+        "run: /goal @GOAL.md   # execute this only in a fresh continuation context",
+        f"optional check: python3 {goal_log} condition   # Codex-compatible readiness check",
     ])
     print("\n".join(messages))
     return 0

@@ -37,6 +37,8 @@ bash scripts/init_company_workspace.sh "<company-or-domain>" [base_dir]
 - `recursive-crawl/` — 통합 재귀 크롤러 실행 사본 및 분석 인벤토리 TSV
 - `public-mirror/` — 인용용 읽기 사본
 
+네이버 검색 API(약관 2.3)와 Brave 검색 결과는 복사, 저장, 캐싱이 금지다. 보도 수집에서 받은 원본 응답을 `press-inventory`나 저장소에 남길 때는 이 약관을 먼저 사용자와 확인한다.
+
 Markdown 보고서는 canonical 산출물이 아니다. 필요한 경우에만 임시 판독 노트를 만들고, 최종 전달 전 `data/company-profile.json`에 반영한다.
 
 ## 라우팅 — 언제 무엇을 읽나

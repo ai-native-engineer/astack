@@ -61,8 +61,7 @@ def cmd_open(args) -> int:
         number = args.existing.lstrip("#")
     else:
         body = args.body or f"Step of #{args.parent}."
-        created = gh("issue", "create", "--title", args.title, "--body", body,
-                     *(["--label", args.label] if args.label else []), repo=repo)
+        created = gh("issue", "create", "--title", args.title, "--body", body, repo=repo)
         number = number_from_url(created.stdout)
     attach(repo, args.parent, number)
     print(number)
@@ -97,7 +96,6 @@ def main(argv: list[str] | None = None) -> int:
     op.add_argument("--parent", required=True, help="tracking issue number")
     op.add_argument("--title", default=None, help="sub-issue title, usually the row task")
     op.add_argument("--body", default=None, help="sub-issue body (default: 'Step of #parent.')")
-    op.add_argument("--label", default=None)
     op.add_argument("--existing", default=None, metavar="N",
                     help="attach an existing issue as the sub-issue instead of creating one")
     op.set_defaults(func=cmd_open)

@@ -1,6 +1,6 @@
 ---
 name: kakaotalk
-description: "Use for: macOS KakaoTalk UI로 채팅방·대화를 읽고 검색·발송한다. 발신 전 shared communication 규칙을 적용한다. REST 본인 알림은 kakao-notify-me. 다른 서비스, 장문 작성, 실행 없는 문안 작성에는 쓰지 않는다."
+description: "Use for: macOS KakaoTalk UI로 채팅방·대화를 읽고 검색·발송한다. 발신 전 shared communication 규칙을 적용한다. 다른 서비스, 장문 작성, 실행 없는 문안 작성에는 쓰지 않는다."
 ---
 
 # KakaoTalk CLI
@@ -15,7 +15,7 @@ description: "Use for: macOS KakaoTalk UI로 채팅방·대화를 읽고 검색�
 katok --help
 ```
 
-설치본이 문서보다 오래됐을 수 있다. 절차에 나오는 서브커맨드가 `--help` 목록에 없으면 [references/setup-and-permissions.md](references/setup-and-permissions.md)의 업그레이드 절차로 올리고, 올리기 전까지 그 경로를 쓰지 않는다.
+설치본이 문서보다 오래됐을 수 있다. 절차에 나오는 서브커맨드가 `--help` 목록에 없으면 [references/SETUP.md](references/SETUP.md)의 업그레이드 절차로 올리고, 올리기 전까지 그 경로를 쓰지 않는다.
 
 ## 안전선
 
@@ -44,5 +44,5 @@ katok --help
 | 메시지를 읽거나 보낸다 (최신성 판단, 단계, 확인 템플릿, 발송 결과 판정) | [references/message-workflows.md](references/message-workflows.md) |
 | 검색이 원하는 걸 못 찾는다, 기간이나 발신자로 좁힌다, 내가 한 말을 모은다 | [references/search-and-filtering.md](references/search-and-filtering.md) |
 | 보낼 방을 이름으로 특정하지 못한다, 같은 이름이 여럿이다, 오픈채팅이다 | [references/chatroom-lookup.md](references/chatroom-lookup.md) |
-| 설치, Full Disk Access, 발송 전제 조건을 점검한다 | [references/setup-and-permissions.md](references/setup-and-permissions.md) |
+| 설치, Full Disk Access, 발송 전제 조건을 점검한다 | [references/SETUP.md](references/SETUP.md) |
 | 실제 대화 대신 합성 데이터로 시연한다 | [references/demo-mode.md](references/demo-mode.md) |

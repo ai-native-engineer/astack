@@ -2,59 +2,53 @@
 
 Read this when creating a goal plan.
 
-## 목차
-
-- Setup Flow
-- Interview
-- Harness Rows
-- Choosing e2e Means
-- Optional Stop Gate
-- Workspace Choice
-- Worktree Mode
-- Dedicated-Repo Mode
-- Mutable Inputs
-- Handoff Response
-
 ## Setup Flow
 
-1. Inspect the target enough to infer defaults: repo type, test and lint commands, services the Proof needs and how they start, mutable inputs, and change-tracking mode. Match what you find against the baseline table in `harness-layers.md` so each repo signal (formatter config, test runner, `.env`, lock files, GitHub remote) yields the hooks, git hooks, and CI the goal should have.
-2. Give the user a compact overview of the inferred plan: goal, proof, scope, environment, verification layers, GitHub flow, constraints, and open risks.
-3. Interview with the question set below, 1-3 questions per round, until every section has an answer. If a structured clarification UI is available, use it.
-4. Show the final overview and wait for the user to approve it in words. Scaffold only after that approval, or after the user explicitly says to use defaults or skip questions. Having seen the overview is not approval.
-5. Replace every `TBD`, add the initial progress rows (baseline first, then harness rows, then feature rows), commit the plan, then stop.
+1. Inspect the target to infer everything the repo can answer: repo type, test and lint commands, services the Proof needs and how they start, secrets it needs, and change-tracking mode. Match the signals against the baseline table in `harness-layers.md`.
+2. Interview the user (below), 1-3 questions per round, using the host's structured clarification UI when available.
+3. Show the final overview (goal, proof, scope, environment, verification layers, constraints, open risks) and wait for the user to approve it in words. Having seen the overview is not approval. Scaffold only after approval, or after the user explicitly says to use defaults or skip questions.
+4. Scaffold, replace every `TBD`, add the initial progress rows (baseline first, then harness rows, then feature rows), commit the plan, print the handoff, and stop. Do not enter the goal worktree or start the loop in this invocation.
 
 ## Interview
 
-The interview has two jobs: pull out what the user actually wants, then pin it to defaults the repo supports. Open questions first for intent, proposed defaults afterwards for everything the repo can answer. Each answer has one home in `GOAL.md`.
+Ask only what the repo cannot answer:
 
-| topic | ask | lands in |
-|---|---|---|
-| intent | Why this goal now, and what happens if it is not done? What is true when this is done, and for whom? What must not happen on the way? | Goal, Out of Scope, Decisions |
-| premise | What is the simplest thing that would also satisfy the intent, and why is that not enough? What would make a reviewer reject the result even if every check passed? | Goal, Acceptance Criteria, Constraints |
-| loop unit | What is one progress row: one issue, one feature, one file, one e2e cell? What does one row show before it counts as done? | row granularity, row `done_when` convention |
-| success criteria | What check proves the goal (command, exit code, count, artifact)? When several deliverables exist, what proves each? | Proof, Acceptance Criteria |
-| verification layers | Which of lint, unit tests, integration/e2e, agent hooks, git hooks, CI, scripts/tools exist with a working command? Propose every matching line of the `harness-layers.md` baseline as a default; which does the user accept, decline, or defer? Which missing layer must be built before feature work? Which checks run every edit, every commit, or only in the final Proof? | Verification Layers, harness rows, Decisions |
-| environment | From a fresh checkout, what installs, starts, waits for readiness, and cleans up? Which tools and secrets are required, and where do secrets come from? | Environment |
-| GitHub flow | Tracking issue: existing, new, or none? Result PR base branch, one PR or one per deliverable? The user merges unless they say otherwise. | GitHub Flow |
-| bounds and approvals | Turn or time limit? Which irreversible actions (delete, network send, publish, pay) are pre-approved and which pause for the user? | Bounds, Constraints |
-| inputs and tracking | Does any input change while the goal runs? Where do target edits get committed? | Input Stability, Target Change Tracking |
+- Intent and premise, asked open, one question at a time, each building on the last answer: why this goal now and what happens if it is not done; what is true when it is done, and for whom; what is the simplest thing that would also satisfy the intent and why it is not enough; what would make a reviewer reject the result even if every check passed. A proposed default here anchors the user to the agent's guess, which is the thing the interview exists to avoid.
+- Scope and Out of Scope.
+- Proof: propose it from the repo ("Proof A: `./run test` exit 0. Proof B: A plus the e2e lane. Which?"), then confirm. It must be self-contained: service start, readiness wait, check, cleanup.
+- Missing secrets or user-only access (credentials, hardware, a human login), which become `cannot start here` in Environment.
+- Approval to `git init` when the target is not a git repo and target edits are in scope. Otherwise commit patch/snapshot artifacts in the goal repo, or make the goal read-only.
 
-Rules for the interview:
+Rules:
 
-- Intent and premise are asked open, one question at a time, and each next question builds on the last answer. A proposed default here anchors the user to the agent's guess, which is the thing the interview exists to avoid.
-- Everything else is asked with the default inferred from the repo, so the user confirms or corrects instead of composing. Prefer concrete options once a default exists: "Proof A: `./run test` exit 0. Proof B: A plus the e2e lane. Which?"
-- Follow up on every answer once: ask how that answer would be observed (which command, output, count, or artifact) until it is a checkable sentence. An answer that cannot be observed is not settled yet.
-- Convert vague words ("improve", "features", "works") into a checkable sentence before moving on; the follow-up above is how.
-- Round 1 settles the finish line (intent, premise, loop unit, success criteria, scope). Round 2 settles how the loop runs (verification layers, environment, GitHub flow, bounds and approvals, inputs and tracking). Extra rounds only for answers that opened a new question; do not re-ask a settled topic.
-- Record every answer in `GOAL.md` Decisions as the interview goes, with the user's words quoted. Defaults the user accepted without comment are `accepted default`.
-- When a layer is missing, ask whether to build it in this goal or leave it out of the Proof. Do not silently assume either.
-- Baseline lines the user declines are recorded in Decisions with the reason, so the loop does not re-propose them and a later goal can pick them up from Out of Scope.
-- When the answer is irreversible or costly (uploads, payments, deletions, paid APIs), write the exact pre-approval into Constraints; "approved" without the target and scope is not an approval.
-- Stop interviewing when no TBD remains and the user has approved the final overview in words.
+- Follow up on each answer until it is observable by a command, output, count, or artifact. Convert vague words ("improve", "features", "works") the same way. If "several features" could mean read-only status versus remote actions, ask one tight question; do not silently pick the more invasive scope.
+- Record each answer in `GOAL.md` Decisions with the user's words quoted. Do not record defaults.
+- Stop when no TBD remains and the user approved the overview.
+
+## Defaults
+
+Apply silently and write them into `GOAL.md`; change one only when the user says so.
+
+- Loop unit: one row per real work pass. Ask only when Scope names several deliverables.
+- Acceptance Criteria: "Covered by Proof." For goals spanning several systems or deliverables, write 2-5 items instead, `- AC-n: WHEN <trigger> THE SYSTEM SHALL <observable result>. Proof: <command>`, each decidable by a command; the Proof must verify every item.
+- Verification layers and Environment commands: inferred from the repo, using the `harness-layers.md` baseline. A layer the Proof needs but the repo lacks becomes a harness row before any feature row.
+- Branches and PR bases: `goal/<tag>`, worker PRs into the goal branch, result PR into the repository default branch. Merge policy `pr-only`; `autonomous` only when the user asks.
+- Tracking issue: a new one, with a sub-issue per working row. Search first (`gh issue list --search "<keywords>" --state all`) and reuse an existing issue. No remote: `none`.
+- Bounds: none. Input stability: stable inputs; for a mutable source (feeds, logs, live APIs) edit Input Stability in `GOAL.md`.
+- Deferred actions: the list in `GOAL.md` Deferred Actions. Reversible file, Git, issue, PR, and worker operations are never per-step questions.
+- Merged worker branches and worktrees are deleted automatically by `goal_worker.py integrate`.
+
+## Special Cases
+
+- Rough operations/TODO list ("until it works", "isolated environment"): do not hand off a vague goal. Convert the list into acceptance criteria, a deterministic Proof, Scope and Out of Scope, reversible-change constraints, and a progress row per major subsystem. If the user chooses real infrastructure scope, keep the goal repo isolated and limit real host changes to narrow, reversible user-level canaries unless they approve more.
+- The user corrects the scope later: rewrite both `GOAL.md` and `progress.tsv`, remove stale acceptance criteria, rows, and phrases of the old scope, verify with a content search, and commit. Do not leave moved-out domains (security, network, production ops) as active Proof requirements.
+- Spec-driven development: use the spec system the user names instead of inventing `SPEC.md`. For GitHub Spec Kit that means `specify-cli` installed and verified through `uv`, `specify init`, and the `constitution -> specify -> plan -> tasks -> implement` flow (`/speckit.*` in slash-command agents, `$speckit-*` in Codex skills mode). A local `SPEC.md` may only be a thin note around Spec Kit outputs.
+- Recommendation, audit, research, or synthesis goals: add one semantic review item to Acceptance Criteria stating what a human-readable result must satisfy. Check that evidence examples are relevant, ranking rationale is explainable, and exclusions and gaps are named. Generic keyword matches and heading-only validators are weak evidence.
+- Behavior-changing code goals: reproduce or add a failing check first. If no suitable check exists, the first row creates the smallest test, fixture diff, or screenshot comparison.
 
 ## Harness Rows
 
-A verification layer with status `build in row N` becomes a progress row before any feature row that depends on it. Give each harness row its own `done_when` that proves the layer works on the current code: the lint runs clean or reports known findings, the test runner executes at least one test, the e2e script passes on a fixture, an agent hook passes `goal_hooks.py fire` on a sample file, a git hook refuses a sample commit with a planted failure, the environment script succeeds twice in a row. Layer-by-layer examples are in `harness-layers.md`. The Proof may only rely on a layer whose row is `done`. Prefer the repo's existing tools; add a new tool only when the repo has none for that job, and record the choice in Decisions.
+A verification layer with status `build in row N` becomes a progress row before any feature row that depends on it. Give each harness row a `done_when` that fires the layer on a sample, not one that checks a config file exists (rules in `harness-layers.md`). The Proof may only rely on a layer whose row is `done`. Prefer the repo's existing tools; record a new tool in Decisions.
 
 ## Choosing e2e Means
 
@@ -67,70 +61,22 @@ A verification layer with status `build in row N` becomes a progress row before 
 | media or render output | render on fixtures, compare to a reference | decode succeeds, dimensions and duration match, frame or audio diff within a measured tolerance |
 
 - Use the repo's existing runner when there is one. Otherwise create the smallest runner for the entry point the goal changes, and commit its fixtures.
-- Measure a tolerance before setting it: run the same input twice, record the difference, and confirm a deliberately broken control (wrong caption, missing frame) is rejected at that tolerance.
+- Measure a tolerance before setting it: run the same input twice, record the difference, and confirm a deliberately broken control is rejected at that tolerance.
 - Visual or semantic checks no script can decide get a review checklist in the repo, and the loop pastes the filled checklist as evidence.
 
-## Optional Stop Gate
+## Scaffold
 
-When the Proof is fast, deterministic, bounded, non-interactive, and non-destructive, pass it during scaffolding:
-
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/goal-plan/scripts/init_goal_plan.py --dedicated <name> --goal "<one measurable end state>" --proof-command '<exact command>'
-```
-
-This fills the generated Proof and installs the same `scripts/stop_gate.py` command hook in `.claude/settings.json` and `.codex/hooks.json`. The gate translates a failed Proof into a blocking Stop response once; `stop_hook_active` prevents an unbounded hook-only loop while `/goal` remains responsible for continued work and Bounds. Review and trust project hooks when the runtime prompts. Omit `--proof-command` for slow, flaky, costly, destructive, or human-only checks and keep them in the final Proof.
-
-## Workspace Choice
-
-- If the target is a git repo and its git/worktree may be touched, scaffold into an external git worktree under `~/.agents/goals/<YYMMDD-HHMMSS-name>`.
-- If the target is not a git repo, or target git must stay untouched, scaffold a dedicated goal repo under `~/.agents/goals/<YYMMDD-HHMMSS-name>`.
-- Dedicated goal repos track the goal ledger, not external target edits by magic.
-
-## Worktree Mode
+Worktree mode (the target is a git repo whose worktree may be touched) adds a worktree under `~/.agents/goals/<YYMMDD-HHMMSS-tag>` on the target's `goal/<tag>` branch. Dedicated-repo mode (the target is not git, or its git must stay untouched) creates `~/.agents/goals/<YYMMDD-HHMMSS-name>` as its own repo; the repo itself is the ledger.
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/goal-plan/scripts/init_goal_plan.py --worktree <tag> --goal "<one measurable end state>" [--issue N]
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/goal-plan/scripts/init_goal_plan.py --worktree <tag> --goal "<one measurable end state>" [--issue N] [--proof-command '<exact command>']
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/goal-plan/scripts/init_goal_plan.py --dedicated <name> --goal "<one measurable end state>" [--issue N] [--proof-command '<exact command>']
 ```
 
-This adds a timestamped worktree under `~/.agents/goals/<YYMMDD-HHMMSS-tag>` on the target repo's `goal/<tag>` branch, preserves the repo's `AGENTS.md`, writes the goal contract to `GOAL.md`, writes `CLAUDE.md` as `@AGENTS.md`, seeds `progress.tsv`, and prints the path.
-
-If `AGENTS.md` does not exist, the generator creates a minimal file for repo-wide rules. If `GOAL.md` or a regular `CLAUDE.md` already exists and changes, it is copied to a `.bak` file before replacement. An existing relative or absolute `CLAUDE.md` symlink to the sibling `AGENTS.md` is kept unchanged. Foreign, dangling, or cyclic links fail before scaffold writes rather than overwriting their targets.
-
-The ledger lives on the `goal/<tag>` branch, so removing the external worktree later does not lose it. The result PR is built from that branch without the scaffold files; see `github-flow.md`.
-
-## Dedicated-Repo Mode
-
-Use a short kebab-case name:
-
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/goal-plan/scripts/init_goal_plan.py --dedicated <name> --goal "<one measurable end state>"
-```
-
-Example path: `~/.agents/goals/260629-151845-llm-wiki-link-audit`.
-
-If target edits are in scope and the target is not a git repo, settle one tracking mode before the loop starts:
-
-- user approves `git init` in the target, then target commits carry code diffs;
-- target stays non-git, so each loop step commits patch/snapshot artifacts in the goal repo;
-- target is read-only, so the goal can only produce reports or external artifacts.
-
-Do not leave target code changes as the only uncommitted record unless the user explicitly chooses that risk.
-
-## Mutable Inputs
-
-For session logs, queues, feeds, calendars, live APIs, or changing folders, choose one:
-
-- snapshot the input into the goal repo or target worktree;
-- record an `as_of` cutoff and make the parser ignore newer records;
-- state that the proof is intentionally "current at proof time" and expect counts to drift.
+- Pass `--proof-command` only for a Proof that fits the Stop gate rule in `harness-layers.md`; it fills the Proof and installs the gate in `.claude/settings.json` and `.codex/hooks.json`.
+- An existing `AGENTS.md` is preserved. A changed `GOAL.md` is copied to `.bak` first. No project `CLAUDE.md` is created, because Claude Code reads `AGENTS.md` directly; an existing `CLAUDE.md` is left untouched and reported, since it makes Claude skip `AGENTS.md`.
+- The ledger lives on the `goal/<tag>` branch, so removing the external worktree later loses nothing.
 
 ## Handoff Response
 
-After the plan commit, answer with:
-
-- the goal in one sentence;
-- the plan overview: acceptance criteria, proof commands/checks, environment, verification layers with their status, GitHub flow, and the progress row summary;
-- the workspace path, branch, and plan commit hash;
-- the exact run commands: `!cd <workspace>` and the line printed by `python3 <skill>/scripts/goal_log.py condition`, which names the goal and Proof because `/goal` registers its argument verbatim. The command refuses while any `TBD`, an empty Decisions section, or an `AC-n` without `Proof:` remains, so a refusal means the interview is not finished.
-
-Do not run the loop, proof, or target edits during setup.
+After the plan commit, answer with the goal in one sentence; the plan overview (acceptance criteria, Proof, environment, verification layers with status, progress rows); the workspace path, branch, and plan commit hash; and the handoff commands `!cd <workspace>` and `/goal @GOAL.md`. Do not execute either. `python3 <skill>/scripts/goal_log.py condition` is an optional readiness check before handing off.

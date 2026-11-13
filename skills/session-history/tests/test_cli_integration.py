@@ -24,7 +24,7 @@ DATE = "2026-08-18"
 JSONL_PRODUCTS = {
     "openclaw": (".openclaw/agents/main/sessions", "OpenClaw"),
     "senpi": (".senpi/agent/sessions", "senpi"),
-    "gjc": (".gjc/agent/sessions", "gjc"),
+    "omp": (".omp/agent/sessions", "OMP"),
 }
 
 
@@ -64,7 +64,7 @@ class TestSessionHistoryCli(unittest.TestCase):
             "aside": "70000000-0000-4000-8000-000000000007",
             "openclaw": "80000000-0000-4000-8000-000000000008",
             "senpi": "a0000000-0000-4000-8000-00000000000a",
-            "gjc": "b0000000-0000-4000-8000-00000000000b",
+            "omp": "b0000000-0000-4000-8000-00000000000b",
             "copilot": "90000000-0000-4000-8000-000000000009",
         }
         self._write_claude_fixture()
@@ -692,7 +692,7 @@ class TestSessionHistoryCli(unittest.TestCase):
             "cursor": "cursor.txt",
             "openclaw": "openclaw.txt",
             "senpi": "senpi.txt",
-            "gjc": "gjc.txt",
+            "omp": "omp.txt",
             "copilot": "copilot.txt",
         }
         for tool, filename in expected.items():

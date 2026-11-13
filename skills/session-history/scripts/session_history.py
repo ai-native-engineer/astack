@@ -32,9 +32,11 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
+import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -55,7 +57,7 @@ from common import (  # noqa: E402
 
 # 하네스가 도구 호출 환경에 넣어 주는 현재 세션 ID. 검색하는 세션은 자기 검색 명령
 # 때문에 항상 걸리므로 기본 결과에서 뺀다
-CURRENT_SESSION_ENV = ("CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", "GJC_SESSION_ID")
+CURRENT_SESSION_ENV = ("CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID")
 
 # 경로를 명령 인자로 넘기므로 ARG_MAX(macOS 1MB)에 닿지 않게 나눠 부른다.
 # 세션 파일 경로는 200자 안팎이라 400개면 100KB 수준이다
@@ -284,15 +286,35 @@ def redact_shapes_only(text: str) -> str:
 
 
 def emit(text: str, args=None) -> None:
-    """출력 직전에 한 번 가리고 찍는다. `--raw`면 원문 그대로 간다.
+    """일반 텍스트를 한 번 가리고 찍는다. `--raw`면 원문 그대로 간다.
 
-    필드마다 가리면 출력 경로를 하나 늘릴 때마다 빠뜨리는 자리가 생긴다.
-    여기 한 곳을 지나게 해야 어느 서브커맨드로 나가든 같은 기준이 걸린다.
-    JSON도 이 게이트를 지난다 - 치환값에 따옴표와 역슬래시가 없어 구조가 깨지지 않는다.
+    구조화된 JSON 값은 emit_json으로 보내 직렬화 전에 가린다.
     """
     if not getattr(args, "raw", False):
         text = redact_sensitive_text(text)
     print(text)
+
+
+def redact_json_values(value):
+    """JSON의 문자열 값만 재귀적으로 가리고 키와 비문자열 값은 보존한다."""
+    if isinstance(value, str):
+        return redact_sensitive_text(value)
+    if isinstance(value, dict):
+        return {key: redact_json_values(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [redact_json_values(item) for item in value]
+    return value
+
+
+def emit_json(value, args=None) -> None:
+    """JSON 값을 가린 뒤 직렬화한다. `--raw`면 문자열도 원문을 보존한다.
+
+    직렬화한 결과는 emit을 거치지 않아 키, 숫자, 따옴표를 다시 치환하지 않는다.
+    JSON 문자열을 파싱하거나 직렬화 오류를 숨기지 않는다.
+    """
+    if not getattr(args, "raw", False):
+        value = redact_json_values(value)
+    print(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False))
 
 
 def short_id_width(session_ids, minimum: int = 12) -> int:
@@ -413,15 +435,12 @@ def cmd_list(args):
         }
 
     if getattr(args, "summary", False):
-        summary = summarize_sessions(sessions, label)
-        emit(
-            json.dumps(summary, ensure_ascii=False, indent=2)
-            if args.format == "json"
-            else format_list_summary(sessions, label),
-            args,
-        )
+        if args.format == "json":
+            emit_json(summarize_sessions(sessions, label), args)
+        else:
+            emit(format_list_summary(sessions, label), args)
     elif args.format == "json":
-        emit(json.dumps(sessions, ensure_ascii=False, indent=2), args)
+        emit_json(sessions, args)
     else:
         emit(format_list_text(sessions, label), args)
 
@@ -429,7 +448,7 @@ def cmd_list(args):
 def cmd_sources(args):
     sources = collect_sources(args.tool)
     if args.format == "json":
-        emit(json.dumps(sources, ensure_ascii=False, indent=2), args)
+        emit_json(sources, args)
     else:
         emit(format_sources_text(sources), args)
 
@@ -439,7 +458,7 @@ def cmd_timeline(args):
     cwd_filter = str(Path.cwd()) if getattr(args, "cwd", False) else None
     sessions = collect_history(args.tool, start_ms, end_ms, cwd_filter=cwd_filter)
 
-    if not sessions:
+    if not sessions and args.format != "json":
         emit(f"세션 없음 ({label})", args)
         return
 
@@ -460,7 +479,7 @@ def cmd_timeline(args):
             }
             for sid, info in sorted_sessions
         ]
-        emit(json.dumps(out, ensure_ascii=False, indent=2), args)
+        emit_json(out, args)
         return
 
     lines = [f"# 작업 타임라인 ({label})", ""]
@@ -595,7 +614,7 @@ def cmd_grep(args):
     if args.format == "json":
         if note:
             print(note, file=sys.stderr)
-        emit(json.dumps(results, ensure_ascii=False, indent=2), args)
+        emit_json(results, args)
         return
 
     command_label = "rg" if getattr(args, "command", "") == "rg" else "grep"
@@ -657,7 +676,8 @@ def cmd_grep(args):
 def find_session(session_prefix: str, tool_filter: str = "all"):
     results = []
     for adapter in iter_adapters(tool_filter):
-        for sid in adapter.session_index():
+        index = getattr(adapter, "all_session_index", adapter.session_index)
+        for sid in index():
             if sid.startswith(session_prefix):
                 results.append((adapter.TOOL, sid))
     return results
@@ -857,14 +877,7 @@ def cmd_show(args):
             print(f"세션 파일을 찾을 수 없습니다: {session_id}")
             sys.exit(1)
         if args.format == "json":
-            emit(
-                json.dumps(
-                    {"changes": changes, "bash_hints": bash_hints},
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                args,
-            )
+            emit_json({"changes": changes, "bash_hints": bash_hints}, args)
         else:
             emit(
                 format_changed_files(
@@ -894,7 +907,7 @@ def cmd_show(args):
             if matcher:
                 row["match"] = is_match
             out.append(row)
-        emit(json.dumps(out, ensure_ascii=False, indent=2), args)
+        emit_json(out, args)
         return
 
     # #번호는 모드마다 기준이 다르다(대화만 / 도구 기록 포함). 이어 읽기 명령에 기준을 박아 둔다
@@ -1027,15 +1040,37 @@ def cmd_redact(args):
         args.backup
         or Path.home() / ".local/state/session-history" / f"redact-{stamp}.tar.gz"
     ).expanduser()
-    backup.parent.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(backup, "w:gz") as tar:
+    # 백업은 마스킹 전 원본을 모은다. 원본보다 넓게 읽히면 시크릿을 한 파일에 모아 푸는 셈이다
+    backup.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        fd = os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        # 이전 백업은 그 시점 원본의 유일한 사본이라 덮어쓰지 않는다
+        raise SystemExit(f"백업 파일이 이미 있습니다. 다른 경로를 --backup으로 주세요: {backup}")
+    with os.fdopen(fd, "wb") as raw, tarfile.open(fileobj=raw, mode="w:gz") as tar:
         for path, _ in changed:
             tar.add(path, arcname=str(path).lstrip("/"))
 
     for path, masked in changed:
-        tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text(masked, encoding="utf-8")
-        tmp.replace(path)
+        original_mode = stat.S_IMODE(path.stat().st_mode)
+        # 쓰는 동안은 소유자만 읽게 열고, 교체 직전에 원본 모드로 맞춘다
+        fh = tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=".redact-",
+            suffix=".tmp",
+            delete=False,
+        )
+        tmp = Path(fh.name)
+        try:
+            with fh:
+                fh.write(masked)
+            os.chmod(tmp, original_mode)
+            tmp.replace(path)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
 
     print(f"백업: {backup}")
     print(f"치환: {len(changed)}개 파일")

@@ -3,18 +3,6 @@
 Maintainer documentation for the shared `goal-plan` skill. Runtime behavior and
 agent instructions live in `SKILL.md` and `references/`.
 
-## Design
-
-`goal-plan` keeps long-running work resumable with the smallest durable set that
-works:
-
-- `AGENTS.md` holds repository rules that remain active throughout the workspace.
-- `GOAL.md` holds the objective, proof, environment, verification layers, GitHub flow, constraints, and loop protocol. The setup interview (`references/setup.md`) fills it.
-- `CLAUDE.md` is a thin `@AGENTS.md` entrypoint for Claude Code.
-- `progress.tsv` records plan state, evidence, checkpoints, and next actions.
-- git commits preserve each accepted or discarded work pass; `scripts/goal_pr.py` turns the goal branch into the result PR without the scaffold files.
-- `goal_log.py condition` prints the `/goal` line, because `/goal` registers its argument verbatim and does not expand `@GOAL.md`.
-
 ## Sources
 
 The original `goal-workbench`, later renamed and evolved into `goal-plan`, drew

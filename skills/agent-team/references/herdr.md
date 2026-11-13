@@ -6,7 +6,7 @@
 
 - Herdr 내부의 lead와 외부의 Hermes lead를 모두 지원한다. 외부 호출자는 공용 스킬의 명시적 대상 선택 절차를 따른다. `HERDR_ENV`를 위조하거나 사용자 포커스 창을 기본 대상으로 삼지 않는다.
 - worker 하네스, 모델, 작업 경로와 담당 범위는 사용자 요청과 루트 SKILL.md를 따른다. 미지원 종류나 사용량 제한을 다른 하네스로 조용히 대체하지 않는다.
-- 공용 helper의 `worker-run`은 Codex와 Claude Code를 지원한다. AGY/GJC는 기존 하네스 지침과 설치된 `herdr agent start --help`에서 실제 지원을 확인한 뒤 네이티브 agent 명령을 사용한다. 다른 kind로 위장하거나 helper의 지원 범위를 확장해 해석하지 않는다.
+- 공용 helper의 `worker-run`은 Codex와 Claude Code를 지원한다. AGY/OMP는 기존 하네스 지침과 설치된 `herdr agent start --help`에서 실제 지원을 확인한 뒤 네이티브 agent 명령을 사용한다. 다른 kind로 위장하거나 helper의 지원 범위를 확장해 해석하지 않는다.
 - SSH 연결, 머신 등록, Hermes 설정 변경은 worker 실행과 분리한다. 현재 연결이 없으면 설치/인증 경계를 지키고 실제 장애를 보고한다.
 
 ## 실행과 회수

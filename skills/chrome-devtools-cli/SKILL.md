@@ -43,6 +43,12 @@ chrome-devtools stop       # 데몬 정지. 아래 동시 세션 절을 먼저 �
 - 쿠키와 저장소를 다른 탭과 나누지 않으려면 `new_page <url> --isolatedContext <이름>`으로 연다.
 - 페이지 명령이 `The browser is already running for <프로필>`로 실패하면 다른 chrome-devtools-mcp(다른 세션의 MCP 서버나 남은 옛 데몬)가 그 프로필을 잡고 있다. `ps -axo pid,ppid,lstart,command | grep chrome-devtools-mcp`로 주인과 시작 시각을 확인해 사용자에게 알리고, 그 프로세스를 직접 끄지 않는다. 오류 문구가 권하는 `--isolated`(임시 프로필)로 데몬을 다시 띄우는 것도 공유 데몬을 바꾸는 일이라 위 `stop` 기준을 따른다. 브라우저 한 번이면 되는 확인은 임시 `--user-data-dir`로 headless Chrome을 따로 띄워 데몬을 거치지 않는다.
 
+## 데몬 함정
+
+- `--filePath`가 데몬의 workspace root 밖이면 `Access denied`로 거부된다(`$CLAUDE_JOB_DIR`, Desktop, Downloads 포함). 스크린샷은 `--filePath` 없이 `--output-format json`으로 받으면 데몬이 자기 temp에 저장하고 그 경로를 알려 준다(Read 가능). 차트 캔버스만 볼 때는 `evaluate_script`로 `canvas.toDataURL()`을 받아 stdout을 파일로 리다이렉트한 뒤 디코딩한다.
+- `navigate_page`는 주소를 반드시 `--url <URL>`로 준다. 주소만 주면 조용히 무시되고 이전 페이지가 남아 낡은 화면을 검증하게 된다.
+- Chrome을 데몬 없이 직접 `--headless=new --screenshot`으로 부르는 경우의 함정은 `references/headless-screenshot.md`에 있다.
+
 ## 핵심 상호작용 모델: uid 기반
 
 요소를 CSS 셀렉터가 아니라 **uid**로 가리킨다. `take_snapshot`으로 a11y 트리 + 각 요소의 uid를 받고, 그 uid로 click/fill/hover 한다. 스크린샷보다 snapshot을 우선(텍스트라 토큰 효율적이고 uid를 줌).

@@ -213,22 +213,17 @@ exit(app.isActive ? 0 : 1)
 def empty_prompt(text, agent):
     lines = [line.strip() for line in text.splitlines()]
     if agent == "claude":
-        # Status lines below the editor are not part of a user's draft.
-        rules = [i for i, line in enumerate(lines) if re.fullmatch(r"[─━═]{3,}", line)]
+        # Status lines below the editor are not part of a user's draft. Claude Code may
+        # print a label such as the worktree name inside the top border.
+        rules = [i for i, line in enumerate(lines) if re.fullmatch(r"[─━═]{3,}(?: +\S(?:.*\S)? +[─━═]+)?", line)]
         if len(rules) < 2:
             return False
         body = [line for line in lines[rules[-2] + 1:rules[-1]] if line]
         return body == ["❯"]
-    if agent == "gjc":
-        starts = [i for i, line in enumerate(lines) if re.fullmatch(r"╭─+╮", line)]
-        if not starts:
-            return False
-        body = lines[starts[-1] + 1:]
-        while body and not body[-1]:
-            body.pop()
-        if len(body) != 2 or not re.fullmatch(r"╰─+╯", body[-1]):
-            return False
-        return bool(re.fullmatch(r"│ > Type your message\.\.\. (?:↩: Steer · )?⌥Q: Queue(?: \(busy\))? · [^│]*New line[^│]*│", body[0]))
+    if agent == "omp":
+        # omp draws its status bar, then the editor on a `╰─` line; any text after it is a draft.
+        body = [line for line in lines if line]
+        return len(body) >= 2 and body[-1] == "╰─" and "▶" in body[-2]
     if agent != "codex":
         return False
     prompts = [(i, re.fullmatch(r"[›»](?:[ \t]+(.*))?", line)) for i, line in enumerate(lines)]
@@ -244,31 +239,9 @@ def foreground_owners(processes, agent):
     for process in processes:
         executable = Path(process.get("argv0", process.get("name", ""))).name.lower()
         argv = process.get("argv") or []
-        scripted = agent == "gjc" and executable in {"bun", "node"} and len(argv) > 1 and Path(argv[1]).name == "gjc"
-        if executable == agent or scripted:
+        if executable == agent:
             owners.append(process)
     return owners
-
-
-def gjc_session_matches(processes, native_id):
-    # Herdr can retain an unrelated Devin ID behind GJC's custom reporter.
-    if not re.fullmatch(r"[a-zA-Z0-9_-]{1,128}", native_id):
-        return False
-    for owner in foreground_owners(processes, "gjc"):
-        cwd = owner.get("cwd")
-        if not cwd or not Path(cwd).is_absolute():
-            continue
-        path = Path(cwd) / ".gjc/state/sdk" / (native_id + ".json")
-        try:
-            info = path.lstat()
-            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
-                continue
-            data = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(data, dict) and data.get("version") == 1 and data.get("sessionId") == native_id and data.get("pid") == owner["pid"]:
-                return True
-        except (OSError, ValueError, TypeError):
-            continue
-    return False
 
 
 def digest(value):
@@ -276,7 +249,8 @@ def digest(value):
 
 
 def process_start(pid):
-    result = subprocess.run(["ps", "-p", str(pid), "-o", "lstart="], capture_output=True, text=True, check=False)
+    # `lstart` follows the caller's locale; pin it so `stop` from another shell matches the recorded value.
+    result = subprocess.run(["ps", "-p", str(pid), "-o", "lstart="], capture_output=True, text=True, check=False, env={**os.environ, "LC_ALL": "C"})
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
@@ -287,6 +261,43 @@ def normalize_payload(body, allow_empty=False):
     source_items = body.get("items", [])
     if not isinstance(source_items, list):
         raise ValueError("선택 결과는 항목 목록이어야 합니다.")
+    source_annotations = body.get("annotations", [])
+    if not isinstance(source_annotations, list):
+        raise ValueError("주석은 목록이어야 합니다.")
+    annotations, annotation_ids = [], set()
+    for annotation in source_annotations:
+        if not isinstance(annotation, dict):
+            raise ValueError("주석 형식을 확인하세요.")
+        annotation_id = annotation.get("id")
+        quote = annotation.get("quote", "")
+        note = annotation.get("note", "")
+        context = annotation.get("context", "")
+        location = annotation.get("location", "")
+        if (
+            not isinstance(annotation_id, str)
+            or not annotation_id.strip()
+            or len(annotation_id) > 64
+            or annotation_id in annotation_ids
+        ):
+            raise ValueError("주석 ID는 비어 있지 않은 고유한 값이어야 합니다.")
+        if not all(isinstance(value, str) for value in (quote, note, context, location)):
+            raise ValueError("주석의 인용, 내용, 맥락, 위치는 텍스트여야 합니다.")
+        if not quote.strip() or len(quote) > 1200:
+            raise ValueError("주석 인용은 1,200자 이내의 비어 있지 않은 텍스트여야 합니다.")
+        if not note.strip():
+            raise ValueError("주석 내용은 비어 있을 수 없습니다.")
+        if len(note) > 1000 or len(context) > 400 or len(location) > 500:
+            raise ValueError("주석 내용이나 위치가 허용 길이를 넘었습니다.")
+        annotation_ids.add(annotation_id)
+        annotations.append({
+            "id": annotation_id,
+            "quote": quote,
+            "note": note,
+            "context": context,
+            "location": location,
+        })
+    if len(annotations) > 20:
+        raise ValueError("주석은 20개까지 보낼 수 있습니다.")
     items, ids = [], set()
     for item in source_items:
         if not isinstance(item, dict):
@@ -302,10 +313,14 @@ def normalize_payload(body, allow_empty=False):
         payload["items"] = items
         # The sheet is a derived mirror of structured items, not another answer.
         payload["sheet"] = ""
+    if annotations:
+        payload["annotations"] = annotations
     strings = list(payload[key] for key in ("text", "quote", "sheet", "location"))
     for item in items:
         strings.extend([item["id"], item["label"], item["memo"], *item["values"]])
-    meaningful = payload["text"].strip() or payload["sheet"].strip() or any(item["values"] or item["memo"].strip() for item in items)
+    for annotation in annotations:
+        strings.extend(annotation.values())
+    meaningful = payload["text"].strip() or payload["sheet"].strip() or any(item["values"] or item["memo"].strip() for item in items) or any(annotation["note"].strip() for annotation in annotations)
     if not allow_empty and not meaningful:
         raise ValueError("항목을 고르거나 메모를 적어 주세요.")
     if len(json.dumps(payload, ensure_ascii=False)) > 20000 or any(re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ufffe\uffff]", value) for value in strings):
@@ -335,6 +350,15 @@ def format_reply(artifact, payload, reply_id=""):
         ET.SubElement(root, "unanswered").text = " ".join(pending)
     if payload.get("sheet", "").strip():
         ET.SubElement(root, "answers").text = payload["sheet"].strip()
+    for annotation in payload.get("annotations", []):
+        note = ET.SubElement(root, "annotation", {"id": annotation["id"]})
+        ET.SubElement(note, "quote").text = annotation["quote"].strip()
+        if annotation["note"].strip():
+            ET.SubElement(note, "comment").text = annotation["note"].strip()
+        if annotation["context"].strip():
+            ET.SubElement(note, "context").text = annotation["context"].strip()
+        if annotation["location"].strip():
+            ET.SubElement(note, "at").text = annotation["location"].strip()
     location = payload.get("location", "")
     if "#" in location:
         ET.SubElement(root, "at").text = "#" + location.split("#", 1)[1]
@@ -364,6 +388,7 @@ class Store:
                     target TEXT PRIMARY KEY, saw_working INTEGER, started REAL);
                 CREATE TABLE IF NOT EXISTS receivers (
                     artifact TEXT PRIMARY KEY, pid INTEGER, heartbeat REAL);
+                CREATE TABLE IF NOT EXISTS held_notices (reply TEXT PRIMARY KEY, noticed REAL);
             """)
             if "conversation_label" not in {row[1] for row in db.execute("PRAGMA table_info(artifacts)")}:
                 db.execute("ALTER TABLE artifacts ADD COLUMN conversation_label TEXT NOT NULL DEFAULT ''")
@@ -568,6 +593,32 @@ class Store:
                     db.execute("UPDATE replies SET state='held',detail='앞선 응답의 작업 시작을 확인하지 못했습니다. 원래 대화를 확인한 뒤 연결을 다시 확인하세요.' WHERE state='queued' AND artifact IN (SELECT id FROM artifacts WHERE endpoint=? AND agent=? AND conversation=?)", (endpoint, agent, conversation))
                     db.execute("DELETE FROM turn_gates WHERE target=?", (gate["target"],))
 
+    def blocks(self):
+        """Return each target's first unresolved reply when it is held or uncertain, with the queued replies behind it."""
+        with self.connect() as db:
+            rows = db.execute("SELECT r.id,r.state,r.detail,a.endpoint,a.agent,a.conversation,a.conversation_label,a.title FROM replies r JOIN artifacts a ON a.id=r.artifact WHERE r.state IN ('queued','held','uncertain','sending') ORDER BY r.created,r.rowid").fetchall()
+            announced = {row[0] for row in db.execute("SELECT reply FROM held_notices")}
+        heads, seen = {}, set()
+        for row in rows:
+            target = (row["endpoint"], row["agent"], row["conversation"])
+            if target in seen:
+                if target in heads and row["state"] == "queued":
+                    heads[target]["waiting"].append(row["id"])
+                continue
+            seen.add(target)
+            if row["state"] in {"held", "uncertain"}:
+                heads[target] = dict(row, waiting=[], announced=row["id"] in announced)
+        return list(heads.values())
+
+    def mark_announced(self, key):
+        with self.connect() as db:
+            db.execute("INSERT OR IGNORE INTO held_notices VALUES (?,?)", (key, time.time()))
+
+    def mark_waiting(self, keys, detail):
+        # State stays queued so ordering is unchanged; only the visible reason names the blocker.
+        with self.connect() as db:
+            db.executemany("UPDATE replies SET detail=?,updated=? WHERE id=? AND state='queued' AND detail!=?", [(detail, time.time(), key, detail) for key in keys])
+
 
 class Herdr:
     def __init__(self, endpoint, executable=None):
@@ -597,21 +648,13 @@ class Herdr:
         result = self.call("pane", "list")
         panes = result.get("panes", [])
         process_info = {}
-        if artifact["agent"] == "gjc":
-            matches = []
-            for candidate in panes:
-                if candidate.get("agent") != "gjc":
-                    continue
-                info = self.call("pane", "process-info", "--pane", candidate["pane_id"])["process_info"]
-                if gjc_session_matches(info.get("foreground_processes", []), artifact["conversation"]):
-                    matches.append(candidate)
-                    process_info[candidate["pane_id"]] = info
-        else:
-            matches = [p for p in panes if p.get("agent") == artifact["agent"]
-                       and (p.get("agent_session") or {}).get("agent") == artifact["agent"]
-                       and (p.get("agent_session") or {}).get("source") == "herdr:" + artifact["agent"]
-                       and (p.get("agent_session") or {}).get("kind") == "id"
-                       and (p.get("agent_session") or {}).get("value") == artifact["conversation"]]
+        # Claude and Codex report a native conversation ID; omp reports its session file path.
+        kind = "path" if artifact["agent"] == "omp" else "id"
+        matches = [p for p in panes if p.get("agent") == artifact["agent"]
+                   and (p.get("agent_session") or {}).get("agent") == artifact["agent"]
+                   and (p.get("agent_session") or {}).get("source") == "herdr:" + artifact["agent"]
+                   and (p.get("agent_session") or {}).get("kind") == kind
+                   and (p.get("agent_session") or {}).get("value") == artifact["conversation"]]
         if len(matches) != 1:
             raise ValueError("원래 대화를 하나로 확인할 수 없습니다. 세션 연결을 확인한 뒤 다시 시도하세요.")
         pane = matches[0]
@@ -666,8 +709,7 @@ class Herdr:
             return "queued", "원래 세션이 작업 중입니다. 입력 가능한 상태가 되면 전달합니다.", identity
         if state not in {"idle", "done"}:
             return "held", "원래 세션의 질문이나 승인 화면을 먼저 확인하세요.", identity
-        reader = "pane" if artifact["agent"] == "gjc" else "agent"
-        screen = self.call(reader, "read", pane["pane_id"], "--source", "detection", "--format", "text", "--lines", "80")
+        screen = self.call("agent", "read", pane["pane_id"], "--source", "detection", "--format", "text", "--lines", "80")
         text = screen.get("text", screen.get("output", ""))
         # Unknown prompt shapes fail closed. Never append to a draft or answer an approval.
         if not empty_prompt(text, artifact["agent"]):
@@ -675,12 +717,7 @@ class Herdr:
         return "ready", "전달할 수 있습니다.", identity
 
     def send(self, identity, message):
-        if identity[3] == "gjc":
-            # Herdr's custom agents are not agent.prompt targets. pane.run submits
-            # literal text and Enter together after native PID and draft checks.
-            self.call("pane", "run", identity[0], message)
-        else:
-            self.call("agent", "prompt", identity[0], message)
+        self.call("agent", "prompt", identity[0], message)
 
 
 def reply_text(artifact, row):
@@ -721,6 +758,75 @@ def dispatch(store, row, transport_factory=Herdr):
         store.update(row["id"], state, "전달 결과를 확인할 수 없습니다. 자동 재전송하지 않습니다." if state == "uncertain" else "Herdr 연결을 확인하지 못했습니다. 응답은 보관했습니다.")
 
 
+def announce_blocks(store, transport_factory=Herdr):
+    """Name the blocking reply on every reply queued behind it, and raise one Herdr notification per blocker."""
+    for block in store.blocks():
+        label = block["conversation_label"] or block["title"]
+        # Only held replies can be retried or cancelled; an uncertain one may already be in the conversation.
+        if block["state"] == "held":
+            reason = f"앞선 회신({label})이 보관 상태라 기다립니다. 그 회신 페이지에서 다시 보내거나 취소하면 이어서 전달합니다."
+            action, title = "회신 페이지에서 다시 보내거나 취소하세요.", f"회신 보관됨: {label}"
+        else:
+            reason = f"앞선 회신({label})의 전달 여부를 확인하지 못해 기다립니다. 원래 대화에서 그 회신이 도착했는지 확인하세요."
+            action, title = "원래 대화에서 도착 여부를 확인하세요. 자동으로 다시 보내지 않습니다.", f"회신 전달 확인 필요: {label}"
+        store.mark_waiting(block["waiting"], reason)
+        if block["announced"]:
+            continue
+        waiting = f" 뒤에 회신 {len(block['waiting'])}건이 기다립니다." if block["waiting"] else ""
+        body = f"{block['detail']}{waiting} {action}"
+        try:
+            transport_factory(block["endpoint"]).call("notification", "show", title[:80], "--body", body, "--sound", "request")
+        except (ValueError, OSError, subprocess.TimeoutExpired):
+            continue
+        store.mark_announced(block["id"])
+
+
+def tailnet_routes(port):
+    """Return the tailnet Host values `tailscale serve` proxies to this port and the node owner's login."""
+    executable = shutil.which("tailscale")
+    if not executable:
+        return set(), None
+    try:
+        serve = json.loads(subprocess.run([executable, "serve", "status", "--json"], capture_output=True, text=True, timeout=5).stdout or "{}")
+        status = json.loads(subprocess.run([executable, "status", "--json"], capture_output=True, text=True, timeout=5).stdout or "{}")
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return set(), None
+    targets = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+    hosts = set()
+    for address, web in (serve.get("Web") or {}).items():
+        if ((web.get("Handlers") or {}).get("/") or {}).get("Proxy") in targets:
+            # Browsers omit the default HTTPS port from the Host header.
+            hosts.add(address.removesuffix(":443"))
+    owner = ((status.get("User") or {}).get(str((status.get("Self") or {}).get("UserID"))) or {}).get("LoginName")
+    return hosts, owner
+
+
+class Tailnet:
+    """Admit `tailscale serve` requests only from the node owner's own devices."""
+
+    def __init__(self, port, routes=tailnet_routes):
+        self.port, self.routes = port, routes
+        self.hosts, self.owner, self.checked = set(), None, float("-inf")
+        self.lock = threading.Lock()
+
+    def allows(self, host, login):
+        # Tailscale serve strips client-sent identity headers and sets them only for
+        # untagged tailnet users; Funnel and tagged nodes arrive without a login.
+        if not host or not login:
+            return False
+        with self.lock:
+            if host not in self.hosts and time.monotonic() - self.checked > 10:
+                self.hosts, self.owner = self.routes(self.port)
+                self.checked = time.monotonic()
+            return host in self.hosts and login == self.owner
+
+
+def artifact_urls(port, artifact_id):
+    path = f"/artifact/{artifact_id}"
+    hosts = sorted(tailnet_routes(port)[0])
+    return f"http://127.0.0.1:{port}{path}", (f"https://{hosts[0]}{path}" if hosts else None)
+
+
 def serve(store, port=0, delivery=True):
     lock = (store.root / "server.lock").open("a")
     try:
@@ -735,8 +841,17 @@ def serve(store, port=0, delivery=True):
         def log_message(self, *_args):
             pass
 
-        def valid_host(self):
-            return self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}"
+        def origin(self):
+            host = self.headers.get("Host")
+            # Serve routes HTTPS by TLS SNI and forwards the client's Host unchanged, so a
+            # proxied request can claim the loopback Host. Serve always sets X-Forwarded-*;
+            # any such request must pass the owner check before the loopback exception.
+            proxied = any(self.headers.get(name) is not None for name in ("X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "Tailscale-User-Login", "Tailscale-Funnel-Request"))
+            if proxied:
+                return f"https://{host}" if tailnet.allows(host, self.headers.get("Tailscale-User-Login")) else None
+            if host == f"127.0.0.1:{self.server.server_port}":
+                return f"http://{host}"
+            return None
 
         def respond(self, data, kind="application/json", code=200):
             if not isinstance(data, bytes):
@@ -755,7 +870,7 @@ def serve(store, port=0, delivery=True):
             self.do_GET()
 
         def do_GET(self):
-            if not self.valid_host():
+            if not self.origin():
                 return self.respond({"error": "invalid host"}, code=403)
             parts = urlsplit(self.path).path.strip("/").split("/")
             try:
@@ -821,8 +936,8 @@ def serve(store, port=0, delivery=True):
                 return self.respond({"error": "자료를 읽을 수 없습니다."}, code=404)
 
         def do_POST(self):
-            origin = f"http://127.0.0.1:{self.server.server_port}"
-            if not self.valid_host() or self.headers.get("Origin") != origin or self.headers.get("X-Reply-CSRF") != nonce:
+            origin = self.origin()
+            if not origin or self.headers.get("Origin") != origin or self.headers.get("X-Reply-CSRF") != nonce:
                 return self.respond({"error": "요청 출처를 확인할 수 없습니다."}, code=403)
             try:
                 size = int(self.headers.get("Content-Length", "0"))
@@ -872,6 +987,7 @@ def serve(store, port=0, delivery=True):
             pass
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     server.daemon_threads = True
+    tailnet = Tailnet(server.server_port)
     descriptor = {"port": server.server_port, "pid": os.getpid(), "delivery": delivery, "process_start": process_start(os.getpid())}
     (store.root / "server.json").write_text(json.dumps(descriptor))
     (store.root / "server.json").chmod(0o600)
@@ -882,6 +998,7 @@ def serve(store, port=0, delivery=True):
                 store.observe_turns(Herdr)
                 for row in store.pending():
                     dispatch(store, row)
+                announce_blocks(store)
 
     threading.Thread(target=worker, daemon=True).start()
     try:
@@ -925,30 +1042,6 @@ def herdr_session_for_socket(executable, socket, env=None):
     raise ValueError(f"소켓 {socket}에 해당하는 Herdr 세션을 찾지 못했습니다. --session을 지정하세요.")
 
 
-def gjc_session_id(processes):
-    # GJC keeps its native ID only in its private SDK descriptor; the descriptor must name the foreground PID.
-    for owner in foreground_owners(processes, "gjc"):
-        cwd = owner.get("cwd")
-        if not cwd or not Path(cwd).is_absolute():
-            continue
-        folder = Path(cwd) / ".gjc/state/sdk"
-        try:
-            candidates = sorted(folder.glob("*.json"))
-        except OSError:
-            continue
-        for path in candidates:
-            try:
-                info = path.lstat()
-                if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
-                    continue
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError, TypeError):
-                continue
-            if isinstance(data, dict) and data.get("version") == 1 and data.get("pid") == owner["pid"] and data.get("sessionId") == path.stem:
-                return path.stem
-    return None
-
-
 def detect_origin(env=None):
     """Identify the Herdr session, agent and native conversation ID of the pane running this process."""
     env = env or os.environ
@@ -960,16 +1053,12 @@ def detect_origin(env=None):
     herdr = Herdr(endpoint, executable)
     pane = herdr.call("pane", "get", pane_id).get("pane", {})
     agent = pane.get("agent")
-    if agent in {"claude", "codex"}:
+    if agent in {"claude", "codex", "omp"}:
+        kind = "path" if agent == "omp" else "id"
         session = pane.get("agent_session") or {}
-        conversation = session.get("value") if session.get("kind") == "id" and session.get("source") == "herdr:" + agent else None
+        conversation = session.get("value") if session.get("kind") == kind and session.get("source") == "herdr:" + agent else None
         if not conversation:
             raise ValueError(f"패널 {pane_id}의 {agent} 대화 ID를 Herdr가 아직 모릅니다. 잠시 뒤 다시 실행하거나 --conversation을 지정하세요.")
-    elif agent == "gjc":
-        info = herdr.call("pane", "process-info", "--pane", pane_id)["process_info"]
-        conversation = gjc_session_id(info.get("foreground_processes", []))
-        if not conversation:
-            raise ValueError(f"패널 {pane_id}의 GJC 세션 descriptor를 찾지 못했습니다. --conversation을 지정하세요.")
     else:
         raise ValueError(f"패널 {pane_id}에서 에이전트를 확인하지 못했습니다(agent={agent!r}).")
     return {"endpoint": endpoint, "agent": agent, "conversation": conversation, "pane": pane_id}
@@ -994,8 +1083,9 @@ def ensure_service(store):
 
 
 def run_checks(path):
-    """Run the skill's syntax and design checks; return the failing report or None."""
+    """Run the skill's syntax and design checks; return (failing report or None, unverified syntax report or None)."""
     scripts = Path(__file__).resolve().parent
+    unverified = None
     for label, command in (("syntax", ["bash", str(scripts / "verify.sh"), "--syntax", str(path)]),
                            ("design", [sys.executable, "-I", str(scripts / "check-design.py"), str(path)])):
         result = subprocess.run(command, capture_output=True, text=True, check=False)
@@ -1003,14 +1093,19 @@ def run_checks(path):
             report = json.loads(result.stdout.strip().splitlines()[-1])
         except (ValueError, IndexError):
             report = {"ok": False, "errors": [result.stderr.strip() or f"{label} check produced no report"]}
+        # Pinned CDN scripts are allowed, so an unverified syntax report (exit 2) is
+        # reported with the page instead of blocking it; only syntax errors block.
+        if label == "syntax" and result.returncode == 2 and not report.get("errors") and report.get("unverified"):
+            unverified = report
+            continue
         if not report.get("ok"):
-            return {"check": label, "report": report}
-    return None
+            return {"check": label, "report": report}, None
+    return None, unverified
 
 
 def publish(store, args):
     path = Path(args.file).expanduser().resolve(strict=True)
-    failed = run_checks(path)
+    failed, unverified = run_checks(path)
     if failed:
         print(json.dumps({"delivery": False, "file": str(path), **failed}, ensure_ascii=False))
         return 1
@@ -1024,16 +1119,16 @@ def publish(store, args):
             origin = detect_origin()
     except (ValueError, OSError, subprocess.SubprocessError) as error:
         file_url = path.as_uri()
-        print(json.dumps({"delivery": False, "file": str(path), "file_url": file_url, "reason": str(error)}, ensure_ascii=False))
+        print(json.dumps({"delivery": False, "file": str(path), "file_url": file_url, "reason": str(error), "syntax_unverified": unverified}, ensure_ascii=False))
         if not args.no_open:
             webbrowser.open(file_url)
         return 3
     info, started = ensure_service(store)
     artifact = store.register(str(path), args.title, origin["agent"], origin["conversation"], origin["endpoint"], args.conversation_label)
-    url = f'http://127.0.0.1:{info["port"]}/artifact/{artifact["id"]}'
-    print(json.dumps({"url": url, "artifact": artifact["id"], "revision": artifact["revision"][:12], "delivery": info["delivery"],
+    url, tailnet_url = artifact_urls(info["port"], artifact["id"])
+    print(json.dumps({"url": url, "tailnet_url": tailnet_url, "artifact": artifact["id"], "revision": artifact["revision"][:12], "delivery": info["delivery"],
                       "agent": origin["agent"], "conversation": origin["conversation"], "endpoint": origin["endpoint"], "pane": origin["pane"],
-                      "service_started": started, "log": str(store.root / "service.log")}, ensure_ascii=False))
+                      "service_started": started, "log": str(store.root / "service.log"), "syntax_unverified": unverified}, ensure_ascii=False))
     if not args.no_open:
         webbrowser.open(url)
     return 0
@@ -1052,14 +1147,14 @@ def main():
     launch.add_argument("--session", required=True, help="Explicit Herdr server session, such as default")
     launch.add_argument("--conversation", required=True, help="Native conversation ID from the originating agent")
     launch.add_argument("--conversation-label", default="", help="Human-readable task name; display only, never used for routing")
-    launch.add_argument("--agent", choices=["codex", "claude", "gjc"], required=True)
+    launch.add_argument("--agent", choices=["codex", "claude", "omp"], required=True)
     launch.add_argument("--no-open", action="store_true")
     ship = sub.add_parser("publish", help="Check the page, detect this pane's conversation, start the service if needed, register and open")
     ship.add_argument("file")
     ship.add_argument("--title")
     ship.add_argument("--conversation-label", default="", help="Human-readable task name; display only")
     ship.add_argument("--session", help="Override auto-detection; requires --agent and --conversation too")
-    ship.add_argument("--agent", choices=["codex", "claude", "gjc"])
+    ship.add_argument("--agent", choices=["codex", "claude", "omp"])
     ship.add_argument("--conversation")
     ship.add_argument("--no-open", action="store_true")
     receiver = sub.add_parser("receive", help="Wait in the originating Codex tool call; returns one reply without terminal input")
@@ -1081,8 +1176,8 @@ def main():
         if not info:
             parser.error("Start serve in a managed background process first; its stdout/stderr belong in your task log.")
         artifact = store.register(args.file, args.title, args.agent, args.conversation, args.session, args.conversation_label)
-        url = f'http://127.0.0.1:{info["port"]}/artifact/{artifact["id"]}'
-        print(json.dumps({"url": url, "artifact": artifact["id"], "revision": artifact["revision"], "delivery": info["delivery"]}))
+        url, tailnet_url = artifact_urls(info["port"], artifact["id"])
+        print(json.dumps({"url": url, "tailnet_url": tailnet_url, "artifact": artifact["id"], "revision": artifact["revision"], "delivery": info["delivery"]}))
         if not args.no_open:
             webbrowser.open(url)
     elif args.command == "publish":
